@@ -1,7 +1,15 @@
 import random
+import subprocess
 import time
-
 import numpy as np
+
+dcomplex_exe = '/Users/rodrigo/repos/gadock/src/dcomplex_single_file/dcomplex'
+
+def dcomplex(pdb_f):
+    cmd = f'{dcomplex_exe} {pdb_f} A B'
+    proc = subprocess.Popen(cmd.split(), shell=False, stdout=subprocess.PIPE)
+    energ = float(proc.stdout.read().decode('utf-8').split('\n')[-2].split()[1])
+    return energ
 
 def get_coords(pdb_f):
     # read PDB and return array with all atoms
