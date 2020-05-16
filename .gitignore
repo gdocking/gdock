@@ -2,3 +2,7 @@
 *.pyc
 pdbs/*
 .idea/*
+src/dcomplex*
+rotated.pdb
+movie.pdb
+rotated.pdb

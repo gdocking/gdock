@@ -4,7 +4,7 @@ import numpy as np
 import multiprocessing
 from deap import base, creator, tools
 from pyquaternion import Quaternion
-from functions import calc_clash, timeit
+from functions import calc_clash, timeit, dcomplex
 
 
 class Population:
@@ -197,7 +197,8 @@ class GeneticAlgorithm(Population):
         :return:
         """
         rotated_pdb = 'pdbs/gd_' + '_'.join(map(str, int_list)) + '.pdb'
-        fit = calc_clash(rotated_pdb)
+        # fit = calc_clash(rotated_pdb)
+        fit = dcomplex(rotated_pdb)
         return fit
 
     @staticmethod
