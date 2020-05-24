@@ -193,7 +193,7 @@ class GeneticAlgorithm(Population):
         with open(output_f, 'w') as fh:
             for gen in self.generation_dic:
                 for ind in self.generation_dic[gen]:
-                    name = 'pdbs/gd_' + '_'.join(map(str, self.generation_dic[gen][ind][0])) + '.pdb'
+                    name = 'pdbs/gd_' + '_'.join(map("{:.2f}".format, self.generation_dic[gen][ind][0])) + '.pdb'
                     fitness = self.generation_dic[gen][ind][1][0]
                     tbw = f'{gen},{ind},{fitness},{name}\n'
                     fh.write(tbw)
