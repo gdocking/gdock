@@ -7,9 +7,7 @@ from modules.structure import PDB
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
     parser.add_argument("input")
-    parser.add_argument("npop", type=int)
-    parser.add_argument("ngen", type=int)
-    parser.add_argument("nproc", type=int)
+    parser.add_argument("--np", type=int, default=4)
     args = parser.parse_args()
 
     # 1. Load structure
@@ -25,10 +23,8 @@ if __name__ == '__main__':
     # Proof-of-concept
     # from a unbound complex, randomize the ligand initial orientation and use GA to find it again, use clash as fitness
     ga = GeneticAlgorithm('rotated.pdb',
-                          population_size=args.npop,
-                          number_of_generations=args.ngen,
                           target_chain='B',
-                          nproc = args.nproc)
+                          nproc=args.np)
     toolbox = ga.setup()
     result_dic = ga.run(toolbox)
 
