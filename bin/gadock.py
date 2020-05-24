@@ -36,7 +36,7 @@ if __name__ == '__main__':
             best = []
             for ind in result_dic[gen]:
                 seq, fitness = result_dic[gen][ind]
-                name = 'pdbs/gd_' + '_'.join(map(str, seq)) + '.pdb'
+                name = 'pdbs/gd_' + '_'.join(map("{:.2f}".format, seq)) + '.pdb'
                 best.append((name, fitness[0]))
             best.sort(key=lambda x: x[1])
             middle_index = int(len(best) / 2)
