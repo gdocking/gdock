@@ -1,6 +1,5 @@
 # GA needs to solve the Quaternion (grid position implemented later)
 import os
-from functions import calc_clash, dcomplex
 from modules.ga import GeneticAlgorithm
 from modules.structure import PDB
 
@@ -13,7 +12,7 @@ if __name__ == '__main__':
     # DEV: randomize orientation of chain B
     pdb.randomize_rotation('B')
     pdb.output('rotated.pdb')
-    print(dcomplex('target-unbound.pdb'))
+    # print(dcomplex('target-unbound.pdb'))
 
     ## Proof-of-concept
     # from a unbound complex, randomize the ligand initial orientation and use GA to find it again, use clash as fitness
