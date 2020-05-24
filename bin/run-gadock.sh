@@ -6,4 +6,4 @@
 cd /home/rodrigo/repos/gadock
 setenv PYTHONPATH ${PYTHONPATH}:`pwd`
 conda activate gadock
-python bin/gadock.py target-unbound.pdb 48 > gadock.out
+python bin/gadock.py target-unbound.pdb --np 48 > gadock.out
