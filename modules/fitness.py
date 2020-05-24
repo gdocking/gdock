@@ -9,10 +9,10 @@ ini = configparser.ConfigParser(os.environ)
 ini.read(os.path.join(etc_folder, 'gadock.ini'), encoding='utf-8')
 dockq_exe = ini.get('third_party', 'dockq_exe')
 dcomplex_exe = ini.get('third_party', 'dcomplex_exe')
+native = ini.get('reference', 'native_pdb')
 
 
 def calc_irmsd(pdb_f):
-    native = '/Users/rodrigo/repos/gadock/target-unbound.pdb'
     cmd = f'{dockq_exe} {pdb_f} {native}'
     proc = subprocess.Popen(cmd.split(), shell=False, stdout=subprocess.PIPE)
     result = proc.stdout.read().decode('utf-8')
