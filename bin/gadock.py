@@ -1,6 +1,7 @@
-# GA needs to solve the Quaternion (grid position implemented later)
+# GADock
 import argparse
 import os
+import shutil
 from modules.ga import GeneticAlgorithm
 from modules.structure import PDB
 
@@ -18,7 +19,6 @@ if __name__ == '__main__':
     # DEV: randomize orientation of chain B
     pdb.randomize_rotation('B')
     pdb.output('rotated.pdb')
-    # print(dcomplex('target-unbound.pdb'))
 
     # Proof-of-concept
     # from a unbound complex, randomize the ligand initial orientation and use GA to find it again, use clash as fitness
@@ -27,20 +27,22 @@ if __name__ == '__main__':
                           nproc=args.np)
     toolbox = ga.setup()
     result_dic = ga.run(toolbox)
+    output = ga.output('gadock.dat')
 
     # make a nice movie!
-    movie = []
-    for gen in result_dic:
-        best = []
-        for ind in result_dic[gen]:
-            seq, fitness = result_dic[gen][ind]
-            name = 'pdbs/gd_' + '_'.join(map(str, seq)) + '.pdb'
-            best.append((name, fitness[0]))
-        best.sort(key=lambda x: x[1])
-        middle_index = int(len(best) / 2)
-        movie.append(best[middle_index][0])
+    if shutil.which('pdb_mkensemble'):
+        movie = []
+        for gen in result_dic:
+            best = []
+            for ind in result_dic[gen]:
+                seq, fitness = result_dic[gen][ind]
+                name = 'pdbs/gd_' + '_'.join(map(str, seq)) + '.pdb'
+                best.append((name, fitness[0]))
+            best.sort(key=lambda x: x[1])
+            middle_index = int(len(best) / 2)
+            movie.append(best[middle_index][0])
 
-    movie_str = ' '.join(movie)
-    os.system(f'/Users/rodrigo/software/anaconda3/bin/pdb_mkensemble {movie_str} > movie.pdb')
+        movie_str = ' '.join(movie)
+        os.system(f'pdb_mkensemble {movie_str} > movie.pdb')
 
     # done :)
