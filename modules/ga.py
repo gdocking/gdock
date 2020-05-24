@@ -79,7 +79,7 @@ class Population:
         """
         arg_list = []
         for i in individuals:
-            output_fname = 'pdbs/gd_' + '_'.join(map(str, i)) + '.pdb'
+            output_fname = 'pdbs/gd_' + '_'.join(map("{:.2f}".format, i)) + '.pdb'
             if not os.path.isfile(output_fname):
                 arg_list.append((self.pioneer, i, self.chain, output_fname))
         # rotate(pdb_fname, rotation, target_chain, output_fname):
@@ -191,6 +191,18 @@ class GeneticAlgorithm(Population):
 
         return self.generation_dic
 
+    def output(self, output_f):
+        with open(output_f, 'w') as fh:
+            for gen in self.generation_dic:
+                for ind in self.generation_dic[gen]:
+                    name = 'pdbs/gd_' + '_'.join(map(str, self.generation_dic[gen][ind][0])) + '.pdb'
+                    fitness = self.generation_dic[gen][ind][1][0]
+                    tbw = f'{gen},{ind},{fitness},{name}\n'
+                    fh.write(tbw)
+                    print(tbw)
+        fh.close()
+        return True
+
     @staticmethod
     def fitness_function(int_list):
         """
@@ -198,7 +210,7 @@ class GeneticAlgorithm(Population):
         :param int_list:
         :return:
         """
-        rotated_pdb = 'pdbs/gd_' + '_'.join(map(str, int_list)) + '.pdb'
+        rotated_pdb = 'pdbs/gd_' + '_'.join(map("{:.2f}".format, int_list)) + '.pdb'
         # fit = calc_clash(rotated_pdb)
         # fit = dcomplex(rotated_pdb)
         fit = calc_irmsd(rotated_pdb)
