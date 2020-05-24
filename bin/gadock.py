@@ -6,7 +6,7 @@ from modules.structure import PDB
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument("reference")
+    parser.add_argument("input")
     parser.add_argument("npop", type=int)
     parser.add_argument("ngen", type=int)
     parser.add_argument("nproc", type=int)
@@ -14,7 +14,7 @@ if __name__ == '__main__':
 
     # 1. Load structure
     pdb = PDB()
-    pdb.load(args.reference)
+    pdb.load(args.input)
     # 2. Position
     pass
     # DEV: randomize orientation of chain B
@@ -48,5 +48,3 @@ if __name__ == '__main__':
     os.system(f'/Users/rodrigo/software/anaconda3/bin/pdb_mkensemble {movie_str} > movie.pdb')
 
     # done :)
-
-
