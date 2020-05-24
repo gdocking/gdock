@@ -34,7 +34,7 @@ class PDB:
         # self.dic[target_chain]['coord'] = list(r)
         return True
 
-    @timeit
+    # @timeit
     def randomize_rotation(self, target_chain):
         """
 
