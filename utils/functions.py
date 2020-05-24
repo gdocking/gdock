@@ -2,6 +2,7 @@ import random
 import time
 import numpy as np
 
+
 def get_coords(pdb_f):
     # read PDB and return array with all atoms
     coord = []
@@ -13,6 +14,7 @@ def get_coords(pdb_f):
                 z = float(line[47:54])
                 coord.append((x, y, z))
     return np.array(coord)
+
 
 def add_dummy(pdb_f, output_f, dummy_coord):
     new_pdb = []
@@ -34,7 +36,8 @@ def add_dummy(pdb_f, output_f, dummy_coord):
     out_fh.close()
     return True
 
-def write_coords(pdb_f,output_f, coords):
+
+def write_coords(pdb_f, output_f, coords):
     c = 0
     with open(output_f, 'w') as out_fh:
         with open(pdb_f, 'r') as ref_fh:
@@ -50,6 +53,7 @@ def write_coords(pdb_f,output_f, coords):
     out_fh.close()
     return True
 
+
 def draw_dummy(output_f, dummy_coord):
     with open(output_f, 'w') as out_fh:
         dum_x = f'{dummy_coord[0]:.3f}'.rjust(7, ' ')
@@ -59,11 +63,13 @@ def draw_dummy(output_f, dummy_coord):
         out_fh.write(dummy_line)
     out_fh.close()
 
+
 def gen_quat_seq():
     seq = []
     for i in range(4):
         seq.append(random.choice(np.arange(-1, 1, 0.1)))
     return seq
+
 
 def timeit(method):
     def timed(*args, **kw):
@@ -78,3 +84,9 @@ def timeit(method):
         return result
     return timed
 
+
+def format_coords(coord):
+    new_x = f'{coord[0]:.3f}'.rjust(7, ' ')
+    new_y = f'{coord[1]:.3f}'.rjust(7, ' ')
+    new_z = f'{coord[2]:.3f}'.rjust(7, ' ')
+    return new_x, new_y, new_z

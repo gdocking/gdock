@@ -1,8 +1,15 @@
 import subprocess
+import os
+import configparser
 import numpy as np
+from utils.files import get_full_path
 
-dcomplex_exe = '/Users/rodrigo/repos/gadock/src/dcomplex_single_file/dcomplex'
-dockq_exe = '/Users/rodrigo/repos/DockQ/DockQ.py'
+etc_folder = get_full_path('etc')
+ini = configparser.ConfigParser(os.environ)
+ini.read(os.path.join(etc_folder, 'gadock.ini'), encoding='utf-8')
+dockq_exe = ini.get('third_party', 'dockq_exe')
+dcomplex_exe = ini.get('third_party', 'dcomplex_exe')
+
 
 def calc_irmsd(pdb_f):
     native = '/Users/rodrigo/repos/gadock/target-unbound.pdb'
@@ -12,11 +19,13 @@ def calc_irmsd(pdb_f):
     irmsd = float(result.split('\n')[-6].split()[-1])
     return irmsd
 
+
 def dcomplex(pdb_f):
     cmd = f'{dcomplex_exe} {pdb_f} A B'
     proc = subprocess.Popen(cmd.split(), shell=False, stdout=subprocess.PIPE)
     energ = float(proc.stdout.read().decode('utf-8').split('\n')[-2].split()[1])
     return energ
+
 
 def calc_clash(input_pdb):
     d = {}
@@ -29,12 +38,12 @@ def calc_clash(input_pdb):
                 x = float(l[31:38])
                 y = float(l[39:46])
                 z = float(l[47:54])
-                d[chain].append((x,y,z))
+                d[chain].append((x, y, z))
     #
     distances_list = []
     for chain_x in d:
         for coord_a in d[chain_x]:
-            xa, ya, za  = coord_a
+            xa, ya, za = coord_a
             for chain_y in d:
                 if chain_x != chain_y:
                     for coord_b in d[chain_y]:
