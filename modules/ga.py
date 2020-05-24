@@ -1,3 +1,4 @@
+import glob
 import os
 import random
 import numpy as np
@@ -77,6 +78,11 @@ class Population:
 
         :param individuals:
         """
+        # Delete individuals from previous generations
+        files = glob.glob('pdbs/*pdb')
+        for f in files:
+            os.remove(f)
+
         arg_list = []
         for i in individuals:
             output_fname = 'pdbs/gd_' + '_'.join(map("{:.2f}".format, i)) + '.pdb'
@@ -186,6 +192,9 @@ class GeneticAlgorithm(Population):
 
             fitness_list = [self.generation_dic[g][f][1][0] for f in self.generation_dic[g]]
             print(f"+ Gen {str(g).rjust(2, '0')}: {np.mean(fitness_list):.2f} ± {np.std(fitness_list):.2f} [{max(fitness_list):.2f}, {min(fitness_list):.2f}]")
+
+        # save only the last generation for the future
+        self.generate_pop(pop)
 
         return self.generation_dic
 
