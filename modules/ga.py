@@ -229,7 +229,7 @@ class GeneticAlgorithm(Population):
         df = pd.DataFrame(result_l)
         df.columns = ['generation', 'individual', 'fitness', 'pdb']
 
-        pal = sns.cubehelix_palette(10, rot=-.25, light=.7)
+        pal = sns.cubehelix_palette(n_colors=len(df.generation.unique()), rot=0, light=.7, reverse=False)
         g = sns.FacetGrid(df, row="generation", hue="generation", aspect=15, height=.5, palette=pal)
         g.map(sns.kdeplot, "fitness", clip_on=False, shade=True, alpha=1, lw=1.5, bw=.2)
         g.map(sns.kdeplot, "fitness", clip_on=False, color="w", lw=2, bw=.2)
