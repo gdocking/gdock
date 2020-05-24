@@ -1,7 +1,6 @@
 import numpy as np
 from pyquaternion import Quaternion
-
-from functions import timeit
+from utils.functions import timeit, format_coords
 
 
 class PDB:
@@ -20,7 +19,7 @@ class PDB:
                     z = float(l[47:54])
                     if chain not in self.dic:
                         self.dic[chain] = {'coord': [], 'raw': []}
-                    self.dic[chain]['coord'].append((x,y,z))
+                    self.dic[chain]['coord'].append((x, y, z))
                     self.dic[chain]['raw'].append(l)
         fh.close()
         return self.dic
@@ -59,12 +58,8 @@ class PDB:
         with open(output_fname, 'w') as out_fh:
             for chain in self.dic:
                 for coord, line in zip(self.dic[chain]['coord'], self.dic[chain]['raw']):
-                    new_x = f'{coord[0]:.3f}'.rjust(7, ' ')
-                    new_y = f'{coord[1]:.3f}'.rjust(7, ' ')
-                    new_z = f'{coord[2]:.3f}'.rjust(7, ' ')
+                    new_x, new_y, new_z = format_coords(coord)
                     new_line = f'{line[:30]} {new_x} {new_y} {new_z} {line[55:]}'
                     out_fh.write(new_line)
         out_fh.close()
         return True
-
-

@@ -4,7 +4,7 @@ import numpy as np
 import multiprocessing
 from deap import base, creator, tools
 from pyquaternion import Quaternion
-from functions import timeit
+from utils.functions import timeit, format_coords
 from modules.fitness import calc_irmsd
 
 
@@ -60,9 +60,7 @@ class Population:
         with open(output_fname, 'w') as out_fh:
             for chain in pdb_dic:
                 for coord, line in zip(pdb_dic[chain]['coord'], pdb_dic[chain]['raw']):
-                    new_x = f'{coord[0]:.3f}'.rjust(7, ' ')
-                    new_y = f'{coord[1]:.3f}'.rjust(7, ' ')
-                    new_z = f'{coord[2]:.3f}'.rjust(7, ' ')
+                    new_x, new_y, new_z = format_coords(coord)
                     new_line = f'{line[:30]} {new_x} {new_y} {new_z} {line[55:]}'
                     out_fh.write(new_line)
         out_fh.close()
@@ -95,9 +93,7 @@ class Population:
         with open(output_fname, 'w') as out_fh:
             for chain in coord_dic:
                 for coord, line in zip(coord_dic[chain]['coord'], coord_dic[chain]['raw']):
-                    new_x = f'{coord[0]:.3f}'.rjust(7, ' ')
-                    new_y = f'{coord[1]:.3f}'.rjust(7, ' ')
-                    new_z = f'{coord[2]:.3f}'.rjust(7, ' ')
+                    new_x, new_y, new_z = format_coords(coord)
                     new_line = f'{line[:30]} {new_x} {new_y} {new_z} {line[55:]}'
                     out_fh.write(new_line)
         out_fh.close()
@@ -183,7 +179,7 @@ class GeneticAlgorithm(Population):
                     self.generation_dic[g][idx][1].append(fitness_v)
 
             fitness_list = [self.generation_dic[g][f][1][0] for f in self.generation_dic[g]]
-            print(f'+++ Gen {g}: {np.mean(fitness_list):.2f}')
+            print(f'+++ Gen {g}: {np.mean(fitness_list):.2f} (max: {max(fitness_list)}, min: {min(fitness_list)})')
             # print(f'Fitness: {fitness_list}')
             # print(f'Average: {np.mean(fitness_list)}')
 
