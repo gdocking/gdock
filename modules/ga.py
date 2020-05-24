@@ -206,9 +206,45 @@ class GeneticAlgorithm(Population):
                     fitness = self.generation_dic[gen][ind][1][0]
                     tbw = f'{gen},{ind},{fitness},{name}\n'
                     fh.write(tbw)
-                    print(tbw)
         fh.close()
         return True
+
+    def plot(self, plot_name):
+        import pandas as pd
+        import seaborn as sns
+        import matplotlib.pyplot as plt
+        sns.set(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
+
+        def label(x, color, label):
+            ax = plt.gca()
+            ax.text(0, .2, label, fontweight="bold", color=color,
+                    ha="left", va="center", transform=ax.transAxes)
+
+        result_l = []
+        for gen in self.generation_dic:
+            for ind in self.generation_dic[gen]:
+                name = 'pdbs/gd_' + '_'.join(map("{:.2f}".format, self.generation_dic[gen][ind][0])) + '.pdb'
+                fitness = self.generation_dic[gen][ind][1][0]
+                result_l.append((gen, ind, fitness,name))
+        df = pd.DataFrame(result_l)
+        df.columns = ['generation', 'individual', 'fitness', 'pdb']
+
+        pal = sns.cubehelix_palette(10, rot=-.25, light=.7)
+        g = sns.FacetGrid(df, row="generation", hue="generation", aspect=15, height=.5, palette=pal)
+        g.map(sns.kdeplot, "fitness", clip_on=False, shade=True, alpha=1, lw=1.5, bw=.2)
+        g.map(sns.kdeplot, "fitness", clip_on=False, color="w", lw=2, bw=.2)
+        g.map(plt.axhline, y=0, lw=2, clip_on=False)
+
+        g.map(label, "fitness")
+        # Set the subplots to overlap
+        g.fig.subplots_adjust(hspace=-.25)
+
+        # Remove axes details that don't play well with overlap
+        g.set_titles("")
+        g.set(yticks=[])
+        g.despine(bottom=True, left=True)
+        plt.savefig(plot_name)
+
 
     @staticmethod
     def fitness_function(int_list):

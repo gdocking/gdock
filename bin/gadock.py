@@ -28,5 +28,6 @@ if __name__ == '__main__':
     toolbox = ga.setup()
     result_dic = ga.run(toolbox)
     output = ga.output('gadock.dat')
+    plot = ga.plot('plot.png')
 
     # done :)
