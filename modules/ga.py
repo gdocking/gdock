@@ -185,7 +185,7 @@ class GeneticAlgorithm(Population):
                     self.generation_dic[g][idx][1].append(fitness_v)
 
             fitness_list = [self.generation_dic[g][f][1][0] for f in self.generation_dic[g]]
-            print(f'+++ Gen {g}: {np.mean(fitness_list):.2f} (max: {max(fitness_list)}, min: {min(fitness_list)})')
+            print(f'+++ Gen {g}: {np.mean(fitness_list):.2f} (max: {max(fitness_list):.2f}, min: {min(fitness_list):.2f})')
             # print(f'Fitness: {fitness_list}')
             # print(f'Average: {np.mean(fitness_list)}')
 
