@@ -4,7 +4,8 @@ import numpy as np
 import multiprocessing
 from deap import base, creator, tools
 from pyquaternion import Quaternion
-from functions import calc_clash, timeit, dcomplex
+from functions import timeit
+from modules.fitness import calc_irmsd
 
 
 class Population:
@@ -41,7 +42,7 @@ class Population:
                     z = float(l[47:54])
                     if chain not in pdb_dic:
                         pdb_dic[chain] = {'coord': [], 'raw': []}
-                    pdb_dic[chain]['coord'].append((x,y,z))
+                    pdb_dic[chain]['coord'].append((x, y, z))
                     pdb_dic[chain]['raw'].append(l)
 
         # rotate
@@ -68,7 +69,7 @@ class Population:
 
         return output_fname
 
-    @timeit
+    # @timeit
     def generate_pop(self, individuals):
         """
 
@@ -81,7 +82,7 @@ class Population:
                 arg_list.append((self.pioneer, i, self.chain, output_fname))
         # rotate(pdb_fname, rotation, target_chain, output_fname):
         pool = multiprocessing.Pool(processes=self.nproc)
-        results = pool.starmap(self.rotate, arg_list)
+        pool.starmap(self.rotate, arg_list)
 
     @staticmethod
     def output(coord_dic, output_fname):
@@ -101,6 +102,7 @@ class Population:
                     out_fh.write(new_line)
         out_fh.close()
         return True
+
 
 class GeneticAlgorithm(Population):
 
@@ -166,7 +168,7 @@ class GeneticAlgorithm(Population):
                     del mutant.fitness.values
 
             # Generate the PDBs to be evaluated by the fitness function
-            pop_pdbs = self.generate_pop(offspring)
+            self.generate_pop(offspring)
 
             fitnesses = toolbox.map(toolbox.evaluate, offspring)
             for ind, fit in zip(offspring, fitnesses):
@@ -181,11 +183,9 @@ class GeneticAlgorithm(Population):
                     self.generation_dic[g][idx][1].append(fitness_v)
 
             fitness_list = [self.generation_dic[g][f][1][0] for f in self.generation_dic[g]]
-            print(f'+++ Generation {g}')
-            print(f'Fitness: {fitness_list}')
-            print(f'Average: {np.mean(fitness_list)}')
-            print(f'Best: {min(fitness_list)}')
-
+            print(f'+++ Gen {g}: {np.mean(fitness_list):.2f}')
+            # print(f'Fitness: {fitness_list}')
+            # print(f'Average: {np.mean(fitness_list)}')
 
         return self.generation_dic
 
@@ -198,7 +198,8 @@ class GeneticAlgorithm(Population):
         """
         rotated_pdb = 'pdbs/gd_' + '_'.join(map(str, int_list)) + '.pdb'
         # fit = calc_clash(rotated_pdb)
-        fit = dcomplex(rotated_pdb)
+        # fit = dcomplex(rotated_pdb)
+        fit = calc_irmsd(rotated_pdb)
         return fit
 
     @staticmethod
