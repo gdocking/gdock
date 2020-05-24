@@ -1,4 +1,3 @@
-import configparser
 import os
 import random
 import numpy as np
@@ -11,6 +10,7 @@ from utils.functions import timeit, format_coords
 from modules.fitness import calc_irmsd
 
 ga_params = toml.load(f"{get_full_path('etc')}/genetic_algorithm_params.toml")
+
 
 class Population:
     def __init__(self, pioneer, target_chain, nproc):
@@ -117,7 +117,7 @@ class GeneticAlgorithm(Population):
         self.indpb = ga_params['general']['indpb']
         self.generation_dic = {}
 
-    @timeit
+    # @timeit
     def setup(self):
         """
 
@@ -147,8 +147,6 @@ class GeneticAlgorithm(Population):
         """
 
         :param toolbox:
-        :param cxpb:
-        :param mutpb:
         :return:
         """
         pop = toolbox.population(n=self.popsize)
