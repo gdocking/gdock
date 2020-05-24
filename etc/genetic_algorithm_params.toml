@@ -1,0 +1,14 @@
+[general]
+population_size       = 100
+number_of_generations = 25
+
+crossover_probability = 0.8
+mutation_probability  = 0.2
+
+# eta – Crowding degree of the mutation.
+#   A high eta will produce a mutant resembling its parent,
+#   while a small eta will produce a solution much more different.
+eta = 0.8
+
+# Independent probability for each attribute to be exchanged.
+indpb = 0.2

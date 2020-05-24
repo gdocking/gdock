@@ -1,12 +1,16 @@
+import configparser
 import os
 import random
 import numpy as np
 import multiprocessing
+import toml as toml
 from deap import base, creator, tools
 from pyquaternion import Quaternion
+from utils.files import get_full_path
 from utils.functions import timeit, format_coords
 from modules.fitness import calc_irmsd
 
+ga_params = toml.load(f"{get_full_path('etc')}/genetic_algorithm_params.toml")
 
 class Population:
     def __init__(self, pioneer, target_chain, nproc):
@@ -102,11 +106,15 @@ class Population:
 
 class GeneticAlgorithm(Population):
 
-    def __init__(self, pioneer, population_size, number_of_generations, target_chain, nproc):
+    def __init__(self, pioneer, target_chain, nproc):
         super().__init__(pioneer, target_chain, nproc)
         # self.pop = Population(pioneer, target_chain)
-        self.popsize = population_size
-        self.ngen = number_of_generations
+        self.ngen = ga_params['general']['number_of_generations']
+        self.popsize = ga_params['general']['population_size']
+        self.cxpb = ga_params['general']['crossover_probability']
+        self.mutpb = ga_params['general']['mutation_probability']
+        self.eta = ga_params['general']['eta']
+        self.indpb = ga_params['general']['indpb']
         self.generation_dic = {}
 
     @timeit
@@ -126,7 +134,7 @@ class GeneticAlgorithm(Population):
         toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
         toolbox.register("mate", tools.cxTwoPoint)
-        toolbox.register("mutate", tools.mutPolynomialBounded, eta=0.8, low=-1, up=+1, indpb=0.2)
+        toolbox.register("mutate", tools.mutPolynomialBounded, eta=self.eta, low=-1, up=+1, indpb=self.indpb)
         toolbox.register("select", tools.selTournament, tournsize=2)
         toolbox.register("evaluate", self.fitness_function)
 
@@ -135,7 +143,7 @@ class GeneticAlgorithm(Population):
 
         return toolbox
 
-    def run(self, toolbox, cxpb=0.8, mutpb=0.2):
+    def run(self, toolbox):
         """
 
         :param toolbox:
@@ -152,14 +160,14 @@ class GeneticAlgorithm(Population):
 
             # Apply crossover on the offspring
             for child1, child2 in zip(offspring[::2], offspring[1::2]):
-                if random.random() < cxpb:
+                if random.random() < self.cxpb:
                     toolbox.mate(child1, child2)
                     del child1.fitness.values
                     del child2.fitness.values
 
             # Apply mutation on the offspring
             for mutant in offspring:
-                if random.random() < mutpb:
+                if random.random() < self.mutpb:
                     toolbox.mutate(mutant)
                     del mutant.fitness.values
 
@@ -207,4 +215,4 @@ class GeneticAlgorithm(Population):
         :return:
         """
         # generate a random float between -1 and 1
-        return round(random.choice(np.arange(start, end, 0.2)), 3)
+        return round(random.choice(np.arange(start, end, 0.1)), 3)
