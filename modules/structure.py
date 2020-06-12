@@ -1,4 +1,5 @@
 import numpy as np
+from dual_quaternions import DualQuaternion
 from pyquaternion import Quaternion
 from utils.functions import timeit, format_coords
 
@@ -33,6 +34,31 @@ class PDB:
         r += center
         # self.dic[target_chain]['coord'] = list(r)
         return True
+
+    def randomize(self, target_chain):
+        dq = DualQuaternion(Quaternion.random(), Quaternion.random())
+        c = np.array(self.dic[target_chain]['coord'])
+        center = c.mean(axis=0)
+        c -= center
+
+        r = np.array([dq.transform_point(e) for e in c])
+        r += center
+
+        self.dic[target_chain]['coord'] = list(r)
+
+        return list(r)
+
+    # def centralize(self, target_chain):
+    #     c_a = np.array(self.dic['A']['coord'])
+    #     c_b = np.array(self.dic[target_chain]['coord'])
+    #
+    #     center_a = c_a.mean(axis=0)
+    #     center_b = c_b.mean(axis=0)
+    #     c_b -= [7.657,  -0.102,  17.979]
+    #
+    #     self.dic[target_chain]['coord'] = list(c_b)
+    #
+    #     return list(c_b)
 
     # @timeit
     def randomize_rotation(self, target_chain):

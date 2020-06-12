@@ -3,16 +3,24 @@ import os
 import configparser
 import numpy as np
 from utils.files import get_full_path
+from utils.functions import get_coords
 
 etc_folder = get_full_path('etc')
 ini = configparser.ConfigParser(os.environ)
 ini.read(os.path.join(etc_folder, 'gadock.ini'), encoding='utf-8')
+native = ini.get('reference', 'native_pdb')
+
 dockq_exe = ini.get('third_party', 'dockq_exe')
 dcomplex_exe = ini.get('third_party', 'dcomplex_exe')
-native = ini.get('reference', 'native_pdb')
+contact_exe = ini.get('third_party', 'contact_exe')
 
 
 def calc_irmsd(pdb_f):
+    """
+
+    :param pdb_f:
+    :return:
+    """
     cmd = f'{dockq_exe} {pdb_f} {native}'
     proc = subprocess.Popen(cmd.split(), shell=False, stdout=subprocess.PIPE)
     result = proc.stdout.read().decode('utf-8')
@@ -21,34 +29,45 @@ def calc_irmsd(pdb_f):
 
 
 def dcomplex(pdb_f):
+    """
+
+    :param pdb_f:
+    :return:
+    """
     cmd = f'{dcomplex_exe} {pdb_f} A B'
     proc = subprocess.Popen(cmd.split(), shell=False, stdout=subprocess.PIPE)
     energ = float(proc.stdout.read().decode('utf-8').split('\n')[-2].split()[1])
     return energ
 
 
-def calc_clash(input_pdb):
-    d = {}
-    with open(input_pdb, 'r') as fh:
-        for l in fh.readlines():
-            if l.startswith('ATOM'):
-                chain = l[21]
-                if chain not in d:
-                    d[chain] = []
-                x = float(l[31:38])
-                y = float(l[39:46])
-                z = float(l[47:54])
-                d[chain].append((x, y, z))
-    #
-    distances_list = []
-    for chain_x in d:
-        for coord_a in d[chain_x]:
-            xa, ya, za = coord_a
-            for chain_y in d:
-                if chain_x != chain_y:
-                    for coord_b in d[chain_y]:
-                        xb, yb, zb = coord_b
-                        dist = np.sqrt((xa - xb) ** 2 + (ya - yb) ** 2 + (za - zb) ** 2)
-                        distances_list.append(dist)
-    clash_score = len([d for d in distances_list if d <= 4.0])
-    return clash_score
+def calc_clash(pdb_f, cutoff=2.0):
+    """
+
+    :param pdb_f:
+    :param cutoff:
+    :return:
+    """
+    cmd = f'{contact_exe} {pdb_f} {cutoff}'
+    proc = subprocess.Popen(cmd.split(), shell=False, stdout=subprocess.PIPE)
+    out = proc.stdout.read().decode('utf-8')
+    if out:
+        clash = len(out.split('\n'))
+    else:
+        clash = 0
+    return clash
+
+
+def calc_centerdistance(pdb_f):
+    """
+
+    :param pdb_f:
+    :return:
+    """
+    # calculate the distance between two centers
+    coord_a = get_coords(pdb_f, 'A')
+    coord_b = get_coords(pdb_f, 'B')
+
+    center_a = coord_a.mean(axis=0)
+    center_b = coord_b.mean(axis=0)
+    dist = np.linalg.norm(center_a - center_b)
+    return dist

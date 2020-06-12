@@ -3,20 +3,24 @@ import time
 import numpy as np
 
 
-def get_coords(pdb_f):
+def get_coords(pdb_f, target_chain=None):
     # read PDB and return array with all atoms
     coord = []
     with open(pdb_f, 'r') as fh:
         for line in fh.readlines():
             if line.startswith('ATOM'):
+                chain = line[21]
                 x = float(line[31:38])
                 y = float(line[39:46])
                 z = float(line[47:54])
-                coord.append((x, y, z))
+                if target_chain and target_chain == chain:
+                    coord.append((x, y, z))
+                elif not target_chain:
+                    coord.append((x, y, z))
     return np.array(coord)
 
 
-def add_dummy(pdb_f, output_f, dummy_coord):
+def add_dummy(pdb_f, output_f, coor_list):
     new_pdb = []
     with open(pdb_f, 'r') as ref_fh:
         for line in ref_fh.readlines():
@@ -24,11 +28,12 @@ def add_dummy(pdb_f, output_f, dummy_coord):
                 new_pdb.append(line)
     ref_fh.close()
 
-    dum_x = f'{dummy_coord[0]:.3f}'.rjust(7, ' ')
-    dum_y = f'{dummy_coord[1]:.3f}'.rjust(7, ' ')
-    dum_z = f'{dummy_coord[2]:.3f}'.rjust(7, ' ')
-    dummy_line = f'ATOM    999  H   DUM X   1      {dum_x} {dum_y} {dum_z}   1.00  1.00           H  \n'
-    new_pdb.append(dummy_line)
+    for dummy_coord in coor_list:
+        dum_x = f'{dummy_coord[0]:.3f}'.rjust(7, ' ')
+        dum_y = f'{dummy_coord[1]:.3f}'.rjust(7, ' ')
+        dum_z = f'{dummy_coord[2]:.3f}'.rjust(7, ' ')
+        dummy_line = f'ATOM    999  H   DUM X   1     {dum_x} {dum_y} {dum_z}  1.00  1.00           H  \n'
+        new_pdb.append(dummy_line)
 
     with open(output_f, 'w') as out_fh:
         for line in new_pdb:
@@ -90,3 +95,14 @@ def format_coords(coord):
     new_y = f'{coord[1]:.3f}'.rjust(7, ' ')
     new_z = f'{coord[2]:.3f}'.rjust(7, ' ')
     return new_x, new_y, new_z
+
+def add_dummy_center(pdbf):
+    coord_a = get_coords(pdbf, 'A')
+    coord_b = get_coords(pdbf, 'B')
+
+    center_a = coord_a.mean(axis=0)
+    center_b = coord_b.mean(axis=0)
+
+    add_dummy(f'{pdbf}', f'{pdbf}_', [center_a, center_b])
+
+    return f'{pdbf}_'
