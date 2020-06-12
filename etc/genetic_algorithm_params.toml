@@ -5,7 +5,7 @@ number_of_generations = 25
 crossover_probability = 0.6
 mutation_probability  = 0.4
 
-# eta – Crowding degree of the mutation.
+# eta - Crowding degree of the mutation.
 #   A high eta will produce a mutant resembling its parent,
 #   while a small eta will produce a solution much more different.
 eta = 0.8

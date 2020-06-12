@@ -1,3 +1,4 @@
+*.pdb
 *.pyc
 pdbs/*
 .idea/*

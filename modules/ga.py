@@ -5,10 +5,11 @@ import numpy as np
 import multiprocessing
 import toml as toml
 from deap import base, creator, tools
+from dual_quaternions import DualQuaternion
 from pyquaternion import Quaternion
 from utils.files import get_full_path
 from utils.functions import timeit, format_coords
-from modules.fitness import calc_irmsd
+from modules.fitness import calc_irmsd, calc_clash, calc_centerdistance
 
 ga_params = toml.load(f"{get_full_path('etc')}/genetic_algorithm_params.toml")
 
@@ -28,7 +29,7 @@ class Population:
             os.mkdir('pdbs/')
 
     @staticmethod
-    def rotate(pdb_fname, rotation, target_chain, output_fname):
+    def rotate(pdb_fname, q, target_chain, output_fname):
         """
 
         :param pdb_fname:
@@ -50,17 +51,29 @@ class Population:
                     pdb_dic[chain]['coord'].append((x, y, z))
                     pdb_dic[chain]['raw'].append(l)
 
-        # rotate
-        q = Quaternion(rotation)
+        # transform
+        dq = DualQuaternion.from_dq_array(q)
+        rot_q = Quaternion(dq.quat_pose_array()[:4])
+        transl = dq.quat_pose_array()[4:]
         c = np.array(pdb_dic[target_chain]['coord'])
         center = c.mean(axis=0)
         c -= center
-        r = np.array([q.rotate(e) for e in c])
+        r = np.array([rot_q.rotate(e) for e in c])
+        r -= transl
         r += center
         pdb_dic[target_chain]['coord'] = list(r)
 
-        # translate
-        pass
+        # # rotate
+        # q = Quaternion(rotation)
+        # c = np.array(pdb_dic[target_chain]['coord'])
+        # center = c.mean(axis=0)
+        # c -= center
+        # r = np.array([q.rotate(e) for e in c])
+        # r += center
+        # pdb_dic[target_chain]['coord'] = list(r)
+        #
+        # # translate
+        # pass
 
         with open(output_fname, 'w') as out_fh:
             for chain in pdb_dic:
@@ -73,15 +86,16 @@ class Population:
         return output_fname
 
     # @timeit
-    def generate_pop(self, individuals):
+    def generate_pop(self, individuals, clean=True):
         """
 
         :param individuals:
         """
-        # Delete individuals from previous generations
-        files = glob.glob('pdbs/*pdb')
-        for f in files:
-            os.remove(f)
+        if clean:
+            # Delete individuals from previous generations
+            files = glob.glob('pdbs/*pdb')
+            for f in files:
+                os.remove(f)
 
         arg_list = []
         for i in individuals:
@@ -130,13 +144,14 @@ class GeneticAlgorithm(Population):
         :return:
         """
         # -1 will optimize towards negative
-        creator.create("FitnessMax", base.Fitness, weights=(-1.0,))
-        creator.create("Individual", list, fitness=creator.FitnessMax)
+        # creator.create("FitnessMax", base.Fitness, weights=(-1.0,))
+        creator.create("FitnessMulti", base.Fitness, weights=(-0.8, -0.5, -1.0))
+        creator.create("Individual", list, fitness=creator.FitnessMulti)
 
         # Individual and population functions
         toolbox = base.Toolbox()
         toolbox.register("attr_int", self.generate_individual, -1, 1)
-        toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_int, n=4)
+        toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_int, n=8)
         toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
         toolbox.register("mate", tools.cxTwoPoint)
@@ -152,8 +167,8 @@ class GeneticAlgorithm(Population):
     def run(self, toolbox):
         """
 
-        :param toolbox:
-        :return:
+        :param toolbox: DEAP toolbox object
+        :return: dictionary {generation: [individual, (score1, score2, ...)]}
         """
         pop = toolbox.population(n=self.popsize)
         for g in range(self.ngen):
@@ -176,11 +191,11 @@ class GeneticAlgorithm(Population):
                     del mutant.fitness.values
 
             # Generate the PDBs to be evaluated by the fitness function
-            self.generate_pop(offspring)
+            self.generate_pop(offspring, clean=False)
 
             fitnesses = toolbox.map(toolbox.evaluate, offspring)
             for ind, fit in zip(offspring, fitnesses):
-                ind.fitness.values = fit, fit
+                ind.fitness.values = fit #, fit
 
             # replace the old population by the offspring
             pop[:] = offspring
@@ -190,11 +205,19 @@ class GeneticAlgorithm(Population):
                 for fitness_v in ind.fitness.values:
                     self.generation_dic[g][idx][1].append(fitness_v)
 
-            fitness_list = [self.generation_dic[g][f][1][0] for f in self.generation_dic[g]]
-            print(f"+ Gen {str(g).rjust(2, '0')}: {np.mean(fitness_list):.2f} ± {np.std(fitness_list):.2f} [{max(fitness_list):.2f}, {min(fitness_list):.2f}]")
+            irmsd_list = [self.generation_dic[g][f][1][0] for f in self.generation_dic[g]]
+            clash_list = [self.generation_dic[g][f][1][1] for f in self.generation_dic[g]]
+            dista_list = [self.generation_dic[g][f][1][2] for f in self.generation_dic[g]]
+
+            print("+" * 42)
+            print(f"+ Generation {str(g).rjust(2, '0')} ++++++++++++++++++++++++++")
+            print("+" * 42)
+            print(f"  irmsd: {np.mean(irmsd_list):.2f} ± {np.std(irmsd_list):.2f} [{max(irmsd_list):.2f}, {min(irmsd_list):.2f}]")
+            print(f"  clash: {np.mean(clash_list):.2f} ± {np.std(clash_list):.2f} [{max(clash_list):.2f}, {min(clash_list):.2f}]")
+            print(f"  cdist: {np.mean(dista_list):.2f} ± {np.std(dista_list):.2f} [{max(dista_list):.2f}, {min(dista_list):.2f}]")
 
         # save only the last generation for the future
-        self.generate_pop(pop)
+        self.generate_pop(pop, clean=False)
 
         return self.generation_dic
 
@@ -210,6 +233,10 @@ class GeneticAlgorithm(Population):
         return True
 
     def plot(self, plot_name):
+        """
+
+        :type plot_name: string
+        """
         import pandas as pd
         import seaborn as sns
         import matplotlib.pyplot as plt
@@ -254,10 +281,12 @@ class GeneticAlgorithm(Population):
         :return:
         """
         rotated_pdb = 'pdbs/gd_' + '_'.join(map("{:.2f}".format, int_list)) + '.pdb'
-        # fit = calc_clash(rotated_pdb)
+        irmsd = calc_irmsd(rotated_pdb)
+        clash = calc_clash(rotated_pdb)
+        center_distance = calc_centerdistance(rotated_pdb)
         # fit = dcomplex(rotated_pdb)
-        fit = calc_irmsd(rotated_pdb)
-        return fit
+
+        return irmsd, clash, center_distance
 
     @staticmethod
     def generate_individual(start, end):
@@ -269,3 +298,5 @@ class GeneticAlgorithm(Population):
         """
         # generate a random float between -1 and 1
         return round(random.choice(np.arange(start, end, 0.1)), 3)
+
+
