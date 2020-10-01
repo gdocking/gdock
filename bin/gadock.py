@@ -1,11 +1,18 @@
 # GADock
 import argparse
-
 from modules.geometry import Geometry
 from modules.setup import Setup
 from modules.structure import PDB, Restraint
 from modules.ga import GeneticAlgorithm
-# from utils.functions import get_coords
+import logging
+
+ga_log = logging.getLogger('ga_log')
+ga_log.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+formatter = logging.Formatter( '%(asctime)s %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+ga_log.addHandler(ch)
+
 
 if __name__ == '__main__':
 
@@ -16,8 +23,10 @@ if __name__ == '__main__':
     s = Setup(args.input_file)
     if not s.validate():
         # raise GADockError
+        logging.error('Validation failed!')
         exit()
 
+    ga_log.info('Initializing')
     run_params = s.initialize()
 
     # 1. Load structure
