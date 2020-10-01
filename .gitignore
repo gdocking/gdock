@@ -3,7 +3,6 @@
 pdbs/*
 .idea/*
 src/dcomplex*
-rotated.pdb
 movie.pdb
 gadock.dat
 .DS_Store

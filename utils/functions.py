@@ -3,16 +3,18 @@ import time
 import numpy as np
 
 
-def get_coords(pdb_f, target_chain=None):
+def get_coords(pdb_f, target_chain=None, reslist=None):
     # read PDB and return array with all atoms
     coord = []
     with open(pdb_f, 'r') as fh:
         for line in fh.readlines():
             if line.startswith('ATOM'):
                 chain = line[21]
+                res = int(line[22:26])
                 x = float(line[31:38])
                 y = float(line[39:46])
                 z = float(line[47:54])
+
                 if target_chain and target_chain == chain:
                     coord.append((x, y, z))
                 elif not target_chain:
