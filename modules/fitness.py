@@ -1,4 +1,4 @@
-import subprocess
+from subprocess import Popen, PIPE
 import os
 import configparser
 import numpy as np
@@ -22,7 +22,7 @@ def calc_irmsd(pdb_f):
     :return:
     """
     cmd = f'{dockq_exe} {pdb_f} {native}'
-    proc = subprocess.Popen(cmd.split(), shell=False, stdout=subprocess.PIPE)
+    proc = Popen(cmd.split(), shell=True, stdout=PIPE)
     result = proc.stdout.read().decode('utf-8')
     irmsd = float(result.split('\n')[-6].split()[-1])
     return irmsd
@@ -35,7 +35,7 @@ def dcomplex(pdb_f):
     :return:
     """
     cmd = f'{dcomplex_exe} {pdb_f} A B'
-    proc = subprocess.Popen(cmd.split(), shell=False, stdout=subprocess.PIPE)
+    proc = Popen(cmd.split(), shell=True, stdout=PIPE)
     energ = float(proc.stdout.read().decode('utf-8').split('\n')[-2].split()[1])
     return energ
 
@@ -48,7 +48,7 @@ def calc_clash(pdb_f, cutoff=2.0):
     :return:
     """
     cmd = f'{contact_exe} {pdb_f} {cutoff}'
-    proc = subprocess.Popen(cmd.split(), shell=False, stdout=subprocess.PIPE)
+    proc = Popen(cmd.split(), shell=True, stdout=PIPE)
     out = proc.stdout.read().decode('utf-8')
     if out:
         clash = len(out.split('\n'))

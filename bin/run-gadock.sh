@@ -5,6 +5,6 @@
 #PBS -S /bin/tcsh
 
 cd /home/rodrigo/repos/gadock
-setenv PYTHONPATH ${PYTHONPATH}:`pwd`
+setenv "PYTHONPATH ${PYTHONPATH}:$(pwd)"
 conda activate gadock
 python bin/gadock.py --np 48 > gadock.out
