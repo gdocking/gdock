@@ -10,6 +10,9 @@ ga_log = logging.getLogger('ga_log')
 class PDB:
 
     def __init__(self):
+        """
+
+        """
         self.coords = {}
         self.raw_pdb = {}
 
@@ -95,6 +98,10 @@ class PDB:
 
 class Restraint:
     def __init__(self, raw_pdb):
+        """
+
+        :param raw_pdb:
+        """
         self.raw_pdb = raw_pdb
         self.coords = {}
 

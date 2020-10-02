@@ -72,7 +72,7 @@ def draw_dummy(output_f, dummy_coord):
 
 def gen_quat_seq():
     seq = []
-    for i in range(4):
+    for _ in range(4):
         seq.append(random.choice(np.arange(-1, 1, 0.1)))
     return seq
 

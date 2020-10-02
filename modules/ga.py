@@ -128,6 +128,12 @@ class Population:
 class GeneticAlgorithm(Population):
 
     def __init__(self, pioneer, target_chain, nproc):
+        """
+
+        :param pioneer:
+        :param target_chain:
+        :param nproc:
+        """
         super().__init__(pioneer, target_chain, nproc)
         # self.pop = Population(pioneer, target_chain)
         self.ngen = ga_params['general']['number_of_generations']
