@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 # from utils.functions import add_dummy, write_coords
+from utils.functions import tidy
 import logging
 ga_log = logging.getLogger('ga_log')
 
@@ -14,11 +15,15 @@ class Geometry:
         :param restraint:
         """
         self.receptor_coord = input_data.coords['A']
-        self.ligand_coord = input_data.coords['B']
+        self.receptor_pdb = input_data.raw_pdb['A']
         self.receptor_rest_coord = restraint.coords['A']
+        self.begin_receptor = ''
+        self.ligand_coord = input_data.coords['B']
+        self.ligand_pdb = input_data.raw_pdb['B']
         self.ligand_rest_coord = restraint.coords['B']
+        self.begin_ligand = ''
 
-    def initial_position(self):
+    def calc_initial_position(self):
         # calculate the geometric center of the molecule and of the restraints
         ga_log.info('Positioning molecules in starting conformation')
         r_c = np.array(self.receptor_coord)
@@ -113,8 +118,8 @@ class Geometry:
         l_c += c
         l_rest_c += c
 
-        l_center = l_c.mean(axis=0)
-        l_rest_center = l_rest_c.mean(axis=0)
+        # l_center = l_c.mean(axis=0)
+        # l_rest_center = l_rest_c.mean(axis=0)
 
         # write_coords('/Users/rodrigo/repos/gadock/dev/input/B-rot.pdb',
         #              '/Users/rodrigo/repos/gadock/dev/input/B-maybe.pdb',
@@ -124,9 +129,34 @@ class Geometry:
         #           '/Users/rodrigo/repos/gadock/dev/input/B-maybe-dummy.pdb',
         #           (l_center, l_rest_center))
 
-    @staticmethod
-    def rotate_molecule(mol, rotation_mat):
-        pass
+        self.ligand_coord = l_c
+        self.receptor_coord = r_c
+
+    def apply_transformation(self):
+        ga_log.info('Applying transformations for initial position')
+
+        ga_log.debug('Applying transformation to the receptor')
+        for coord, line in zip(self.receptor_coord, self.receptor_pdb):
+            if line.startswith('ATOM'):
+                new_x = f'{coord[0]:.3f}'.rjust(7, ' ')
+                new_y = f'{coord[1]:.3f}'.rjust(7, ' ')
+                new_z = f'{coord[2]:.3f}'.rjust(7, ' ')
+                new_line = f'{line[:30]} {new_x} {new_y} {new_z} {line[55:]}'
+                self.begin_receptor += new_line
+
+        ga_log.debug('Applying transformation to the ligand')
+        for coord, line in zip(self.ligand_coord, self.ligand_pdb):
+            if line.startswith('ATOM'):
+                new_x = f'{coord[0]:.3f}'.rjust(7, ' ')
+                new_y = f'{coord[1]:.3f}'.rjust(7, ' ')
+                new_z = f'{coord[2]:.3f}'.rjust(7, ' ')
+                new_line = f'{line[:30]} {new_x} {new_y} {new_z} {line[55:]}'
+                self.begin_ligand += new_line
+
+        tidy_complex = tidy(self.begin_receptor + self.begin_ligand)
+
+        return tidy_complex
+
 
     @staticmethod
     def calc_center(coords):

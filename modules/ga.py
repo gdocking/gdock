@@ -10,30 +10,33 @@ from pyquaternion import Quaternion
 from utils.files import get_full_path
 from utils.functions import format_coords
 from modules.fitness import calc_irmsd, calc_clash, calc_centerdistance
+import logging
+ga_log = logging.getLogger('ga_log')
 
 ga_params = toml.load(f"{get_full_path('etc')}/genetic_algorithm_params.toml")
 
 
 class Population:
-    def __init__(self, pioneer, target_chain, nproc):
+    def __init__(self, pioneer, run_params):
         """
 
         :param pioneer:
-        :param target_chain:
-        :param nproc:
+        :param run_params:
         """
-        self.pioneer = pioneer
-        self.nproc = nproc
-        self.chain = target_chain
-        if not os.path.isdir('pdbs/'):
-            os.mkdir('pdbs/')
+        self.run_params = run_params
+        self.pioneer = f"{self.run_params['folder']}/begin/pioneer.pdb"
+        with open(self.pioneer, 'w') as fh:
+            ga_log.debug(f'Saving pioneer to {self.pioneer}')
+            fh.write(pioneer)
+        self.nproc = self.run_params['np']
+        self.chain = 'B'
 
     @staticmethod
-    def rotate(pdb_fname, q, target_chain, output_fname):
+    def rotate(pdb_fname, rotation, target_chain, output_fname):
         """
 
         :param pdb_fname:
-        :param q:
+        :param rotation:
         :param target_chain:
         :param output_fname:
         :return:
@@ -51,29 +54,29 @@ class Population:
                     pdb_dic[chain]['coord'].append((x, y, z))
                     pdb_dic[chain]['raw'].append(line)
 
-        # transform
-        dq = DualQuaternion.from_dq_array(q)
-        rot_q = Quaternion(dq.quat_pose_array()[:4])
-        transl = dq.quat_pose_array()[4:]
-        c = np.array(pdb_dic[target_chain]['coord'])
-        center = c.mean(axis=0)
-        c -= center
-        r = np.array([rot_q.rotate(e) for e in c])
-        r -= transl
-        r += center
-        pdb_dic[target_chain]['coord'] = list(r)
+        # TODO: This here is the space exploration function
+        #  Implement something for the translations!
 
-        # # rotate
-        # q = Quaternion(rotation)
+        # # transform
+        # dq = DualQuaternion.from_dq_array(q)
+        # rot_q = Quaternion(dq.quat_pose_array()[:4])
+        # transl = dq.quat_pose_array()[4:]
         # c = np.array(pdb_dic[target_chain]['coord'])
         # center = c.mean(axis=0)
         # c -= center
-        # r = np.array([q.rotate(e) for e in c])
+        # r = np.array([rot_q.rotate(e) for e in c])
+        # r -= transl
         # r += center
         # pdb_dic[target_chain]['coord'] = list(r)
-        #
-        # # translate
-        # pass
+
+        # rotate
+        q = Quaternion(rotation)
+        c = np.array(pdb_dic[target_chain]['coord'])
+        center = c.mean(axis=0)
+        c -= center
+        r = np.array([q.rotate(e) for e in c])
+        r += center
+        pdb_dic[target_chain]['coord'] = list(r)
 
         with open(output_fname, 'w') as out_fh:
             for chain in pdb_dic:
@@ -94,16 +97,16 @@ class Population:
         """
         if clean:
             # Delete individuals from previous generations
-            files = glob.glob('pdbs/*pdb')
+            files = glob.glob('gen/*pdb')
             for f in files:
                 os.remove(f)
 
         arg_list = []
         for i in individuals:
-            output_fname = 'pdbs/gd_' + '_'.join(map("{:.2f}".format, i)) + '.pdb'
+            output_fname = self.run_params['folder'] + '/gen/gd_' + '_'.join(map("{:.2f}".format, i)) + '.pdb'
             if not os.path.isfile(output_fname):
                 arg_list.append((self.pioneer, i, self.chain, output_fname))
-        # rotate(pdb_fname, rotation, target_chain, output_fname):
+        # self.rotate(self.pioneer, i, self.chain, output_fname)
         pool = multiprocessing.Pool(processes=self.nproc)
         pool.starmap(self.rotate, arg_list)
 
@@ -127,14 +130,14 @@ class Population:
 
 class GeneticAlgorithm(Population):
 
-    def __init__(self, pioneer, target_chain, nproc):
+    def __init__(self, pioneer, run_params):
         """
 
         :param pioneer:
         :param target_chain:
         :param nproc:
         """
-        super().__init__(pioneer, target_chain, nproc)
+        super().__init__(pioneer, run_params)
         # self.pop = Population(pioneer, target_chain)
         self.ngen = ga_params['general']['number_of_generations']
         self.popsize = ga_params['general']['population_size']
@@ -150,25 +153,30 @@ class GeneticAlgorithm(Population):
 
         :return:
         """
-        # -1 will optimize towards negative
-        # creator.create("FitnessMax", base.Fitness, weights=(-1.0,))
-        creator.create("FitnessMulti", base.Fitness, weights=(-0.8, -0.5, -1.0))
-        # FIXME: This is broken for some reason?
+        ga_log.debug('Creating the creator')
+
+        creator.create("FitnessMax", base.Fitness, weights=(-1.0,)) #  -1 will optimize towards negative
+        creator.create("Individual", list, fitness=creator.FitnessMax)
+
+        # keep this for the future, to apply multiple fitnesses =====
+        # creator.create("FitnessMulti", base.Fitness, weights=(-0.8, -0.5, -1.0))
         # creator.create("Individual", list, fitness=creator.FitnessMulti)
+        # =========
 
         # Individual and population functions
+        ga_log.debug('Creating the individual and population functions')
         toolbox = base.Toolbox()
         toolbox.register("attr_int", self.generate_individual, -1, 1)
-        # FIXME: This is broken for some reason?
+        toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_int, n=4)
         # toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_int, n=8)
-        # toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-        # =============#
+        toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
         toolbox.register("mate", tools.cxTwoPoint)
         toolbox.register("mutate", tools.mutPolynomialBounded, eta=self.eta, low=-1, up=+1, indpb=self.indpb)
         toolbox.register("select", tools.selTournament, tournsize=2)
         toolbox.register("evaluate", self.fitness_function)
 
+        ga_log.debug('Creating the multiprocessing pool')
         pool = multiprocessing.Pool(processes=self.nproc)
         toolbox.register("map", pool.map)
 
@@ -292,13 +300,15 @@ class GeneticAlgorithm(Population):
         :param int_list:
         :return:
         """
-        rotated_pdb = 'pdbs/gd_' + '_'.join(map("{:.2f}".format, int_list)) + '.pdb'
+        # FIXME: Need to also give the PATH to this function, somehow
+        rotated_pdb = '/Users/rodrigo/repos/gadock/dev/gen/gd_' + '_'.join(map("{:.2f}".format, int_list)) + '.pdb'
         irmsd = calc_irmsd(rotated_pdb)
-        clash = calc_clash(rotated_pdb)
-        center_distance = calc_centerdistance(rotated_pdb)
+        # clash = calc_clash(rotated_pdb)
+        # center_distance = calc_centerdistance(rotated_pdb)
         # fit = dcomplex(rotated_pdb)
+        # return irmsd, clash, center_distance
 
-        return irmsd, clash, center_distance
+        return irmsd
 
     @staticmethod
     def generate_individual(start, end):
