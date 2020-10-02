@@ -1,7 +1,13 @@
 import random
+import shutil
+import tempfile
 import time
+import subprocess
+import os
 import numpy as np
+import logging
 
+ga_log = logging.getLogger('ga_log')
 
 def get_coords(pdb_f, target_chain=None):
     # read PDB and return array with all atoms
@@ -42,6 +48,23 @@ def add_dummy(pdb_f, output_f, coor_list):
     out_fh.close()
     return True
 
+def tidy(pdb_str):
+    # save temporary file and retrieve it as string
+    tmp = tempfile.NamedTemporaryFile()
+    tmp_out = tempfile.NamedTemporaryFile()
+    with open(tmp.name, 'w') as f:
+        f.write(pdb_str)
+    cmd = f'pdb_tidy {tmp.name}'
+    ga_log.debug(f'Tidying up with command {cmd}')
+    out = open(f'{tmp_out.name}', 'w')
+    p = subprocess.Popen(cmd.split(), stdout=out, stderr=subprocess.PIPE)
+    p.communicate()
+    if not os.path.isfile(tmp.name):
+        ga_log.error('Could not tidy the pdb!')
+        exit()
+    else:
+        tidy_pdb_str = tmp_out.read()
+        return tidy_pdb_str.decode()
 
 def write_coords(pdb_f, output_f, coords):
     c = 0

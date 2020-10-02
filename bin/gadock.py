@@ -22,10 +22,10 @@ if __name__ == '__main__':
 
     ga_log.info('Setting up simulation')
     s = Setup(args.input_file)
-    if not s.validate():
-        # raise GADockError
-        ga_log.error('Validation failed!')
-        exit()
+    # if not s.validate():
+    #     # raise GADockError
+    #     ga_log.error('Validation failed!')
+    #     exit()
 
     run_params = s.initialize()
 
@@ -44,21 +44,12 @@ if __name__ == '__main__':
     # 3. Position
     ga_log.info('Loading geometry')
     geo = Geometry(input_molecules, restraints)
-    geo.initial_position()
+    geo.calc_initial_position()
+    initial_complex = geo.apply_transformation()
 
-    # input_mol['A']
-    # pass
-
-    # DEV: randomize orientation of chain B
-    # pdb.randomize_rotation('B')
-    # pdb.output('init.pdb')
-
-    # pdb.prepare_cell() # cell = grid
-
-    # 3. Run GA
-    ga = GeneticAlgorithm('examples/init.pdb',
-                          target_chain='B',
-                          nproc=args.np)
+    # 4. Run GA
+    ga_log.info('Loading Genetic Algorithm')
+    ga = GeneticAlgorithm(initial_complex, run_params=run_params)
     toolbox = ga.setup()
     result_dic = ga.run(toolbox)
     output = ga.output('gadock.dat')

@@ -106,7 +106,7 @@ class Restraint:
         self.coords = {}
 
     def load(self, restraint, identifier):
-        ga_log.debug(f'Loading restraints {restraint}, {identifier}')
+        ga_log.debug(f'Loading restraints {identifier}, {restraint}')
         if identifier not in self.coords:
             self.coords[identifier] = []
 

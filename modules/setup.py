@@ -40,6 +40,16 @@ class Setup:
             ga_log.debug(f'Copying {mol_b}')
             shutil.copy(mol_b, input_folder)
 
+        begin_folder = f'{identifier_folder}/begin'
+        if not os.path.isdir(begin_folder):
+            ga_log.debug(f'Creating begin folder {begin_folder}')
+            os.mkdir(begin_folder)
+
+        gen_folder = f'{identifier_folder}/gen'
+        if not os.path.isdir(gen_folder):
+            ga_log.debug(f'Creating gen folder {gen_folder}')
+            os.mkdir(gen_folder)
+
         run_params['folder'] = run_path
         run_params['mol_a'] = f'{run_path}/input/{mol_a}'
         run_params['mol_b'] = f'{run_path}/input/{mol_b}'
