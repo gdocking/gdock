@@ -3,7 +3,9 @@
 # from pyquaternion import Quaternion
 # from utils.functions import timeit, format_coords
 import logging
+
 ga_log = logging.getLogger('ga_log')
+
 
 class PDB:
 
@@ -14,18 +16,18 @@ class PDB:
     def load(self, pdb_f):
         ga_log.debug(f'Loading {pdb_f}')
         with open(pdb_f, 'r') as fh:
-            for l in fh.readlines():
-                if l.startswith('ATOM'):
-                    chain = l[21]
-                    if not chain in self.coords:
+            for line in fh.readlines():
+                if line.startswith('ATOM'):
+                    chain = line[21]
+                    if chain not in self.coords:
                         self.coords[chain] = []
-                    if not chain in self.raw_pdb:
+                    if chain not in self.raw_pdb:
                         self.raw_pdb[chain] = []
-                    x = float(l[31:38])
-                    y = float(l[39:46])
-                    z = float(l[47:54])
+                    x = float(line[31:38])
+                    y = float(line[39:46])
+                    z = float(line[47:54])
                     self.coords[chain].append((x, y, z))
-                    self.raw_pdb[chain].append(l)
+                    self.raw_pdb[chain].append(line)
         fh.close()
 
     # def rotate(self, target_chain, rotation):
@@ -90,20 +92,21 @@ class PDB:
     #     out_fh.close()
     #     return True
 
-class Restraint():
+
+class Restraint:
     def __init__(self, raw_pdb):
         self.raw_pdb = raw_pdb
         self.coords = {}
 
     def load(self, restraint, identifier):
         ga_log.debug(f'Loading restraints {restraint}, {identifier}')
-        if not identifier in self.coords:
+        if identifier not in self.coords:
             self.coords[identifier] = []
 
-        for l in self.raw_pdb[identifier]:
-            resnum = int(l[22:26])
+        for line in self.raw_pdb[identifier]:
+            resnum = int(line[22:26])
             if resnum in restraint:
-                x = float(l[31:38])
-                y = float(l[39:46])
-                z = float(l[47:54])
-                self.coords[identifier].append((x,y,z))
+                x = float(line[31:38])
+                y = float(line[39:46])
+                z = float(line[47:54])
+                self.coords[identifier].append((x, y, z))
