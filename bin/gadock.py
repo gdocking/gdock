@@ -7,7 +7,7 @@ from modules.ga import GeneticAlgorithm
 import logging
 
 ga_log = logging.getLogger('ga_log')
-ga_log.setLevel(logging.DEBUG)
+ga_log.setLevel(logging.INFO)
 ch = logging.StreamHandler()
 formatter = logging.Formatter(' %(asctime)s %(module)s:%(lineno)d %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
@@ -45,14 +45,15 @@ if __name__ == '__main__':
     ga_log.info('Loading geometry')
     geo = Geometry(input_molecules, restraints)
     geo.calc_initial_position()
+    ligand_grid = geo.calc_ligand_grid()
     initial_complex = geo.apply_transformation()
 
     # 4. Run GA
     ga_log.info('Loading Genetic Algorithm')
-    ga = GeneticAlgorithm(initial_complex, run_params=run_params)
-    toolbox = ga.setup()
-    result_dic = ga.run(toolbox)
-    output = ga.output('gadock.dat')
+    ga = GeneticAlgorithm(initial_complex, ligand_grid, run_params=run_params)
+    ga.setup()
+    result_dic = ga.run()
+    # output = ga.output('gadock.dat')
     # plot = ga.plot('plot.png')
 
     # done :)
