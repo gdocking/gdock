@@ -8,6 +8,11 @@ ga_log = logging.getLogger('ga_log')
 class Geometry:
 
     def __init__(self, input_data, restraint):
+        """
+
+        :param input_data:
+        :param restraint:
+        """
         self.receptor_coord = input_data.coords['A']
         self.ligand_coord = input_data.coords['B']
         self.receptor_rest_coord = restraint.coords['A']
