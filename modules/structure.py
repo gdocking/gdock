@@ -1,8 +1,9 @@
-import numpy as np
-from dual_quaternions import DualQuaternion
-from pyquaternion import Quaternion
-from utils.functions import timeit, format_coords
-
+# import numpy as np
+# from dual_quaternions import DualQuaternion
+# from pyquaternion import Quaternion
+# from utils.functions import timeit, format_coords
+import logging
+ga_log = logging.getLogger('ga_log')
 
 class PDB:
 
@@ -11,7 +12,7 @@ class PDB:
         self.raw_pdb = {}
 
     def load(self, pdb_f):
-        #
+        ga_log.debug(f'Loading {pdb_f}')
         with open(pdb_f, 'r') as fh:
             for l in fh.readlines():
                 if l.startswith('ATOM'):
@@ -49,7 +50,6 @@ class PDB:
     #     self.dic[target_chain]['coord'] = list(r)
     #
     #     return list(r)
-
     # def centralize(self, target_chain):
     #     c_a = np.array(self.dic['A']['coord'])
     #     c_b = np.array(self.dic[target_chain]['coord'])
@@ -61,7 +61,6 @@ class PDB:
     #     self.dic[target_chain]['coord'] = list(c_b)
     #
     #     return list(c_b)
-
     # @timeit
     # def randomize_rotation(self, target_chain):
     #     """
@@ -81,7 +80,6 @@ class PDB:
     #     self.dic[target_chain]['coord'] = list(r)
     #
     #     return list(r)
-
     # def output(self, output_fname):
     #     with open(output_fname, 'w') as out_fh:
     #         for chain in self.dic:
@@ -98,6 +96,7 @@ class Restraint():
         self.coords = {}
 
     def load(self, restraint, identifier):
+        ga_log.debug(f'Loading restraints {restraint}, {identifier}')
         if not identifier in self.coords:
             self.coords[identifier] = []
 

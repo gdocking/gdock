@@ -1,8 +1,8 @@
 import os
 import shutil
-
 import toml
-
+import logging
+ga_log = logging.getLogger('ga_log')
 
 class Setup:
     def __init__(self, toml_file):
@@ -17,16 +17,23 @@ class Setup:
         run_params = {}
         identifier_folder = self.input_params['main']['identifier']
         run_path = f'{os.getcwd()}/{identifier_folder}'
-
+        ga_log.info('Initializing')
+        ga_log.debug(f'Run path: {run_path}')
+        ga_log.debug(f'Run folder: {identifier_folder}')
         if not os.path.isdir(identifier_folder):
             os.mkdir(identifier_folder)
 
         mol_a = self.input_params['molecules']['A'].split('/')[-1]
         mol_b = self.input_params['molecules']['B'].split('/')[-1]
         input_folder = f'{identifier_folder}/input'
+
+        ga_log.info('Copying input molecules to run folder')
         if not os.path.isdir(input_folder):
+            ga_log.debug(f'Creating input folder: {input_folder}')
             os.mkdir(input_folder)
+            ga_log.debug(f'Copying {mol_a}')
             shutil.copy(mol_a, input_folder)
+            ga_log.debug(f'Copying {mol_b}')
             shutil.copy(mol_b, input_folder)
 
         run_params['folder'] = run_path
