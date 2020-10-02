@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #PBS -N gadock
 #PBS -q medium
 #PBS -l nodes=1:ppn=48

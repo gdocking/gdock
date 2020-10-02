@@ -3,14 +3,13 @@ import time
 import numpy as np
 
 
-def get_coords(pdb_f, target_chain=None, reslist=None):
+def get_coords(pdb_f, target_chain=None):
     # read PDB and return array with all atoms
     coord = []
     with open(pdb_f, 'r') as fh:
         for line in fh.readlines():
             if line.startswith('ATOM'):
                 chain = line[21]
-                res = int(line[22:26])
                 x = float(line[31:38])
                 y = float(line[39:46])
                 z = float(line[47:54])
@@ -97,6 +96,7 @@ def format_coords(coord):
     new_y = f'{coord[1]:.3f}'.rjust(7, ' ')
     new_z = f'{coord[2]:.3f}'.rjust(7, ' ')
     return new_x, new_y, new_z
+
 
 def add_dummy_center(pdbf):
     coord_a = get_coords(pdbf, 'A')

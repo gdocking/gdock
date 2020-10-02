@@ -4,11 +4,12 @@ from scipy.spatial.transform import Rotation as R
 import logging
 ga_log = logging.getLogger('ga_log')
 
+
 class Geometry:
 
-    def __init__(self, input, restraint):
-        self.receptor_coord = input.coords['A']
-        self.ligand_coord = input.coords['B']
+    def __init__(self, input_data, restraint):
+        self.receptor_coord = input_data.coords['A']
+        self.ligand_coord = input_data.coords['B']
         self.receptor_rest_coord = restraint.coords['A']
         self.ligand_rest_coord = restraint.coords['B']
 
@@ -54,13 +55,13 @@ class Geometry:
         #           '/Users/rodrigo/repos/gadock/dev/input/B-ori-dummy.pdb',
         #           (l_center,l_rest_center_c))
 
-        #====
+        # ====
         # Align the vectors between molecule center and interface
 
         a = np.array([r_center, r_rest_center_c])
         b = np.array([l_center, l_rest_center_c])
 
-        mat, rmsd = R.align_vectors(a, b)
+        mat, _ = R.align_vectors(a, b)
 
         rot_l_c = mat.apply(l_c)
         rot_l_rest_c = mat.apply(l_rest_c)
@@ -117,7 +118,6 @@ class Geometry:
         # add_dummy('/Users/rodrigo/repos/gadock/dev/input/B-maybe.pdb',
         #           '/Users/rodrigo/repos/gadock/dev/input/B-maybe-dummy.pdb',
         #           (l_center, l_rest_center))
-
 
     @staticmethod
     def rotate_molecule(mol, rotation_mat):

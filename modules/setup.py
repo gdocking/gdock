@@ -4,14 +4,14 @@ import toml
 import logging
 ga_log = logging.getLogger('ga_log')
 
+
 class Setup:
     def __init__(self, toml_file):
         self.input_params = toml.load(toml_file)
         self.data = {}
 
-    def validate(self):
-        # TODO: Implement
-        return True
+    # def validate(self):
+    #     return True
 
     def initialize(self):
         run_params = {}

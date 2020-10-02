@@ -9,7 +9,7 @@ import logging
 ga_log = logging.getLogger('ga_log')
 ga_log.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
-formatter = logging.Formatter( '%(asctime)s %(module)s:%(lineno)d %(levelname)s - %(message)s')
+formatter = logging.Formatter(' %(asctime)s %(module)s:%(lineno)d %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 ga_log.addHandler(ch)
 

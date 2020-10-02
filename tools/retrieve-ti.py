@@ -10,15 +10,16 @@ ini = configparser.ConfigParser(os.environ)
 ini.read(os.path.join(etc_folder, 'gadock.ini'), encoding='utf-8')
 contact_exe = ini.get('third_party', 'contact_exe')
 
+
 def get_ti(pdb_f, cutoff=4.9):
     ti_dic = {}
     cmd = f'{contact_exe} {pdb_f} {cutoff}'
     proc = subprocess.Popen(cmd.split(), shell=False, stdout=subprocess.PIPE)
     out = proc.stdout.read().decode('utf-8').split('\n')
-    for l in out:
-        if not l: # could be empty
+    for line in out:
+        if not line:  # could be empty
             continue
-        data = l.split()
+        data = line.split()
         res_i = int(data[0])
         chain_i = data[1]
         res_j = int(data[3])
@@ -49,4 +50,4 @@ if __name__ == '__main__':
         reslist = interface_dic[c]
         reslist.sort()
         reslist_str = ','.join(map(str, reslist))
-        print(f'{c} = [{reslist_str}]')
+        print(f'{c} = [{reslist_str}]')\

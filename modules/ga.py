@@ -8,7 +8,7 @@ from deap import base, creator, tools
 from dual_quaternions import DualQuaternion
 from pyquaternion import Quaternion
 from utils.files import get_full_path
-from utils.functions import timeit, format_coords
+from utils.functions import format_coords
 from modules.fitness import calc_irmsd, calc_clash, calc_centerdistance
 
 ga_params = toml.load(f"{get_full_path('etc')}/genetic_algorithm_params.toml")
@@ -33,23 +33,23 @@ class Population:
         """
 
         :param pdb_fname:
-        :param rotation:
+        :param q:
         :param target_chain:
         :param output_fname:
         :return:
         """
         pdb_dic = {}
         with open(pdb_fname, 'r') as fh:
-            for l in fh.readlines():
-                if l.startswith('ATOM'):
-                    chain = l[21]
-                    x = float(l[31:38])
-                    y = float(l[39:46])
-                    z = float(l[47:54])
+            for line in fh.readlines():
+                if line.startswith('ATOM'):
+                    chain = line[21]
+                    x = float(line[31:38])
+                    y = float(line[39:46])
+                    z = float(line[47:54])
                     if chain not in pdb_dic:
                         pdb_dic[chain] = {'coord': [], 'raw': []}
                     pdb_dic[chain]['coord'].append((x, y, z))
-                    pdb_dic[chain]['raw'].append(l)
+                    pdb_dic[chain]['raw'].append(line)
 
         # transform
         dq = DualQuaternion.from_dq_array(q)
@@ -90,6 +90,7 @@ class Population:
         """
 
         :param individuals:
+        :param clean:
         """
         if clean:
             # Delete individuals from previous generations
@@ -106,22 +107,22 @@ class Population:
         pool = multiprocessing.Pool(processes=self.nproc)
         pool.starmap(self.rotate, arg_list)
 
-    @staticmethod
-    def output(coord_dic, output_fname):
-        """
-
-        :param coord_dic:
-        :param output_fname:
-        :return:
-        """
-        with open(output_fname, 'w') as out_fh:
-            for chain in coord_dic:
-                for coord, line in zip(coord_dic[chain]['coord'], coord_dic[chain]['raw']):
-                    new_x, new_y, new_z = format_coords(coord)
-                    new_line = f'{line[:30]} {new_x} {new_y} {new_z} {line[55:]}'
-                    out_fh.write(new_line)
-        out_fh.close()
-        return True
+    # @staticmethod
+    # def output(coord_dic, output_fname):
+    #     """
+    #
+    #     :param coord_dic:
+    #     :param output_fname:
+    #     :return:
+    #     """
+    #     with open(output_fname, 'w') as out_fh:
+    #         for chain in coord_dic:
+    #             for coord, line in zip(coord_dic[chain]['coord'], coord_dic[chain]['raw']):
+    #                 new_x, new_y, new_z = format_coords(coord)
+    #                 new_line = f'{line[:30]} {new_x} {new_y} {new_z} {line[55:]}'
+    #                 out_fh.write(new_line)
+    #     out_fh.close()
+    #     return True
 
 
 class GeneticAlgorithm(Population):
@@ -146,13 +147,16 @@ class GeneticAlgorithm(Population):
         # -1 will optimize towards negative
         # creator.create("FitnessMax", base.Fitness, weights=(-1.0,))
         creator.create("FitnessMulti", base.Fitness, weights=(-0.8, -0.5, -1.0))
-        creator.create("Individual", list, fitness=creator.FitnessMulti)
+        # FIXME: This is broken for some reason?
+        # creator.create("Individual", list, fitness=creator.FitnessMulti)
 
         # Individual and population functions
         toolbox = base.Toolbox()
         toolbox.register("attr_int", self.generate_individual, -1, 1)
-        toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_int, n=8)
-        toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+        # FIXME: This is broken for some reason?
+        # toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_int, n=8)
+        # toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+        # =============#
 
         toolbox.register("mate", tools.cxTwoPoint)
         toolbox.register("mutate", tools.mutPolynomialBounded, eta=self.eta, low=-1, up=+1, indpb=self.indpb)
@@ -195,7 +199,7 @@ class GeneticAlgorithm(Population):
 
             fitnesses = toolbox.map(toolbox.evaluate, offspring)
             for ind, fit in zip(offspring, fitnesses):
-                ind.fitness.values = fit #, fit
+                ind.fitness.values = fit  # , fit
 
             # replace the old population by the offspring
             pop[:] = offspring
@@ -212,9 +216,12 @@ class GeneticAlgorithm(Population):
             print("+" * 42)
             print(f"+ Generation {str(g).rjust(2, '0')} ++++++++++++++++++++++++++")
             print("+" * 42)
-            print(f"  irmsd: {np.mean(irmsd_list):.2f} ± {np.std(irmsd_list):.2f} [{max(irmsd_list):.2f}, {min(irmsd_list):.2f}]")
-            print(f"  clash: {np.mean(clash_list):.2f} ± {np.std(clash_list):.2f} [{max(clash_list):.2f}, {min(clash_list):.2f}]")
-            print(f"  cdist: {np.mean(dista_list):.2f} ± {np.std(dista_list):.2f} [{max(dista_list):.2f}, {min(dista_list):.2f}]")
+            print(f"  irmsd: {np.mean(irmsd_list):.2f} ± {np.std(irmsd_list):.2f} [{max(irmsd_list):.2f},"
+                  f" {min(irmsd_list):.2f}]")
+            print(f"  clash: {np.mean(clash_list):.2f} ± {np.std(clash_list):.2f} [{max(clash_list):.2f},"
+                  f" {min(clash_list):.2f}]")
+            print(f"  cdist: {np.mean(dista_list):.2f} ± {np.std(dista_list):.2f} [{max(dista_list):.2f},"
+                  f" {min(dista_list):.2f}]")
 
         # save only the last generation for the future
         self.generate_pop(pop, clean=False)
@@ -242,9 +249,9 @@ class GeneticAlgorithm(Population):
         import matplotlib.pyplot as plt
         sns.set(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
 
-        def label(x, color, label):
+        def label(color, plot_label):
             ax = plt.gca()
-            ax.text(0, .2, label, fontweight="bold", color=color,
+            ax.text(0, .2, plot_label, fontweight="bold", color=color,
                     ha="left", va="center", transform=ax.transAxes)
 
         result_l = []
@@ -252,7 +259,7 @@ class GeneticAlgorithm(Population):
             for ind in self.generation_dic[gen]:
                 name = 'pdbs/gd_' + '_'.join(map("{:.2f}".format, self.generation_dic[gen][ind][0])) + '.pdb'
                 fitness = self.generation_dic[gen][ind][1][0]
-                result_l.append((gen, ind, fitness,name))
+                result_l.append((gen, ind, fitness, name))
         df = pd.DataFrame(result_l)
         df.columns = ['generation', 'individual', 'fitness', 'pdb']
 
@@ -271,7 +278,6 @@ class GeneticAlgorithm(Population):
         g.set(yticks=[])
         g.despine(bottom=True, left=True)
         plt.savefig(plot_name)
-
 
     @staticmethod
     def fitness_function(int_list):
@@ -298,5 +304,3 @@ class GeneticAlgorithm(Population):
         """
         # generate a random float between -1 and 1
         return round(random.choice(np.arange(start, end, 0.1)), 3)
-
-
