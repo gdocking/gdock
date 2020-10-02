@@ -5,7 +5,6 @@ import numpy as np
 import multiprocessing
 import toml as toml
 from deap import base, creator, tools
-from dual_quaternions import DualQuaternion
 from pyquaternion import Quaternion
 from utils.files import get_full_path
 from utils.functions import format_coords
@@ -17,13 +16,14 @@ ga_params = toml.load(f"{get_full_path('etc')}/genetic_algorithm_params.toml")
 
 
 class Population:
-    def __init__(self, pioneer, run_params):
+    def __init__(self, pioneer, grid, run_params):
         """
 
         :param pioneer:
         :param run_params:
         """
         self.run_params = run_params
+        self.grid = grid
         self.pioneer = f"{self.run_params['folder']}/begin/pioneer.pdb"
         with open(self.pioneer, 'w') as fh:
             ga_log.debug(f'Saving pioneer to {self.pioneer}')
@@ -32,7 +32,7 @@ class Population:
         self.chain = 'B'
 
     @staticmethod
-    def rotate(pdb_fname, rotation, target_chain, output_fname):
+    def explore(pdb_fname, individual, target_chain, output_fname, grid):
         """
 
         :param pdb_fname:
@@ -54,22 +54,17 @@ class Population:
                     pdb_dic[chain]['coord'].append((x, y, z))
                     pdb_dic[chain]['raw'].append(line)
 
-        # TODO: This here is the space exploration function
-        #  Implement something for the translations!
-
-        # # transform
-        # dq = DualQuaternion.from_dq_array(q)
-        # rot_q = Quaternion(dq.quat_pose_array()[:4])
-        # transl = dq.quat_pose_array()[4:]
-        # c = np.array(pdb_dic[target_chain]['coord'])
-        # center = c.mean(axis=0)
-        # c -= center
-        # r = np.array([rot_q.rotate(e) for e in c])
-        # r -= transl
-        # r += center
-        # pdb_dic[target_chain]['coord'] = list(r)
+        # translate
+        # TEMPORARY: Randomly move it to another grid point
+        #  this makes no sense and is here just for implementation purposes
+        c = np.array(pdb_dic[target_chain]['coord'])
+        trans_chance = individual[-1]
+        if trans_chance >= .1:
+            grid_point, grid_coord = random.choice(list(grid.items()))
+            c -= grid_coord
 
         # rotate
+        rotation = individual[:4]
         q = Quaternion(rotation)
         c = np.array(pdb_dic[target_chain]['coord'])
         center = c.mean(axis=0)
@@ -89,26 +84,22 @@ class Population:
         return output_fname
 
     # @timeit
-    def generate_pop(self, individuals, clean=True):
+    def generate_pop(self, individuals):
         """
 
         :param individuals:
         :param clean:
         """
-        if clean:
-            # Delete individuals from previous generations
-            files = glob.glob('gen/*pdb')
-            for f in files:
-                os.remove(f)
 
         arg_list = []
         for i in individuals:
             output_fname = self.run_params['folder'] + '/gen/gd_' + '_'.join(map("{:.2f}".format, i)) + '.pdb'
             if not os.path.isfile(output_fname):
-                arg_list.append((self.pioneer, i, self.chain, output_fname))
-        # self.rotate(self.pioneer, i, self.chain, output_fname)
+                arg_list.append((self.pioneer, i, self.chain, output_fname, self.grid))
+        # self.explore(self.pioneer, i, self.chain, output_fname, self.grid)
+        ga_log.debug(f'Population generation len(arg_list): {len(arg_list)} nproc: {self.nproc}')
         pool = multiprocessing.Pool(processes=self.nproc)
-        pool.starmap(self.rotate, arg_list)
+        pool.starmap(self.explore, arg_list)
 
     # @staticmethod
     # def output(coord_dic, output_fname):
@@ -130,14 +121,14 @@ class Population:
 
 class GeneticAlgorithm(Population):
 
-    def __init__(self, pioneer, run_params):
+    def __init__(self, pioneer, ligand_grid, run_params):
         """
 
         :param pioneer:
         :param target_chain:
         :param nproc:
         """
-        super().__init__(pioneer, run_params)
+        super().__init__(pioneer, ligand_grid, run_params)
         # self.pop = Population(pioneer, target_chain)
         self.ngen = ga_params['general']['number_of_generations']
         self.popsize = ga_params['general']['population_size']
@@ -155,20 +146,14 @@ class GeneticAlgorithm(Population):
         """
         ga_log.debug('Creating the creator')
 
-        creator.create("FitnessMax", base.Fitness, weights=(-1.0,)) #  -1 will optimize towards negative
-        creator.create("Individual", list, fitness=creator.FitnessMax)
-
-        # keep this for the future, to apply multiple fitnesses =====
-        # creator.create("FitnessMulti", base.Fitness, weights=(-0.8, -0.5, -1.0))
-        # creator.create("Individual", list, fitness=creator.FitnessMulti)
-        # =========
+        creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # -1 will optimize towards negative
+        creator.create("Individual", list, fitness=creator.FitnessMin)
 
         # Individual and population functions
         ga_log.debug('Creating the individual and population functions')
         toolbox = base.Toolbox()
-        toolbox.register("attr_int", self.generate_individual, -1, 1)
-        toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_int, n=4)
-        # toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_int, n=8)
+        toolbox.register("attr", self.generate_individual)
+        toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.attr)
         toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
         toolbox.register("mate", tools.cxTwoPoint)
@@ -180,38 +165,44 @@ class GeneticAlgorithm(Population):
         pool = multiprocessing.Pool(processes=self.nproc)
         toolbox.register("map", pool.map)
 
-        return toolbox
+        self.toolbox = toolbox
 
-    def run(self, toolbox):
+    def run(self):
         """
 
         :param toolbox: DEAP toolbox object
         :return: dictionary {generation: [individual, (score1, score2, ...)]}
         """
-        pop = toolbox.population(n=self.popsize)
+        ga_log.info('Running GA!')
+        ga_log.info(f'Generations: {self.ngen} Population: {self.popsize}')
+        pop = self.toolbox.population(n=self.popsize)
         for g in range(self.ngen):
             self.generation_dic[g] = {}
-            offspring = toolbox.select(pop, len(pop))
+            offspring = self.toolbox.select(pop, len(pop))
             # Clone the population created
-            offspring = list(map(toolbox.clone, offspring))
+            offspring = list(map(self.toolbox.clone, offspring))
 
             # Apply crossover on the offspring
+            ga_log.debug('Applying crossover')
             for child1, child2 in zip(offspring[::2], offspring[1::2]):
                 if random.random() < self.cxpb:
-                    toolbox.mate(child1, child2)
+                    self.toolbox.mate(child1, child2)
                     del child1.fitness.values
                     del child2.fitness.values
 
             # Apply mutation on the offspring
+            ga_log.debug('Applying mutation')
             for mutant in offspring:
                 if random.random() < self.mutpb:
-                    toolbox.mutate(mutant)
+                    self.toolbox.mutate(mutant)
                     del mutant.fitness.values
 
             # Generate the PDBs to be evaluated by the fitness function
-            self.generate_pop(offspring, clean=False)
+            ga_log.debug('Generating population')
+            self.generate_pop(offspring)
 
-            fitnesses = toolbox.map(toolbox.evaluate, offspring)
+            ga_log.debug('Calculating fitnessess')
+            fitnesses = self.toolbox.map(self.toolbox.evaluate, offspring)
             for ind, fit in zip(offspring, fitnesses):
                 ind.fitness.values = fit  # , fit
 
@@ -224,21 +215,12 @@ class GeneticAlgorithm(Population):
                     self.generation_dic[g][idx][1].append(fitness_v)
 
             irmsd_list = [self.generation_dic[g][f][1][0] for f in self.generation_dic[g]]
-            clash_list = [self.generation_dic[g][f][1][1] for f in self.generation_dic[g]]
-            dista_list = [self.generation_dic[g][f][1][2] for f in self.generation_dic[g]]
 
-            print("+" * 42)
-            print(f"+ Generation {str(g).rjust(2, '0')} ++++++++++++++++++++++++++")
-            print("+" * 42)
-            print(f"  irmsd: {np.mean(irmsd_list):.2f} ± {np.std(irmsd_list):.2f} [{max(irmsd_list):.2f},"
+            ga_log.info(f" Gen {g}: irmsd: {np.mean(irmsd_list):.2f} ± {np.std(irmsd_list):.2f} [{max(irmsd_list):.2f},"
                   f" {min(irmsd_list):.2f}]")
-            print(f"  clash: {np.mean(clash_list):.2f} ± {np.std(clash_list):.2f} [{max(clash_list):.2f},"
-                  f" {min(clash_list):.2f}]")
-            print(f"  cdist: {np.mean(dista_list):.2f} ± {np.std(dista_list):.2f} [{max(dista_list):.2f},"
-                  f" {min(dista_list):.2f}]")
 
         # save only the last generation for the future
-        self.generate_pop(pop, clean=False)
+        self.generate_pop(pop)
 
         return self.generation_dic
 
@@ -306,17 +288,25 @@ class GeneticAlgorithm(Population):
         # clash = calc_clash(rotated_pdb)
         # center_distance = calc_centerdistance(rotated_pdb)
         # fit = dcomplex(rotated_pdb)
-        # return irmsd, clash, center_distance
 
-        return irmsd
+        # this MUST (?) be a list
+        # github.com/DEAP/deap/issues/256
+        return [irmsd]
 
     @staticmethod
-    def generate_individual(start, end):
+    def generate_individual():
         """
 
         :param start:
         :param end:
         :return:
         """
-        # generate a random float between -1 and 1
-        return round(random.choice(np.arange(start, end, 0.1)), 3)
+
+        ind = []
+        ind.append(round(random.choice(np.arange(-1, +1, 0.1)), 3))
+        ind.append(round(random.choice(np.arange(-1, +1, 0.1)), 3))
+        ind.append(round(random.choice(np.arange(-1, +1, 0.1)), 3))
+        ind.append(round(random.choice(np.arange(-1, +1, 0.1)), 3))
+        ind.append(random.random())
+
+        return ind

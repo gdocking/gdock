@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-# from utils.functions import add_dummy, write_coords
-from utils.functions import tidy
+from utils.functions import tidy, write_coords, add_dummy
 import logging
 ga_log = logging.getLogger('ga_log')
 
@@ -131,6 +130,33 @@ class Geometry:
 
         self.ligand_coord = l_c
         self.receptor_coord = r_c
+
+    def calc_ligand_grid(self, step=3, radius=5):
+
+        ligand_center = self.ligand_coord.mean(axis=0)
+
+        # write_coords('/Users/rodrigo/repos/gadock/dev/input/target-unbound_B.pdb',
+        #              '/Users/rodrigo/repos/gadock/dev/input/B-grid.pdb',
+        #              self.ligand_coord)
+
+        x,y,z = ligand_center
+        xmax = x+radius
+        xmin = x-radius
+        ymax = y+radius
+        ymin = y-radius
+        zmax = z+radius
+        zmin = z-radius
+
+        p = np.mgrid[xmin:xmax:step, ymin:ymax:step, zmin:zmax:step]
+        mesh = p.reshape(3, -1).T #,
+
+        # add_dummy('/Users/rodrigo/repos/gadock/dev/input/B-grid.pdb',
+        #           '/Users/rodrigo/repos/gadock/dev/input/B-grid-done.pdb',
+        #           mesh)
+
+        self.grid = {i: tuple(p) for i, p in enumerate(mesh)}
+
+        return self.grid
 
     def apply_transformation(self):
         ga_log.info('Applying transformations for initial position')

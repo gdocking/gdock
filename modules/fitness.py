@@ -25,7 +25,7 @@ def calc_irmsd(pdb_f):
     """
     cmd = f'{dockq_exe} {pdb_f} {native}'
     ga_log.debug(f'cmd is: {cmd}')
-    proc = Popen(cmd.split(), shell=True, stdout=PIPE)
+    proc = Popen(cmd.split(), shell=False, stdout=PIPE)
     result = proc.stdout.read().decode('utf-8')
     irmsd = float(result.split('\n')[-6].split()[-1])
     return irmsd
