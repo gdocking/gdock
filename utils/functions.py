@@ -1,5 +1,4 @@
 import random
-import shutil
 import tempfile
 import time
 import subprocess
@@ -9,6 +8,7 @@ import numpy as np
 import logging
 
 ga_log = logging.getLogger('ga_log')
+
 
 def get_coords(pdb_f, target_chain=None):
     # read PDB and return array with all atoms
@@ -49,6 +49,7 @@ def add_dummy(pdb_f, output_f, coor_list):
     out_fh.close()
     return True
 
+
 def tidy(pdb_str):
     # save temporary file and retrieve it as string
     tmp = tempfile.NamedTemporaryFile()
@@ -67,8 +68,10 @@ def tidy(pdb_str):
         tidy_pdb_str = tmp_out.read()
         return tidy_pdb_str.decode()
 
+
 def float2hex(num):
     return hex(struct.unpack('<Q', struct.pack('<d', num))[0])
+
 
 def write_coords(pdb_f, output_f, coords):
     c = 0
