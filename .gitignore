@@ -1,9 +1,8 @@
+.DS_Store
 *.pdb
 *.pyc
-pdbs/*
 .idea/*
 src/dcomplex*
 movie.pdb
 gadock.dat
-.DS_Store
 plot.png
