@@ -68,7 +68,7 @@ class Geometry:
         a = np.array([r_center, r_rest_center_c])
         b = np.array([rot_l_center, rot_l_rest_center])
 
-        a_i, b_i = np.add(a, b)
+        _, b_i = np.add(a, b)
 
         rot_l_c += b_i
         rot_l_rest_c += b_i
@@ -94,7 +94,6 @@ class Geometry:
         self.ligand_coord = l_c
         self.receptor_coord = r_c
 
-
     def apply_transformation(self):
         ga_log.info('Applying transformations for initial position')
 
@@ -119,7 +118,6 @@ class Geometry:
         tidy_complex = tidy(self.begin_receptor + self.begin_ligand)
 
         return tidy_complex
-
 
     @staticmethod
     def calc_center(coords):
