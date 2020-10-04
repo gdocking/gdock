@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-from utils.functions import tidy, write_coords, add_dummy
+from utils.functions import tidy  # , write_coords, add_dummy
 import logging
 ga_log = logging.getLogger('ga_log')
 
@@ -24,6 +24,8 @@ class Geometry:
 
     def calc_initial_position(self):
         # calculate the geometric center of the molecule and of the restraints
+        # Q: Maybe use quaternions here as well!
+
         ga_log.info('Positioning molecules in starting conformation')
         r_c = np.array(self.receptor_coord)
         l_c = np.array(self.ligand_coord)
@@ -48,22 +50,6 @@ class Geometry:
         r_rest_center_c = r_rest_c.mean(axis=0)
         l_rest_center_c = l_rest_c.mean(axis=0)
 
-        # write_coords('/Users/rodrigo/repos/gadock/dev/input/target-unbound_A.pdb',
-        #              '/Users/rodrigo/repos/gadock/dev/input/A-ori.pdb',
-        #              r_c)
-        #
-        # write_coords('/Users/rodrigo/repos/gadock/dev/input/target-unbound_B.pdb',
-        #              '/Users/rodrigo/repos/gadock/dev/input/B-ori.pdb',
-        #              l_c)
-        #
-        # add_dummy('/Users/rodrigo/repos/gadock/dev/input/A-ori.pdb',
-        #           '/Users/rodrigo/repos/gadock/dev/input/A-ori-dummy.pdb',
-        #           (r_center,r_rest_center_c))
-        #
-        # add_dummy('/Users/rodrigo/repos/gadock/dev/input/B-ori.pdb',
-        #           '/Users/rodrigo/repos/gadock/dev/input/B-ori-dummy.pdb',
-        #           (l_center,l_rest_center_c))
-
         # ====
         # Align the vectors between molecule center and interface
 
@@ -78,14 +64,6 @@ class Geometry:
         rot_l_center = rot_l_c.mean(axis=0)
         rot_l_rest_center = rot_l_rest_c.mean(axis=0)
 
-        # write_coords('/Users/rodrigo/repos/gadock/dev/input/B-ori.pdb',
-        #              '/Users/rodrigo/repos/gadock/dev/input/B-rot.pdb',
-        #              rot_l_c)
-        #
-        # add_dummy('/Users/rodrigo/repos/gadock/dev/input/B-rot.pdb',
-        #           '/Users/rodrigo/repos/gadock/dev/input/B-rot-dummy.pdb',
-        #           (rot_l_center, rot_l_rest_center))
-
         # Move them apart
         a = np.array([r_center, r_rest_center_c])
         b = np.array([rot_l_center, rot_l_rest_center])
@@ -94,10 +72,6 @@ class Geometry:
 
         rot_l_c += b_i
         rot_l_rest_c += b_i
-
-        # write_coords('/Users/rodrigo/repos/gadock/dev/input/B-rot.pdb',
-        #              '/Users/rodrigo/repos/gadock/dev/input/B-trans.pdb',
-        #              rot_l_c)
 
         # Rotate so that they face each other
 
@@ -117,46 +91,9 @@ class Geometry:
         l_c += c
         l_rest_c += c
 
-        # l_center = l_c.mean(axis=0)
-        # l_rest_center = l_rest_c.mean(axis=0)
-
-        # write_coords('/Users/rodrigo/repos/gadock/dev/input/B-rot.pdb',
-        #              '/Users/rodrigo/repos/gadock/dev/input/B-maybe.pdb',
-        #              l_c)
-        #
-        # add_dummy('/Users/rodrigo/repos/gadock/dev/input/B-maybe.pdb',
-        #           '/Users/rodrigo/repos/gadock/dev/input/B-maybe-dummy.pdb',
-        #           (l_center, l_rest_center))
-
         self.ligand_coord = l_c
         self.receptor_coord = r_c
 
-    def calc_ligand_grid(self, step=3, radius=5):
-
-        ligand_center = self.ligand_coord.mean(axis=0)
-
-        # write_coords('/Users/rodrigo/repos/gadock/dev/input/target-unbound_B.pdb',
-        #              '/Users/rodrigo/repos/gadock/dev/input/B-grid.pdb',
-        #              self.ligand_coord)
-
-        x,y,z = ligand_center
-        xmax = x+radius
-        xmin = x-radius
-        ymax = y+radius
-        ymin = y-radius
-        zmax = z+radius
-        zmin = z-radius
-
-        p = np.mgrid[xmin:xmax:step, ymin:ymax:step, zmin:zmax:step]
-        mesh = p.reshape(3, -1).T #,
-
-        # add_dummy('/Users/rodrigo/repos/gadock/dev/input/B-grid.pdb',
-        #           '/Users/rodrigo/repos/gadock/dev/input/B-grid-done.pdb',
-        #           mesh)
-
-        self.grid = {i: tuple(p) for i, p in enumerate(mesh)}
-
-        return self.grid
 
     def apply_transformation(self):
         ga_log.info('Applying transformations for initial position')

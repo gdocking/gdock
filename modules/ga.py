@@ -1,134 +1,33 @@
-import glob
 import os
 import random
-import numpy as np
 import multiprocessing
+import numpy as np
 import toml as toml
+from tempfile import NamedTemporaryFile
 from deap import base, creator, tools
+from dual_quaternions import DualQuaternion
 from pyquaternion import Quaternion
 from utils.files import get_full_path
-from utils.functions import format_coords
-from modules.fitness import calc_irmsd, calc_clash, calc_centerdistance
+from utils.functions import format_coords, float2hex
+from modules.fitness import calc_irmsd
 import logging
 ga_log = logging.getLogger('ga_log')
 
 ga_params = toml.load(f"{get_full_path('etc')}/genetic_algorithm_params.toml")
 
 
-class Population:
-    def __init__(self, pioneer, grid, run_params):
+class GeneticAlgorithm:
+
+    def __init__(self, pioneer, run_params):
         """
 
         :param pioneer:
         :param run_params:
         """
+        # super().__init__(pioneer, run_params)
+        # self.pioneer = pioneer
         self.run_params = run_params
-        self.grid = grid
-        self.pioneer = f"{self.run_params['folder']}/begin/pioneer.pdb"
-        with open(self.pioneer, 'w') as fh:
-            ga_log.debug(f'Saving pioneer to {self.pioneer}')
-            fh.write(pioneer)
         self.nproc = self.run_params['np']
-        self.chain = 'B'
-
-    @staticmethod
-    def explore(pdb_fname, individual, target_chain, output_fname, grid):
-        """
-
-        :param pdb_fname:
-        :param rotation:
-        :param target_chain:
-        :param output_fname:
-        :return:
-        """
-        pdb_dic = {}
-        with open(pdb_fname, 'r') as fh:
-            for line in fh.readlines():
-                if line.startswith('ATOM'):
-                    chain = line[21]
-                    x = float(line[31:38])
-                    y = float(line[39:46])
-                    z = float(line[47:54])
-                    if chain not in pdb_dic:
-                        pdb_dic[chain] = {'coord': [], 'raw': []}
-                    pdb_dic[chain]['coord'].append((x, y, z))
-                    pdb_dic[chain]['raw'].append(line)
-
-        # translate
-        # TEMPORARY: Randomly move it to another grid point
-        #  this makes no sense and is here just for implementation purposes
-        c = np.array(pdb_dic[target_chain]['coord'])
-        trans_chance = individual[-1]
-        if trans_chance >= .1:
-            grid_point, grid_coord = random.choice(list(grid.items()))
-            c -= grid_coord
-
-        # rotate
-        rotation = individual[:4]
-        q = Quaternion(rotation)
-        c = np.array(pdb_dic[target_chain]['coord'])
-        center = c.mean(axis=0)
-        c -= center
-        r = np.array([q.rotate(e) for e in c])
-        r += center
-        pdb_dic[target_chain]['coord'] = list(r)
-
-        with open(output_fname, 'w') as out_fh:
-            for chain in pdb_dic:
-                for coord, line in zip(pdb_dic[chain]['coord'], pdb_dic[chain]['raw']):
-                    new_x, new_y, new_z = format_coords(coord)
-                    new_line = f'{line[:30]} {new_x} {new_y} {new_z} {line[55:]}'
-                    out_fh.write(new_line)
-        out_fh.close()
-
-        return output_fname
-
-    # @timeit
-    def generate_pop(self, individuals):
-        """
-
-        :param individuals:
-        :param clean:
-        """
-
-        arg_list = []
-        for i in individuals:
-            output_fname = self.run_params['folder'] + '/gen/gd_' + '_'.join(map("{:.2f}".format, i)) + '.pdb'
-            if not os.path.isfile(output_fname):
-                arg_list.append((self.pioneer, i, self.chain, output_fname, self.grid))
-        # self.explore(self.pioneer, i, self.chain, output_fname, self.grid)
-        ga_log.debug(f'Population generation len(arg_list): {len(arg_list)} nproc: {self.nproc}')
-        pool = multiprocessing.Pool(processes=self.nproc)
-        pool.starmap(self.explore, arg_list)
-
-    # @staticmethod
-    # def output(coord_dic, output_fname):
-    #     """
-    #
-    #     :param coord_dic:
-    #     :param output_fname:
-    #     :return:
-    #     """
-    #     with open(output_fname, 'w') as out_fh:
-    #         for chain in coord_dic:
-    #             for coord, line in zip(coord_dic[chain]['coord'], coord_dic[chain]['raw']):
-    #                 new_x, new_y, new_z = format_coords(coord)
-    #                 new_line = f'{line[:30]} {new_x} {new_y} {new_z} {line[55:]}'
-    #                 out_fh.write(new_line)
-    #     out_fh.close()
-    #     return True
-
-
-class GeneticAlgorithm(Population):
-
-    def __init__(self, pioneer, ligand_grid, run_params):
-        """
-
-        :param pioneer:
-        :param target_chain:
-        :param nproc:
-        """
-        super().__init__(pioneer, ligand_grid, run_params)
         # self.pop = Population(pioneer, target_chain)
         self.ngen = ga_params['general']['number_of_generations']
         self.popsize = ga_params['general']['population_size']
@@ -136,7 +35,19 @@ class GeneticAlgorithm(Population):
         self.mutpb = ga_params['general']['mutation_probability']
         self.eta = ga_params['general']['eta']
         self.indpb = ga_params['general']['indpb']
+        self.toolbox = None
         self.generation_dic = {}
+        self.pioneer_dic = {}
+        for line in pioneer.split('\n'):
+            if line.startswith('ATOM'):
+                chain = line[21]
+                x = float(line[31:38])
+                y = float(line[39:46])
+                z = float(line[47:54])
+                if chain not in self.pioneer_dic:
+                    self.pioneer_dic[chain] = {'coord': [], 'raw': []}
+                self.pioneer_dic[chain]['coord'].append((x, y, z))
+                self.pioneer_dic[chain]['raw'].append(line)
 
     # @timeit
     def setup(self):
@@ -153,13 +64,14 @@ class GeneticAlgorithm(Population):
         ga_log.debug('Creating the individual and population functions')
         toolbox = base.Toolbox()
         toolbox.register("attr", self.generate_individual)
-        toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.attr)
+        toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr, n=8)
         toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
         toolbox.register("mate", tools.cxTwoPoint)
         toolbox.register("mutate", tools.mutPolynomialBounded, eta=self.eta, low=-1, up=+1, indpb=self.indpb)
         toolbox.register("select", tools.selTournament, tournsize=2)
-        toolbox.register("evaluate", self.fitness_function)
+        toolbox.register("evaluate", self.fitness_function,
+                         self.pioneer_dic)
 
         ga_log.debug('Creating the multiprocessing pool')
         pool = multiprocessing.Pool(processes=self.nproc)
@@ -197,10 +109,6 @@ class GeneticAlgorithm(Population):
                     self.toolbox.mutate(mutant)
                     del mutant.fitness.values
 
-            # Generate the PDBs to be evaluated by the fitness function
-            ga_log.debug('Generating population')
-            self.generate_pop(offspring)
-
             ga_log.debug('Calculating fitnessess')
             fitnesses = self.toolbox.map(self.toolbox.evaluate, offspring)
             for ind, fit in zip(offspring, fitnesses):
@@ -219,21 +127,21 @@ class GeneticAlgorithm(Population):
             ga_log.info(f" Gen {g}: irmsd: {np.mean(irmsd_list):.2f} ± {np.std(irmsd_list):.2f} [{max(irmsd_list):.2f},"
                   f" {min(irmsd_list):.2f}]")
 
-        # save only the last generation for the future
-        self.generate_pop(pop)
-
         return self.generation_dic
 
-    def output(self, output_f):
+    def output(self):
+        folder = self.run_params['folder']
+        output_f = f'{folder}/gadock.dat'
         with open(output_f, 'w') as fh:
             for gen in self.generation_dic:
                 for ind in self.generation_dic[gen]:
-                    name = 'pdbs/gd_' + '_'.join(map("{:.2f}".format, self.generation_dic[gen][ind][0])) + '.pdb'
+                    # There is no need for this to be a hex!
+                    # coded_name = '_'.join([float2hex(n) for n in self.generation_dic[gen][ind][0]])
+                    individual = ' '.join(map(str, self.generation_dic[gen][ind][0]))
                     fitness = self.generation_dic[gen][ind][1][0]
-                    tbw = f'{gen},{ind},{fitness},{name}\n'
+                    tbw = f'{gen},{ind},{fitness},{individual}\n'
                     fh.write(tbw)
         fh.close()
-        return True
 
     def plot(self, plot_name):
         """
@@ -276,21 +184,49 @@ class GeneticAlgorithm(Population):
         plt.savefig(plot_name)
 
     @staticmethod
-    def fitness_function(int_list):
+    def fitness_function(pdb_dic, individual):
         """
 
         :param int_list:
         :return:
         """
-        # FIXME: Need to also give the PATH to this function, somehow
-        rotated_pdb = '/Users/rodrigo/repos/gadock/dev/gen/gd_' + '_'.join(map("{:.2f}".format, int_list)) + '.pdb'
-        irmsd = calc_irmsd(rotated_pdb)
+
+        # use the chromossome and create the structure!
+
+        c = np.array(pdb_dic['B']['coord'])
+        # transform
+        dq = DualQuaternion.from_dq_array(individual)
+        rot_q = Quaternion(dq.quat_pose_array()[:4])
+        transl = dq.quat_pose_array()[4:]
+        c -= transl
+        center = c.mean(axis=0)
+        c -= center
+        r = np.array([rot_q.rotate(e) for e in c])
+        r += center
+
+        pdb_dic['B']['coord'] = list(r)
+
+        # use a temporary file, nothing lasts forever
+        pdb = NamedTemporaryFile(delete=False)
+        for chain in pdb_dic:
+            for coord, line in zip(pdb_dic[chain]['coord'], pdb_dic[chain]['raw']):
+                new_x, new_y, new_z = format_coords(coord)
+                new_line = f'{line[:30]} {new_x} {new_y} {new_z} {line[55:]}\n'
+                pdb.write(str.encode(new_line))
+        pdb.close()
+
+        # Calculate fitnesses!
+        # ================================#
+        irmsd = calc_irmsd(pdb.name)
         # clash = calc_clash(rotated_pdb)
         # center_distance = calc_centerdistance(rotated_pdb)
         # fit = dcomplex(rotated_pdb)
+        # ================================#
 
-        # this MUST (?) be a list
-        # github.com/DEAP/deap/issues/256
+        # unlink the pdb so that it disappears
+        os.unlink(pdb.name)
+
+        # this must (?) be a list: github.com/DEAP/deap/issues/256
         return [irmsd]
 
     @staticmethod
@@ -302,11 +238,4 @@ class GeneticAlgorithm(Population):
         :return:
         """
 
-        ind = []
-        ind.append(round(random.choice(np.arange(-1, +1, 0.1)), 3))
-        ind.append(round(random.choice(np.arange(-1, +1, 0.1)), 3))
-        ind.append(round(random.choice(np.arange(-1, +1, 0.1)), 3))
-        ind.append(round(random.choice(np.arange(-1, +1, 0.1)), 3))
-        ind.append(random.random())
-
-        return ind
+        return round(random.choice(np.arange(-1, +1, 0.1)), 3)

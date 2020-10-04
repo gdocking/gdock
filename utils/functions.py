@@ -4,6 +4,7 @@ import tempfile
 import time
 import subprocess
 import os
+import struct
 import numpy as np
 import logging
 
@@ -65,6 +66,9 @@ def tidy(pdb_str):
     else:
         tidy_pdb_str = tmp_out.read()
         return tidy_pdb_str.decode()
+
+def float2hex(num):
+    return hex(struct.unpack('<Q', struct.pack('<d', num))[0])
 
 def write_coords(pdb_f, output_f, coords):
     c = 0
