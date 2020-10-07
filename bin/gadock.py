@@ -7,7 +7,7 @@ from modules.ga import GeneticAlgorithm
 import logging
 
 ga_log = logging.getLogger('ga_log')
-ga_log.setLevel(logging.DEBUG)
+ga_log.setLevel(logging.INFO)
 ch = logging.StreamHandler()
 formatter = logging.Formatter(' %(asctime)s %(module)s:%(lineno)d %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
