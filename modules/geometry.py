@@ -9,6 +9,7 @@ class Geometry:
 
     def __init__(self, input_data, restraint):
         """
+        Initialize the geometry class.
 
         :param input_data:
         :param restraint:
@@ -24,7 +25,6 @@ class Geometry:
 
     def calc_initial_position(self):
         """Position the molecules in the initial position."""
-
         # calculate the geometric center of the molecule and of the restraints
         # Q: Maybe use quaternions here as well!
 
@@ -97,7 +97,6 @@ class Geometry:
 
     def apply_transformation(self):
         """Apply transformations to put the binding partners in the appropriate places."""
-
         ga_log.info('Applying transformations for initial position')
 
         ga_log.debug('Applying transformation to the receptor')
