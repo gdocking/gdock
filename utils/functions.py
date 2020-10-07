@@ -1,4 +1,3 @@
-import random
 import tempfile
 import time
 import subprocess
@@ -11,7 +10,12 @@ ga_log = logging.getLogger('ga_log')
 
 
 def get_coords(pdb_f, target_chain=None):
-    # read PDB and return array with all atoms
+    """Read PDB file and return array with all atoms
+
+    :param pdb_f:
+    :param target_chain:
+    :return:
+    """
     coord = []
     with open(pdb_f, 'r') as fh:
         for line in fh.readlines():
@@ -29,6 +33,13 @@ def get_coords(pdb_f, target_chain=None):
 
 
 def add_dummy(pdb_f, output_f, coor_list):
+    """Add a dummy atom to a PDB file according to a list of coordinates
+
+    :param pdb_f:
+    :param output_f:
+    :param coor_list:
+    :return:
+    """
     new_pdb = []
     with open(pdb_f, 'r') as ref_fh:
         for line in ref_fh.readlines():
@@ -51,7 +62,12 @@ def add_dummy(pdb_f, output_f, coor_list):
 
 
 def tidy(pdb_str):
-    # save temporary file and retrieve it as string
+    """Save temporary file and retrieve it as string
+
+    :param pdb_str:
+    :return:
+    """
+
     tmp = tempfile.NamedTemporaryFile()
     tmp_out = tempfile.NamedTemporaryFile()
     with open(tmp.name, 'w') as f:
@@ -70,10 +86,22 @@ def tidy(pdb_str):
 
 
 def float2hex(num):
+    """Convert a float to hex
+
+    :param num:
+    :return:
+    """
     return hex(struct.unpack('<Q', struct.pack('<d', num))[0])
 
 
 def write_coords(pdb_f, output_f, coords):
+    """Read a PDB and rewrite it using a coordinate list
+
+    :param pdb_f:
+    :param output_f:
+    :param coords:
+    :return:
+    """
     c = 0
     with open(output_f, 'w') as out_fh:
         with open(pdb_f, 'r') as ref_fh:
@@ -91,6 +119,11 @@ def write_coords(pdb_f, output_f, coords):
 
 
 def draw_dummy(output_f, dummy_coord):
+    """Create a dummy atom in space
+
+    :param output_f:
+    :param dummy_coord:
+    """
     with open(output_f, 'w') as out_fh:
         dum_x = f'{dummy_coord[0]:.3f}'.rjust(7, ' ')
         dum_y = f'{dummy_coord[1]:.3f}'.rjust(7, ' ')
@@ -98,13 +131,6 @@ def draw_dummy(output_f, dummy_coord):
         dummy_line = f'ATOM    999  H   DUM X   1     {dum_x} {dum_y} {dum_z}     1.00  1.00           H  \n'
         out_fh.write(dummy_line)
     out_fh.close()
-
-
-def gen_quat_seq():
-    seq = []
-    for _ in range(4):
-        seq.append(random.choice(np.arange(-1, 1, 0.1)))
-    return seq
 
 
 def timeit(method):
@@ -122,19 +148,13 @@ def timeit(method):
 
 
 def format_coords(coord):
+    """Make a set of coordinated PDB-format ready
+
+    :param coord:
+    :return:
+    """
     new_x = f'{coord[0]:.3f}'.rjust(7, ' ')
     new_y = f'{coord[1]:.3f}'.rjust(7, ' ')
     new_z = f'{coord[2]:.3f}'.rjust(7, ' ')
     return new_x, new_y, new_z
 
-
-def add_dummy_center(pdbf):
-    coord_a = get_coords(pdbf, 'A')
-    coord_b = get_coords(pdbf, 'B')
-
-    center_a = coord_a.mean(axis=0)
-    center_b = coord_b.mean(axis=0)
-
-    add_dummy(f'{pdbf}', f'{pdbf}_', [center_a, center_b])
-
-    return f'{pdbf}_'

@@ -7,17 +7,11 @@ ga_log = logging.getLogger('ga_log')
 
 class Setup:
     def __init__(self, toml_file):
-        """
-
-        :param toml_file:
-        """
         self.input_params = toml.load(toml_file)
         self.data = {}
 
-    # def validate(self):
-    #     return True
-
     def initialize(self):
+        """Load the parameters and create the folder structure"""
         run_params = {}
         identifier_folder = self.input_params['main']['identifier']
         run_path = f'{os.getcwd()}/{identifier_folder}'

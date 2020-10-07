@@ -10,6 +10,7 @@ from utils.files import get_full_path
 from utils.functions import format_coords
 from modules.fitness import calc_irmsd
 import logging
+
 ga_log = logging.getLogger('ga_log')
 
 ga_params = toml.load(f"{get_full_path('etc')}/genetic_algorithm_params.toml")
@@ -82,7 +83,6 @@ class GeneticAlgorithm:
     def run(self):
         """
 
-        :param toolbox: DEAP toolbox object
         :return: dictionary {generation: [individual, (score1, score2, ...)]}
         """
         ga_log.info('Running GA!')
@@ -127,7 +127,7 @@ class GeneticAlgorithm:
             irmsd_list = [self.generation_dic[g][f][1][0] for f in self.generation_dic[g]]
 
             ga_log.info(f" Gen {g}: irmsd: {np.mean(irmsd_list):.2f} ± {np.std(irmsd_list):.2f} [{max(irmsd_list):.2f},"
-                  f" {min(irmsd_list):.2f}]")
+                        f" {min(irmsd_list):.2f}]")
 
         return self.generation_dic
 
@@ -189,7 +189,8 @@ class GeneticAlgorithm:
     def fitness_function(pdb_dic, individual):
         """
 
-        :param int_list:
+        :param pdb_dic:
+        :param individual:
         :return:
         """
 
@@ -235,18 +236,14 @@ class GeneticAlgorithm:
     def generate_individual():
         """
 
-        :param start:
-        :param end:
         :return:
         """
-        ind = []
-        ind.append(round(random.choice(np.arange(-1, +1, 0.1)), 3))
-        ind.append(round(random.choice(np.arange(-1, +1, 0.1)), 3))
-        ind.append(round(random.choice(np.arange(-1, +1, 0.1)), 3))
-        ind.append(round(random.choice(np.arange(-1, +1, 0.1)), 3))
-
-        ind.append(random.choice(np.arange(-4, +4, 0.5)))
-        ind.append(random.choice(np.arange(-4, +4, 0.5)))
-        ind.append(random.choice(np.arange(-4, +4, 0.5)))
+        ind = [round(random.choice(np.arange(-1, +1, 0.1)), 3),
+               round(random.choice(np.arange(-1, +1, 0.1)), 3),
+               round(random.choice(np.arange(-1, +1, 0.1)), 3),
+               round(random.choice(np.arange(-1, +1, 0.1)), 3),
+               random.choice(np.arange(-4, +4, 0.5)),
+               random.choice(np.arange(-4, +4, 0.5)),
+               random.choice(np.arange(-4, +4, 0.5))]
 
         return ind
