@@ -5,10 +5,9 @@ import numpy as np
 import toml as toml
 from tempfile import NamedTemporaryFile
 from deap import base, creator, tools
-from dual_quaternions import DualQuaternion
 from pyquaternion import Quaternion
 from utils.files import get_full_path
-from utils.functions import format_coords, float2hex
+from utils.functions import format_coords
 from modules.fitness import calc_irmsd
 import logging
 ga_log = logging.getLogger('ga_log')
@@ -64,11 +63,12 @@ class GeneticAlgorithm:
         ga_log.debug('Creating the individual and population functions')
         toolbox = base.Toolbox()
         toolbox.register("attr", self.generate_individual)
-        toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr, n=8)
+        toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.attr)
         toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
         toolbox.register("mate", tools.cxTwoPoint)
-        toolbox.register("mutate", tools.mutPolynomialBounded, eta=self.eta, low=-1, up=+1, indpb=self.indpb)
+        toolbox.register("mutate_rot", tools.mutPolynomialBounded, eta=self.eta, low=-1, up=+1, indpb=self.indpb)
+        toolbox.register("mutate_trans", tools.mutPolynomialBounded, eta=self.eta, low=-4, up=+4, indpb=self.indpb)
         toolbox.register("select", tools.selTournament, tournsize=2)
         toolbox.register("evaluate", self.fitness_function,
                          self.pioneer_dic)
@@ -106,10 +106,12 @@ class GeneticAlgorithm:
             ga_log.debug('Applying mutation')
             for mutant in offspring:
                 if random.random() < self.mutpb:
-                    self.toolbox.mutate(mutant)
+                    self.toolbox.mutate_rot(mutant[:4])
+                    self.toolbox.mutate_trans(mutant[4:])
                     del mutant.fitness.values
 
             ga_log.debug('Calculating fitnessess')
+            # self.fitness_function(self.pioneer_dic, offspring[0])
             fitnesses = self.toolbox.map(self.toolbox.evaluate, offspring)
             for ind, fit in zip(offspring, fitnesses):
                 ind.fitness.values = fit  # , fit
@@ -195,12 +197,12 @@ class GeneticAlgorithm:
 
         c = np.array(pdb_dic['B']['coord'])
         # transform
-        dq = DualQuaternion.from_dq_array(individual)
-        rot_q = Quaternion(dq.quat_pose_array()[:4])
-        transl = dq.quat_pose_array()[4:]
-        c -= transl
+        rot_q = Quaternion(individual[:4])
+        transl = individual[4:]
+
         center = c.mean(axis=0)
         c -= center
+        c -= transl
         r = np.array([rot_q.rotate(e) for e in c])
         r += center
 
@@ -237,5 +239,14 @@ class GeneticAlgorithm:
         :param end:
         :return:
         """
+        ind = []
+        ind.append(round(random.choice(np.arange(-1, +1, 0.1)), 3))
+        ind.append(round(random.choice(np.arange(-1, +1, 0.1)), 3))
+        ind.append(round(random.choice(np.arange(-1, +1, 0.1)), 3))
+        ind.append(round(random.choice(np.arange(-1, +1, 0.1)), 3))
 
-        return round(random.choice(np.arange(-1, +1, 0.1)), 3)
+        ind.append(random.choice(np.arange(-4, +4, 0.5)))
+        ind.append(random.choice(np.arange(-4, +4, 0.5)))
+        ind.append(random.choice(np.arange(-4, +4, 0.5)))
+
+        return ind
