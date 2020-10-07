@@ -23,7 +23,7 @@ class Geometry:
         self.begin_ligand = ''
 
     def calc_initial_position(self):
-        """Position the molecules in the initial position"""
+        """Position the molecules in the initial position."""
 
         # calculate the geometric center of the molecule and of the restraints
         # Q: Maybe use quaternions here as well!
@@ -96,7 +96,7 @@ class Geometry:
         self.receptor_coord = r_c
 
     def apply_transformation(self):
-        """Apply transformations to put the binding partners in the appropriate laces"""
+        """Apply transformations to put the binding partners in the appropriate places."""
 
         ga_log.info('Applying transformations for initial position')
 
@@ -124,7 +124,7 @@ class Geometry:
 
     @staticmethod
     def calc_center(coords):
-        """Calculate the geometric center"""
+        """Calculate the geometric center."""
         coord_array = np.array(coords)
         center = coord_array.mean(axis=0)
         return center
@@ -132,7 +132,7 @@ class Geometry:
     @staticmethod
     def rotation_matrix_from_vectors(vec1, vec2):
         """
-        Find the rotation matrix that aligns vec1 to vec2
+        Find the rotation matrix that aligns vec1 to vec2.
 
         :param vec1: A 3d "source" vector
         :param vec2: A 3d "destination" vector

@@ -11,7 +11,7 @@ class PDB:
 
     def load(self, pdb_f):
         """
-        Load a PDB file into a dictionary
+        Load a PDB file into a dictionary.
 
         :param pdb_f:
         """
@@ -39,7 +39,7 @@ class Restraint:
 
     def load(self, restraint, identifier):
         """
-        Identity the coordinates of the restraints residue numbers
+        Identity the coordinates of the restraints residue numbers.
 
         :param restraint:
         :param identifier:
