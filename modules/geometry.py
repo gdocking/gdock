@@ -23,6 +23,8 @@ class Geometry:
         self.begin_ligand = ''
 
     def calc_initial_position(self):
+        """Position the molecules in the initial position"""
+
         # calculate the geometric center of the molecule and of the restraints
         # Q: Maybe use quaternions here as well!
 
@@ -74,7 +76,6 @@ class Geometry:
         rot_l_rest_c += b_i
 
         # Rotate so that they face each other
-
         # Move to origin and rotate again
         c = rot_l_c.mean(axis=0)
         rot_l_c -= c
@@ -95,6 +96,8 @@ class Geometry:
         self.receptor_coord = r_c
 
     def apply_transformation(self):
+        """Apply transformations to put the binding partners in the appropriate laces"""
+
         ga_log.info('Applying transformations for initial position')
 
         ga_log.debug('Applying transformation to the receptor')
@@ -121,19 +124,20 @@ class Geometry:
 
     @staticmethod
     def calc_center(coords):
+        """Calculate the geometric center"""
         coord_array = np.array(coords)
         center = coord_array.mean(axis=0)
         return center
 
     @staticmethod
     def rotation_matrix_from_vectors(vec1, vec2):
-        """
-        Find the rotation matrix that aligns vec1 to vec2
+        """Find the rotation matrix that aligns vec1 to vec2
 
         :param vec1: A 3d "source" vector
         :param vec2: A 3d "destination" vector
         :return mat: A transform matrix (3x3) which when applied to vec1, aligns it with vec2.
         """
+        # Copied from https://stackoverflow.com/a/59204638
         a, b = (vec1 / np.linalg.norm(vec1)).reshape(3), (vec2 / np.linalg.norm(vec2)).reshape(3)
         v = np.cross(a, b)
         c = np.dot(a, b)
