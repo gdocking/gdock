@@ -10,7 +10,8 @@ ga_log = logging.getLogger('ga_log')
 
 
 def get_coords(pdb_f, target_chain=None):
-    """Read PDB file and return array with all atoms
+    """
+    Read PDB file and return array with all atoms
 
     :param pdb_f:
     :param target_chain:
@@ -33,7 +34,8 @@ def get_coords(pdb_f, target_chain=None):
 
 
 def add_dummy(pdb_f, output_f, coor_list):
-    """Add a dummy atom to a PDB file according to a list of coordinates
+    """
+    Add a dummy atom to a PDB file according to a list of coordinates
 
     :param pdb_f:
     :param output_f:
@@ -62,7 +64,8 @@ def add_dummy(pdb_f, output_f, coor_list):
 
 
 def tidy(pdb_str):
-    """Save temporary file and retrieve it as string
+    """
+    Save temporary file and retrieve it as string
 
     :param pdb_str:
     :return:
@@ -86,7 +89,8 @@ def tidy(pdb_str):
 
 
 def float2hex(num):
-    """Convert a float to hex
+    """
+    Convert a float to hex
 
     :param num:
     :return:
@@ -95,7 +99,8 @@ def float2hex(num):
 
 
 def write_coords(pdb_f, output_f, coords):
-    """Read a PDB and rewrite it using a coordinate list
+    """
+    Read a PDB and rewrite it using a coordinate list
 
     :param pdb_f:
     :param output_f:
@@ -119,7 +124,8 @@ def write_coords(pdb_f, output_f, coords):
 
 
 def draw_dummy(output_f, dummy_coord):
-    """Create a dummy atom in space
+    """
+    Create a dummy atom in space
 
     :param output_f:
     :param dummy_coord:
@@ -133,22 +139,9 @@ def draw_dummy(output_f, dummy_coord):
     out_fh.close()
 
 
-def timeit(method):
-    def timed(*args, **kw):
-        ts = time.time()
-        result = method(*args, **kw)
-        te = time.time()
-        if 'log_time' in kw:
-            name = kw.get('log_name', method.__name__.upper())
-            kw['log_time'][name] = int((te - ts) * 1000)
-        else:
-            print('%r  %2.2f ms' % (method.__name__, (te - ts) * 1000))
-        return result
-    return timed
-
-
 def format_coords(coord):
-    """Make a set of coordinated PDB-format ready
+    """
+    Make a set of coordinated PDB-format ready
 
     :param coord:
     :return:

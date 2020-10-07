@@ -6,14 +6,12 @@ ga_log = logging.getLogger('ga_log')
 class PDB:
 
     def __init__(self):
-        """
-
-        """
         self.coords = {}
         self.raw_pdb = {}
 
     def load(self, pdb_f):
-        """Load a PDB file into a dictionary
+        """
+        Load a PDB file into a dictionary
 
         :param pdb_f:
         """
@@ -40,7 +38,8 @@ class Restraint:
         self.coords = {}
 
     def load(self, restraint, identifier):
-        """Identity the coordinates of the restraints residue numbers
+        """
+        Identity the coordinates of the restraints residue numbers
 
         :param restraint:
         :param identifier:
