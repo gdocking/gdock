@@ -19,6 +19,12 @@ ga_params = toml.load(f"{get_full_path('etc')}/genetic_algorithm_params.toml")
 class GeneticAlgorithm:
 
     def __init__(self, pioneer, run_params):
+        """
+        Initialize GeneticAlgorithm class.
+
+        :param pioneer:
+        :param run_params:
+        """
         # super().__init__(pioneer, run_params)
         # self.pioneer = pioneer
         self.run_params = run_params
@@ -46,11 +52,7 @@ class GeneticAlgorithm:
 
     # @timeit
     def setup(self):
-        """
-        Setup the genetic algorithm.
-
-        :return:
-        """
+        """Setup the genetic algorithm."""
         ga_log.debug('Creating the creator')
 
         creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # -1 will optimize towards negative
@@ -77,11 +79,7 @@ class GeneticAlgorithm:
         self.toolbox = toolbox
 
     def run(self):
-        """
-        Run the genetic algorithm.
-
-        :return: dictionary {generation: [individual, (score1, score2, ...)]}
-        """
+        """Run the genetic algorithm."""
         ga_log.info('Running GA!')
         ga_log.info(f'Generations: {self.ngen} Population: {self.popsize}')
         pop = self.toolbox.population(n=self.popsize)
