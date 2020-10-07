@@ -12,7 +12,8 @@ contact_exe = ini.get('third_party', 'contact_exe')
 
 
 def get_ti(pdb_f, cutoff=4.9):
-    """Get the True-Interface of a PDB complex
+    """
+    Get the True-Interface of a PDB complex
 
     :param pdb_f:
     :param cutoff:
