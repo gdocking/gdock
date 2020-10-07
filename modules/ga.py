@@ -19,11 +19,6 @@ ga_params = toml.load(f"{get_full_path('etc')}/genetic_algorithm_params.toml")
 class GeneticAlgorithm:
 
     def __init__(self, pioneer, run_params):
-        """
-
-        :param pioneer:
-        :param run_params:
-        """
         # super().__init__(pioneer, run_params)
         # self.pioneer = pioneer
         self.run_params = run_params
@@ -52,7 +47,7 @@ class GeneticAlgorithm:
     # @timeit
     def setup(self):
         """
-        Setup the genetic algorithm
+        Setup the genetic algorithm.
 
         :return:
         """
@@ -83,7 +78,7 @@ class GeneticAlgorithm:
 
     def run(self):
         """
-        Run the genetic algorithm
+        Run the genetic algorithm.
 
         :return: dictionary {generation: [individual, (score1, score2, ...)]}
         """
@@ -134,7 +129,7 @@ class GeneticAlgorithm:
         return self.generation_dic
 
     def output(self):
-        """Output the fitness and individual properties"""
+        """Output the fitness and individual properties."""
         folder = self.run_params['folder']
         output_f = f'{folder}/gadock.dat'
         with open(output_f, 'w') as fh:
@@ -191,7 +186,7 @@ class GeneticAlgorithm:
     @staticmethod
     def fitness_function(pdb_dic, individual):
         """
-        Calculate the fitness of an individual
+        Calculate the fitness of an individual.
 
         :param pdb_dic:
         :param individual:
@@ -239,7 +234,7 @@ class GeneticAlgorithm:
     @staticmethod
     def generate_individual():
         """
-        Generates the individual
+        Generates the individual.
 
         The first 4 random floats are the quaternion, and the 3 other its possible positions around an arbitrary center
         :return:

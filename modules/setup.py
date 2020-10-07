@@ -11,7 +11,7 @@ class Setup:
         self.data = {}
 
     def initialize(self):
-        """Load the parameters and create the folder structure"""
+        """Load the parameters and create the folder structure."""
         run_params = {}
         identifier_folder = self.input_params['main']['identifier']
         run_path = f'{os.getcwd()}/{identifier_folder}'
