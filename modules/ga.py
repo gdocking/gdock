@@ -1,6 +1,7 @@
 import os
 import random
 import multiprocessing
+import math
 import numpy as np
 import toml as toml
 from tempfile import NamedTemporaryFile
@@ -25,12 +26,9 @@ class GeneticAlgorithm:
         :param pioneer:
         :param run_params:
         """
-        # super().__init__(pioneer, run_params)
-        # self.pioneer = pioneer
         self.run_params = run_params
         self.nproc = self.run_params['np']
-        # self.pop = Population(pioneer, target_chain)
-        self.ngen = ga_params['general']['number_of_generations']
+        # self.ngen = ga_params['general']['number_of_generations']
         self.popsize = ga_params['general']['population_size']
         self.cxpb = ga_params['general']['crossover_probability']
         self.mutpb = ga_params['general']['mutation_probability']
@@ -81,10 +79,13 @@ class GeneticAlgorithm:
     def run(self):
         """Run the genetic algorithm."""
         ga_log.info('Running GA!')
-        ga_log.info(f'Generations: {self.ngen} Population: {self.popsize}')
+        result = []
+        run = True
+        ga_log.info(f'Generations: Inf. Population: {self.popsize}')
         pop = self.toolbox.population(n=self.popsize)
-        for g in range(self.ngen):
-            self.generation_dic[g] = {}
+        ngen = 1
+        while run:
+            self.generation_dic[ngen] = {}
             offspring = self.toolbox.select(pop, len(pop))
             # Clone the population created
             offspring = list(map(self.toolbox.clone, offspring))
@@ -115,14 +116,21 @@ class GeneticAlgorithm:
             pop[:] = offspring
 
             for idx, ind in enumerate(pop):
-                self.generation_dic[g][idx] = ind, []
+                self.generation_dic[ngen][idx] = ind, []
                 for fitness_v in ind.fitness.values:
-                    self.generation_dic[g][idx][1].append(fitness_v)
+                    self.generation_dic[ngen][idx][1].append(fitness_v)
 
-            irmsd_list = [self.generation_dic[g][f][1][0] for f in self.generation_dic[g]]
+            irmsd_list = [self.generation_dic[ngen][f][1][0] for f in self.generation_dic[ngen]]
+            mean_fitness = np.mean(irmsd_list)
+            ga_log.info(f" Gen {ngen}: irmsd: {mean_fitness:.2f} ± {np.std(irmsd_list):.2f} [{max(irmsd_list):.2f},"
+                        f" {min(irmsd_list):.2f}]\t{'*' * int(mean_fitness)}")
 
-            ga_log.info(f" Gen {g}: irmsd: {np.mean(irmsd_list):.2f} ± {np.std(irmsd_list):.2f} [{max(irmsd_list):.2f},"
-                        f" {min(irmsd_list):.2f}]")
+            ngen += 1
+
+            result.append(np.std(irmsd_list))
+            if len(result) >= 5:
+                if all(e == 0.0 for e in result[-5:]):
+                    run = False
 
         return self.generation_dic
 
