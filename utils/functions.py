@@ -1,3 +1,4 @@
+import shlex
 import tempfile
 import subprocess
 import os
@@ -58,7 +59,7 @@ def tidy(pdb_str):
     cmd = f'pdb_tidy {tmp.name}'
     ga_log.debug(f'Tidying up with command {cmd}')
     out = open(f'{tmp_out.name}', 'w')
-    p = subprocess.Popen(cmd, shell=True, stdout=out, stderr=subprocess.PIPE)
+    p = subprocess.Popen(shlex.split(cmd), shell=False, stdout=out, stderr=subprocess.PIPE)
     p.communicate()
     if not os.path.isfile(tmp.name):
         ga_log.error('Could not tidy the pdb!')
