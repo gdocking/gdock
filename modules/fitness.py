@@ -18,11 +18,7 @@ contact_exe = ini.get('third_party', 'contact_exe')
 
 
 def calc_irmsd(pdb_f):
-    """Calculate the interface root mean square deviation.
-
-    :param pdb_f:
-    :return:
-    """
+    """Calculate the interface root mean square deviation."""
     cmd = f'{dockq_exe} {pdb_f} {native}'
     ga_log.debug(f'cmd is: {cmd}')
     proc = Popen(cmd.split(), shell=False, stdout=PIPE)
@@ -33,9 +29,6 @@ def calc_irmsd(pdb_f):
 
 def dcomplex(pdb_f):
     """Calculate the energy using DCOMPLEX.
-
-    :param pdb_f:
-    :return:
     """
     cmd = f'{dcomplex_exe} {pdb_f} A B'
     proc = Popen(cmd.split(), shell=True, stdout=PIPE)
@@ -44,12 +37,7 @@ def dcomplex(pdb_f):
 
 
 def calc_clash(pdb_f, cutoff=2.0):
-    """Calculate the total number of clashes.
-
-    :param pdb_f:
-    :param cutoff:
-    :return:
-    """
+    """Calculate the total number of clashes."""
     cmd = f'{contact_exe} {pdb_f} {cutoff}'
     proc = Popen(cmd.split(), shell=True, stdout=PIPE)
     out = proc.stdout.read().decode('utf-8')
@@ -61,13 +49,7 @@ def calc_clash(pdb_f, cutoff=2.0):
 
 
 def calc_centerdistance(pdb_f):
-    """
-    Measure distance between the geometric centers of the interacting partners.
-
-
-    :param pdb_f:
-    :return:
-    """
+    """Measure distance between the geometric centers of the interacting partners."""
     # calculate the distance between two centers
     coord_a = get_coords(pdb_f, 'A')
     coord_b = get_coords(pdb_f, 'B')
