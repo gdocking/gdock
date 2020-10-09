@@ -8,13 +8,7 @@ ga_log = logging.getLogger('ga_log')
 class Geometry:
 
     def __init__(self, input_data, restraint):
-        """
-        Initialize the geometry class.
-
-
-        :param input_data:
-        :param restraint:
-        """
+        """Initialize the geometry class."""
         self.receptor_coord = input_data.coords['A']
         self.receptor_pdb = input_data.raw_pdb['A']
         self.receptor_rest_coord = restraint.coords['A']

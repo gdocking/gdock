@@ -36,12 +36,7 @@ class PDB:
 
 class Restraint:
     def __init__(self, raw_pdb):
-        """
-        Initialize Restraint class.
-
-
-        :param raw_pdb:
-        """
+        """Initialize Restraint class."""
         self.raw_pdb = raw_pdb
         self.coords = {}
 

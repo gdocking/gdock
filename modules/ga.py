@@ -20,13 +20,7 @@ secretsGenerator = secrets.SystemRandom()
 class GeneticAlgorithm:
 
     def __init__(self, pioneer, run_params):
-        """
-        Initialize GeneticAlgorithm class.
-
-
-        :param pioneer:
-        :param run_params:
-        """
+        """Initialize GeneticAlgorithm class."""
         self.run_params = run_params
         self.nproc = self.run_params['np']
         # self.ngen = ga_params['general']['number_of_generations']
@@ -108,7 +102,7 @@ class GeneticAlgorithm:
                     del mutant.fitness.values
 
             ga_log.debug('Calculating fitnessess')
-            # self.fitness_function(self.pioneer_dic, offspring[0])
+            self.fitness_function(self.pioneer_dic, offspring[0])
             fitnesses = self.toolbox.map(self.toolbox.evaluate, offspring)
             for ind, fit in zip(offspring, fitnesses):
                 ind.fitness.values = fit  # , fit
