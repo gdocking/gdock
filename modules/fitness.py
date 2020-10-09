@@ -1,10 +1,8 @@
-from subprocess import Popen, PIPE
 import os
-import configparser
-import numpy as np
-from utils.files import get_full_path
-from utils.functions import get_coords
 import logging
+import configparser
+from utils.files import get_full_path
+from subprocess import Popen, PIPE
 ga_log = logging.getLogger('ga_log')
 
 etc_folder = get_full_path('etc')

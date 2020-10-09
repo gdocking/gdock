@@ -11,12 +11,7 @@ class PDB:
         self.raw_pdb = {}
 
     def load(self, pdb_f):
-        """
-        Load a PDB file into a dictionary.
-
-
-        :param pdb_f:
-        """
+        """Load a PDB file into a dictionary."""
         ga_log.debug(f'Loading {pdb_f}')
         with open(pdb_f, 'r') as fh:
             for line in fh.readlines():
@@ -41,13 +36,7 @@ class Restraint:
         self.coords = {}
 
     def load(self, restraint, identifier):
-        """
-        Identity the coordinates of the restraints residue numbers.
-
-
-        :param restraint:
-        :param identifier:
-        """
+        """Identity the coordinates of the restraints residue numbers."""
         ga_log.debug(f'Loading restraints {identifier}, {restraint}')
         if identifier not in self.coords:
             self.coords[identifier] = []
