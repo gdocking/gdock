@@ -11,6 +11,7 @@ class Geometry:
         """
         Initialize the geometry class.
 
+
         :param input_data:
         :param restraint:
         """

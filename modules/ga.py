@@ -23,6 +23,7 @@ class GeneticAlgorithm:
         """
         Initialize GeneticAlgorithm class.
 
+
         :param pioneer:
         :param run_params:
         """
