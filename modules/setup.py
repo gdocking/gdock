@@ -7,11 +7,7 @@ ga_log = logging.getLogger('ga_log')
 
 class Setup:
     def __init__(self, toml_file):
-        """Initialize setup class.
-
-
-        :param toml_file:
-        """
+        """Initialize setup class."""
         self.input_params = toml.load(toml_file)
         self.data = {}
 
