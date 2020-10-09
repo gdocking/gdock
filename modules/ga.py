@@ -224,12 +224,7 @@ class GeneticAlgorithm:
 
     @staticmethod
     def generate_individual():
-        """
-        Generates the individual.
-
-        The first 4 random floats are the quaternion, and the 3 other its possible positions around an arbitrary center
-        :return:
-        """
+        """Generates the individual."""
         ind = [round(secretsGenerator.uniform(-1,1), 2),
                round(secretsGenerator.uniform(-1,1), 2),
                round(secretsGenerator.uniform(-1,1), 2),
