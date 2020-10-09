@@ -184,16 +184,8 @@ class GeneticAlgorithm:
 
     @staticmethod
     def fitness_function(pdb_dic, individual):
-        """
-        Calculate the fitness of an individual.
-
-        :param pdb_dic:
-        :param individual:
-        :return:
-        """
-
+        """Calculate the fitness of an individual."""
         # use the chromossome and create the structure!
-
         c = np.array(pdb_dic['B']['coord'])
         # transform
         rot_q = Quaternion(individual[:4])
