@@ -18,9 +18,7 @@ contact_exe = ini.get('third_party', 'contact_exe')
 
 
 def calc_irmsd(pdb_f):
-    """
-    Calculate the interface root mean square deviation.
-
+    """Calculate the interface root mean square deviation.
 
     :param pdb_f:
     :return:
@@ -34,9 +32,7 @@ def calc_irmsd(pdb_f):
 
 
 def dcomplex(pdb_f):
-    """
-    Calculate the energy using DCOMPLEX.
-
+    """Calculate the energy using DCOMPLEX.
 
     :param pdb_f:
     :return:
@@ -48,9 +44,7 @@ def dcomplex(pdb_f):
 
 
 def calc_clash(pdb_f, cutoff=2.0):
-    """
-    Calculate the total number of clashes.
-
+    """Calculate the total number of clashes.
 
     :param pdb_f:
     :param cutoff:
