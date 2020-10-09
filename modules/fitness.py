@@ -1,7 +1,7 @@
 import os
 import logging
 import configparser
-import subprocess
+import subprocess  # nosec
 import shlex
 from utils.files import get_full_path
 ga_log = logging.getLogger('ga_log')
@@ -18,7 +18,7 @@ def calc_irmsd(pdb_f):
     """Calculate the interface root mean square deviation."""
     cmd = f'{dockq_exe} {pdb_f} {native}'
     ga_log.debug(f'cmd is: {cmd}')
-    out = subprocess.check_output(shlex.split(cmd), shell=False)
+    out = subprocess.check_output(shlex.split(cmd), shell=False)  # nosec
     result = out.decode('utf-8')
     irmsd = float(result.split('\n')[-6].split()[-1])
     return irmsd
