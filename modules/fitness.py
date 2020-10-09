@@ -21,6 +21,7 @@ def calc_irmsd(pdb_f):
     """
     Calculate the interface root mean square deviation.
 
+
     :param pdb_f:
     :return:
     """
@@ -36,6 +37,7 @@ def dcomplex(pdb_f):
     """
     Calculate the energy using DCOMPLEX.
 
+
     :param pdb_f:
     :return:
     """
@@ -48,6 +50,7 @@ def dcomplex(pdb_f):
 def calc_clash(pdb_f, cutoff=2.0):
     """
     Calculate the total number of clashes.
+
 
     :param pdb_f:
     :param cutoff:
@@ -66,6 +69,7 @@ def calc_clash(pdb_f, cutoff=2.0):
 def calc_centerdistance(pdb_f):
     """
     Measure distance between the geometric centers of the interacting partners.
+
 
     :param pdb_f:
     :return:
