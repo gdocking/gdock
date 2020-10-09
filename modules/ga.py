@@ -75,6 +75,7 @@ class GeneticAlgorithm:
         """Run the genetic algorithm."""
         ga_log.info('Running GA!')
         result = []
+        kill_counter = 0
         run = True
         ga_log.info(f'Generations: Inf. Population: {self.popsize}')
         pop = self.toolbox.population(n=self.popsize)
@@ -102,7 +103,7 @@ class GeneticAlgorithm:
                     del mutant.fitness.values
 
             ga_log.debug('Calculating fitnessess')
-            self.fitness_function(self.pioneer_dic, offspring[0])
+            # self.fitness_function(self.pioneer_dic, offspring[0])
             fitnesses = self.toolbox.map(self.toolbox.evaluate, offspring)
             for ind, fit in zip(offspring, fitnesses):
                 ind.fitness.values = fit  # , fit
@@ -117,15 +118,22 @@ class GeneticAlgorithm:
 
             irmsd_list = [self.generation_dic[ngen][f][1][0] for f in self.generation_dic[ngen]]
             mean_fitness = np.mean(irmsd_list)
-            ga_log.info(f" Gen {ngen}: irmsd: {mean_fitness:.2f} ± {np.std(irmsd_list):.2f} [{max(irmsd_list):.2f},"
-                        f" {min(irmsd_list):.2f}]\t{'*' * int(mean_fitness)}")
-
+            std_fitness = np.std(irmsd_list)
+            max_fitness = max(irmsd_list)
+            min_fitness = min(irmsd_list)
+            result.append(mean_fitness)
+            conv = .0
+            if len(result) >= 2:
+                conv = result[-1] - result[-2]
+            ga_log.info(f" Gen {ngen}: irmsd: {mean_fitness:.2f} ± {std_fitness:.2f} [{max_fitness:.2f},"
+                        f" {min_fitness:.2f}] ({conv:.2f})")
             ngen += 1
 
-            result.append(np.std(irmsd_list))
-            if len(result) >= 5:
-                if all(e == 0.0 for e in result[-5:]):
+            if len(result) >= 2 and conv == 0:
+                if kill_counter == 5:
                     run = False
+                else:
+                    kill_counter += 1
 
         return self.generation_dic
 
