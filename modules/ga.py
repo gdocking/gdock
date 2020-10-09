@@ -131,7 +131,7 @@ class GeneticAlgorithm:
 
             if len(result) >= 2 and conv == .0:
                 if kill_counter == 5:
-                    ga_log.info(f'No longer converging, activating kill-switch!')
+                    ga_log.info(f'Simulation converged, activating kill-switch!')
                     run = False
                 else:
                     kill_counter += 1
