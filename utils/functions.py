@@ -104,4 +104,3 @@ def format_coords(coord):
     new_y = f'{coord[1]:.3f}'.rjust(7, ' ')
     new_z = f'{coord[2]:.3f}'.rjust(7, ' ')
     return new_x, new_y, new_z
-
