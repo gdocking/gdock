@@ -124,13 +124,14 @@ class GeneticAlgorithm:
             result.append(mean_fitness)
             conv = .0
             if len(result) >= 2:
-                conv = result[-1] - result[-2]
+                conv = round(result[-1] - result[-2], 2)
             ga_log.info(f" Gen {ngen}: irmsd: {mean_fitness:.2f} ± {std_fitness:.2f} [{max_fitness:.2f},"
                         f" {min_fitness:.2f}] ({conv:.2f})")
             ngen += 1
 
-            if len(result) >= 2 and conv == 0:
+            if len(result) >= 2 and conv == .0:
                 if kill_counter == 5:
+                    ga_log.info(f'No longer converging, activating kill-switch!')
                     run = False
                 else:
                     kill_counter += 1
@@ -140,7 +141,8 @@ class GeneticAlgorithm:
     def output(self):
         """Output the fitness and individual properties."""
         folder = self.run_params['folder']
-        output_f = f'{folder}/gadock.dat'
+        output_f = f'{folder}/gdock.dat'
+        ga_log.info(f'Writing output to {output_f}')
         with open(output_f, 'w') as fh:
             for gen in self.generation_dic:
                 for ind in self.generation_dic[gen]:
@@ -233,12 +235,12 @@ class GeneticAlgorithm:
     @staticmethod
     def generate_individual():
         """Generates the individual."""
-        ind = [round(secretsGenerator.uniform(-1,1), 2),
-               round(secretsGenerator.uniform(-1,1), 2),
-               round(secretsGenerator.uniform(-1,1), 2),
-               round(secretsGenerator.uniform(-1,1), 2),
-               round(secretsGenerator.uniform(-4,4), 3),
-               round(secretsGenerator.uniform(-4,4), 3),
-               round(secretsGenerator.uniform(-4,4), 3)]
+        ind = [round(secretsGenerator.uniform(-1, 1), 2),
+               round(secretsGenerator.uniform(-1, 1), 2),
+               round(secretsGenerator.uniform(-1, 1), 2),
+               round(secretsGenerator.uniform(-1, 1), 2),
+               round(secretsGenerator.uniform(-4, 4), 3),
+               round(secretsGenerator.uniform(-4, 4), 3),
+               round(secretsGenerator.uniform(-4, 4), 3)]
 
         return ind
