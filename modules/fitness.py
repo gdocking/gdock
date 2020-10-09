@@ -8,7 +8,7 @@ ga_log = logging.getLogger('ga_log')
 
 etc_folder = get_full_path('etc')
 ini = configparser.ConfigParser(os.environ)
-ini.read(os.path.join(etc_folder, 'gadock.ini'), encoding='utf-8')
+ini.read(os.path.join(etc_folder, 'gdock.ini'), encoding='utf-8')
 native = ini.get('reference', 'native_pdb')
 
 dockq_exe = ini.get('third_party', 'dockq_exe')
