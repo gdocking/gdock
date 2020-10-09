@@ -1,7 +1,6 @@
 import os
-import random
+import secrets
 import multiprocessing
-import math
 import numpy as np
 import toml as toml
 from tempfile import NamedTemporaryFile
@@ -15,6 +14,7 @@ import logging
 ga_log = logging.getLogger('ga_log')
 
 ga_params = toml.load(f"{get_full_path('etc')}/genetic_algorithm_params.toml")
+secretsGenerator = secrets.SystemRandom()
 
 
 class GeneticAlgorithm:
@@ -93,7 +93,7 @@ class GeneticAlgorithm:
             # Apply crossover on the offspring
             ga_log.debug('Applying crossover')
             for child1, child2 in zip(offspring[::2], offspring[1::2]):
-                if random.random() < self.cxpb:
+                if secretsGenerator.uniform(0, 1) < self.cxpb:
                     self.toolbox.mate(child1, child2)
                     del child1.fitness.values
                     del child2.fitness.values
@@ -101,7 +101,7 @@ class GeneticAlgorithm:
             # Apply mutation on the offspring
             ga_log.debug('Applying mutation')
             for mutant in offspring:
-                if random.random() < self.mutpb:
+                if secretsGenerator.uniform(0, 1) < self.mutpb:
                     self.toolbox.mutate_rot(mutant[:4])
                     self.toolbox.mutate_trans(mutant[4:])
                     del mutant.fitness.values
@@ -141,8 +141,6 @@ class GeneticAlgorithm:
         with open(output_f, 'w') as fh:
             for gen in self.generation_dic:
                 for ind in self.generation_dic[gen]:
-                    # There is no need for this to be a hex!
-                    # coded_name = '_'.join([float2hex(n) for n in self.generation_dic[gen][ind][0]])
                     individual = ' '.join(map(str, self.generation_dic[gen][ind][0]))
                     fitness = self.generation_dic[gen][ind][1][0]
                     tbw = f'{gen},{ind},{fitness},{individual}\n'
@@ -245,12 +243,12 @@ class GeneticAlgorithm:
         The first 4 random floats are the quaternion, and the 3 other its possible positions around an arbitrary center
         :return:
         """
-        ind = [round(random.choice(np.arange(-1, +1, 0.1)), 3),
-               round(random.choice(np.arange(-1, +1, 0.1)), 3),
-               round(random.choice(np.arange(-1, +1, 0.1)), 3),
-               round(random.choice(np.arange(-1, +1, 0.1)), 3),
-               random.choice(np.arange(-4, +4, 0.5)),
-               random.choice(np.arange(-4, +4, 0.5)),
-               random.choice(np.arange(-4, +4, 0.5))]
+        ind = [round(secretsGenerator.uniform(-1,1), 2),
+               round(secretsGenerator.uniform(-1,1), 2),
+               round(secretsGenerator.uniform(-1,1), 2),
+               round(secretsGenerator.uniform(-1,1), 2),
+               round(secretsGenerator.uniform(-4,4), 3),
+               round(secretsGenerator.uniform(-4,4), 3),
+               round(secretsGenerator.uniform(-4,4), 3)]
 
         return ind
