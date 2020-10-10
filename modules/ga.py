@@ -1,5 +1,5 @@
 import os
-import random
+import secrets
 import multiprocessing
 import numpy as np
 import toml as toml
@@ -14,23 +14,16 @@ import logging
 ga_log = logging.getLogger('ga_log')
 
 ga_params = toml.load(f"{get_full_path('etc')}/genetic_algorithm_params.toml")
+secretsGenerator = secrets.SystemRandom()
 
 
 class GeneticAlgorithm:
 
     def __init__(self, pioneer, run_params):
-        """
-        Initialize GeneticAlgorithm class.
-
-        :param pioneer:
-        :param run_params:
-        """
-        # super().__init__(pioneer, run_params)
-        # self.pioneer = pioneer
+        """Initialize GeneticAlgorithm class."""
         self.run_params = run_params
         self.nproc = self.run_params['np']
-        # self.pop = Population(pioneer, target_chain)
-        self.ngen = ga_params['general']['number_of_generations']
+        # self.ngen = ga_params['general']['number_of_generations']
         self.popsize = ga_params['general']['population_size']
         self.cxpb = ga_params['general']['crossover_probability']
         self.mutpb = ga_params['general']['mutation_probability']
@@ -81,10 +74,14 @@ class GeneticAlgorithm:
     def run(self):
         """Run the genetic algorithm."""
         ga_log.info('Running GA!')
-        ga_log.info(f'Generations: {self.ngen} Population: {self.popsize}')
+        result = []
+        kill_counter = 0
+        run = True
+        ga_log.info(f'Generations: Inf. Population: {self.popsize}')
         pop = self.toolbox.population(n=self.popsize)
-        for g in range(self.ngen):
-            self.generation_dic[g] = {}
+        ngen = 1
+        while run:
+            self.generation_dic[ngen] = {}
             offspring = self.toolbox.select(pop, len(pop))
             # Clone the population created
             offspring = list(map(self.toolbox.clone, offspring))
@@ -92,7 +89,7 @@ class GeneticAlgorithm:
             # Apply crossover on the offspring
             ga_log.debug('Applying crossover')
             for child1, child2 in zip(offspring[::2], offspring[1::2]):
-                if random.random() < self.cxpb:
+                if secretsGenerator.uniform(0, 1) < self.cxpb:
                     self.toolbox.mate(child1, child2)
                     del child1.fitness.values
                     del child2.fitness.values
@@ -100,7 +97,7 @@ class GeneticAlgorithm:
             # Apply mutation on the offspring
             ga_log.debug('Applying mutation')
             for mutant in offspring:
-                if random.random() < self.mutpb:
+                if secretsGenerator.uniform(0, 1) < self.mutpb:
                     self.toolbox.mutate_rot(mutant[:4])
                     self.toolbox.mutate_trans(mutant[4:])
                     del mutant.fitness.values
@@ -115,26 +112,40 @@ class GeneticAlgorithm:
             pop[:] = offspring
 
             for idx, ind in enumerate(pop):
-                self.generation_dic[g][idx] = ind, []
+                self.generation_dic[ngen][idx] = ind, []
                 for fitness_v in ind.fitness.values:
-                    self.generation_dic[g][idx][1].append(fitness_v)
+                    self.generation_dic[ngen][idx][1].append(fitness_v)
 
-            irmsd_list = [self.generation_dic[g][f][1][0] for f in self.generation_dic[g]]
+            irmsd_list = [self.generation_dic[ngen][f][1][0] for f in self.generation_dic[ngen]]
+            mean_fitness = np.mean(irmsd_list)
+            std_fitness = np.std(irmsd_list)
+            max_fitness = max(irmsd_list)
+            min_fitness = min(irmsd_list)
+            result.append(mean_fitness)
+            conv = .0
+            if len(result) >= 2:
+                conv = round(result[-1] - result[-2], 2)
+            ga_log.info(f" Gen {ngen}: irmsd: {mean_fitness:.2f} ± {std_fitness:.2f} [{max_fitness:.2f},"
+                        f" {min_fitness:.2f}] ({conv:.2f})")
+            ngen += 1
 
-            ga_log.info(f" Gen {g}: irmsd: {np.mean(irmsd_list):.2f} ± {np.std(irmsd_list):.2f} [{max(irmsd_list):.2f},"
-                        f" {min(irmsd_list):.2f}]")
+            if len(result) >= 2 and conv == .0:
+                if kill_counter == 5:
+                    ga_log.info(f'Simulation converged, activating kill-switch!')
+                    run = False
+                else:
+                    kill_counter += 1
 
         return self.generation_dic
 
     def output(self):
         """Output the fitness and individual properties."""
         folder = self.run_params['folder']
-        output_f = f'{folder}/gadock.dat'
+        output_f = f'{folder}/gdock.dat'
+        ga_log.info(f'Writing output to {output_f}')
         with open(output_f, 'w') as fh:
             for gen in self.generation_dic:
                 for ind in self.generation_dic[gen]:
-                    # There is no need for this to be a hex!
-                    # coded_name = '_'.join([float2hex(n) for n in self.generation_dic[gen][ind][0]])
                     individual = ' '.join(map(str, self.generation_dic[gen][ind][0]))
                     fitness = self.generation_dic[gen][ind][1][0]
                     tbw = f'{gen},{ind},{fitness},{individual}\n'
@@ -183,16 +194,8 @@ class GeneticAlgorithm:
 
     @staticmethod
     def fitness_function(pdb_dic, individual):
-        """
-        Calculate the fitness of an individual.
-
-        :param pdb_dic:
-        :param individual:
-        :return:
-        """
-
+        """Calculate the fitness of an individual."""
         # use the chromossome and create the structure!
-
         c = np.array(pdb_dic['B']['coord'])
         # transform
         rot_q = Quaternion(individual[:4])
@@ -231,18 +234,13 @@ class GeneticAlgorithm:
 
     @staticmethod
     def generate_individual():
-        """
-        Generates the individual.
-
-        The first 4 random floats are the quaternion, and the 3 other its possible positions around an arbitrary center
-        :return:
-        """
-        ind = [round(random.choice(np.arange(-1, +1, 0.1)), 3),
-               round(random.choice(np.arange(-1, +1, 0.1)), 3),
-               round(random.choice(np.arange(-1, +1, 0.1)), 3),
-               round(random.choice(np.arange(-1, +1, 0.1)), 3),
-               random.choice(np.arange(-4, +4, 0.5)),
-               random.choice(np.arange(-4, +4, 0.5)),
-               random.choice(np.arange(-4, +4, 0.5))]
+        """Generates the individual."""
+        ind = [round(secretsGenerator.uniform(-1, 1), 2),
+               round(secretsGenerator.uniform(-1, 1), 2),
+               round(secretsGenerator.uniform(-1, 1), 2),
+               round(secretsGenerator.uniform(-1, 1), 2),
+               round(secretsGenerator.uniform(-4, 4), 3),
+               round(secretsGenerator.uniform(-4, 4), 3),
+               round(secretsGenerator.uniform(-4, 4), 3)]
 
         return ind

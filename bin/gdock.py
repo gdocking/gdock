@@ -1,4 +1,4 @@
-# GADock
+# GDock
 import argparse
 from modules.geometry import Geometry
 from modules.setup import Setup
@@ -52,4 +52,5 @@ if __name__ == '__main__':
     output = ga.output()
     # plot = ga.plot('plot.png')
 
+    ga_log.info('GDock finished.')
     # done :)

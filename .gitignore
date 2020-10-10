@@ -2,7 +2,4 @@
 *.pdb
 *.pyc
 .idea/*
-src/dcomplex*
-movie.pdb
-gadock.dat
-plot.png
+src/*
