@@ -10,9 +10,8 @@ install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   - conda info -a
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy toml biopython
+  - conda env create --name test-environment --file environment.yml
   - conda activate test-environment
-  - pip install deap pyquaternion pdb_tools coverage codecov
 
 script:
   - python -m coverage run -m unittest discover
