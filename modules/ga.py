@@ -74,7 +74,8 @@ class GeneticAlgorithm:
     def run(self):
         """Run the genetic algorithm."""
         ga_log.info('Running GA!')
-        result = []
+        conv_l = []
+        result_l = []
         kill_counter = 0
         run = True
         ga_log.info(f'Generations: Inf. Population: {self.popsize}')
@@ -121,20 +122,23 @@ class GeneticAlgorithm:
             std_fitness = np.std(irmsd_list)
             max_fitness = max(irmsd_list)
             min_fitness = min(irmsd_list)
-            result.append(mean_fitness)
-            conv = .0
-            if len(result) >= 2:
-                conv = round(result[-1] - result[-2], 2)
-            ga_log.info(f" Gen {ngen}: irmsd: {mean_fitness:.2f} ± {std_fitness:.2f} [{max_fitness:.2f},"
-                        f" {min_fitness:.2f}] ({conv:.2f})")
-            ngen += 1
 
-            if len(result) >= 2 and conv == .0:
-                if kill_counter == 5:
-                    ga_log.info(f'Simulation converged, activating kill-switch!')
-                    run = False
-                else:
-                    kill_counter += 1
+            result_l.append(mean_fitness)
+            if len(result_l) >= 2:
+                conv = round(result_l[-1] - result_l[-2], 3)
+            else:
+                conv = round(.0, 3)
+
+            conv_l.append(conv)
+
+            ga_log.info(f" Gen {ngen}: irmsd: {mean_fitness:.2f} ± {std_fitness:.2f} [{max_fitness:.2f},"
+                        f" {min_fitness:.2f}] ({conv:.3f})")
+
+            if len(conv_l) >= 5 and sum(conv_l[-5:]) == .0:
+                ga_log.info('Simulation converged, activating kill-switch!')
+                run = False
+
+            ngen += 1
 
         return self.generation_dic
 
