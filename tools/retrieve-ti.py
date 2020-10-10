@@ -7,18 +7,12 @@ from utils.files import get_full_path
 
 etc_folder = get_full_path('etc')
 ini = configparser.ConfigParser(os.environ)
-ini.read(os.path.join(etc_folder, 'gadock.ini'), encoding='utf-8')
+ini.read(os.path.join(etc_folder, 'gdock.ini'), encoding='utf-8')
 contact_exe = ini.get('third_party', 'contact_exe')
 
 
 def get_ti(pdb_f, cutoff=4.9):
-    """
-    Get the True-Interface of a PDB complex.
-
-    :param pdb_f:
-    :param cutoff:
-    :return:
-    """
+    """Get the True-Interface of a PDB complex."""
     ti_dic = {}
     cmd = f'{contact_exe} {pdb_f} {cutoff}'
     proc = subprocess.Popen(cmd.split(), shell=False, stdout=subprocess.PIPE)
