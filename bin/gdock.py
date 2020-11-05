@@ -1,5 +1,7 @@
 # GDock
 import argparse
+
+from modules.analysis import Analysis
 from modules.geometry import Geometry
 from modules.setup import Setup
 from modules.structure import PDB, Restraint
@@ -48,9 +50,13 @@ if __name__ == '__main__':
     ga_log.info('Loading Genetic Algorithm')
     ga = GeneticAlgorithm(initial_complex, run_params)
     ga.setup()
-    result_dic = ga.run()
-    output = ga.output()
-    # plot = ga.plot('plot.png')
+    results = ga.run()
+
+    # 5. Analysis
+    ana = Analysis(initial_complex, results)
+    ana.cluster()
+    ana.output()
+    ana.plot()
 
     ga_log.info('GDock finished.')
     # done :)
