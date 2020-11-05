@@ -5,7 +5,7 @@ import numpy as np
 import toml as toml
 from tempfile import NamedTemporaryFile
 from deap import base, creator, tools
-from pyquaternion import Quaternion
+from scipy.spatial.transform import Rotation as R
 from utils.files import get_full_path
 from utils.functions import format_coords
 from modules.fitness import calc_irmsd
@@ -59,7 +59,7 @@ class GeneticAlgorithm:
         toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
         toolbox.register("mate", tools.cxTwoPoint)
-        toolbox.register("mutate_rot", tools.mutPolynomialBounded, eta=self.eta, low=-1, up=+1, indpb=self.indpb)
+        toolbox.register("mutate_rot", tools.mutPolynomialBounded, eta=self.eta, low=0, up=360, indpb=self.indpb)
         toolbox.register("mutate_trans", tools.mutPolynomialBounded, eta=self.eta, low=-4, up=+4, indpb=self.indpb)
         toolbox.register("select", tools.selTournament, tournsize=2)
         toolbox.register("evaluate", self.fitness_function,
@@ -99,8 +99,8 @@ class GeneticAlgorithm:
             ga_log.debug('Applying mutation')
             for mutant in offspring:
                 if secretsGenerator.uniform(0, 1) < self.mutpb:
-                    self.toolbox.mutate_rot(mutant[:4])
-                    self.toolbox.mutate_trans(mutant[4:])
+                    self.toolbox.mutate_rot(mutant[:3])
+                    self.toolbox.mutate_trans(mutant[3:])
                     del mutant.fitness.values
 
             ga_log.debug('Calculating fitnessess')
@@ -156,13 +156,13 @@ class GeneticAlgorithm:
         # use the chromossome and create the structure!
         c = np.array(pdb_dic['B']['coord'])
         # transform
-        rot_q = Quaternion(individual[:4])
-        transl = individual[4:]
+        rot = R.from_euler('zyx', individual[:3])
+        transl = individual[3:]
 
         center = c.mean(axis=0)
         c -= center
         c -= transl
-        r = np.array([rot_q.rotate(e) for e in c])
+        r = np.array([rot.apply(e) for e in c])
         r += center
 
         pdb_dic['B']['coord'] = list(r)
@@ -193,10 +193,9 @@ class GeneticAlgorithm:
     @staticmethod
     def generate_individual():
         """Generates the individual."""
-        ind = [round(secretsGenerator.uniform(-1, 1), 2),
-               round(secretsGenerator.uniform(-1, 1), 2),
-               round(secretsGenerator.uniform(-1, 1), 2),
-               round(secretsGenerator.uniform(-1, 1), 2),
+        ind = [round(secretsGenerator.uniform(0, 360), 2),
+               round(secretsGenerator.uniform(0, 360), 2),
+               round(secretsGenerator.uniform(0, 360), 2),
                round(secretsGenerator.uniform(-4, 4), 3),
                round(secretsGenerator.uniform(-4, 4), 3),
                round(secretsGenerator.uniform(-4, 4), 3)]
