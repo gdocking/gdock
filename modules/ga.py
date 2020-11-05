@@ -138,7 +138,7 @@ class GeneticAlgorithm:
 
             conv_l.append(conv)
 
-            ngen_str = str(ngen).rjust(4, '0')
+            ngen_str = str(ngen).rjust(3, '0')
             ga_log.info(f"Gen {ngen_str} iRMSD {mean_fitness:.2f} +- {std_fitness:.2f} [{max_fitness:.2f},"
                         f"{min_fitness:.2f}] ({conv:.3f})")
 
