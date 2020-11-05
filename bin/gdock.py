@@ -53,7 +53,8 @@ if __name__ == '__main__':
     results = ga.run()
 
     # 5. Analysis
-    ana = Analysis(initial_complex, results)
+    ana = Analysis(initial_complex, results, run_params)
+    ana.generate_structures()
     ana.cluster()
     ana.output()
     ana.plot()
