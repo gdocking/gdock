@@ -2,14 +2,17 @@ name: gdock
 channels:
   - defaults
 dependencies:
-  - python=3.7.9
-  - pip=20.2.3
   - biopython=1.78
-  - numpy=1.19.1
+  - numpy=1.19.2
+  - pip=20.2.4
+  - python=3.8.5
   - scipy=1.5.2
   - toml=0.10.1
+  - pandas=1.1.3
+  - seaborn=0.11.0
   - pip:
     - deap==1.3.1
-    - pdb-tools==2.2.1
     - codecov==2.1.10
+    - pdb-tools==2.2.2
     - coverage==5.3
+prefix: /Users/rodrigo/software/anaconda3/envs/gdock

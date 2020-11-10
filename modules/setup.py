@@ -45,6 +45,11 @@ class Setup:
             ga_log.debug(f'Creating gen folder {gen_folder}')
             os.mkdir(gen_folder)
 
+        analysis_folder = f'{identifier_folder}/analysis'
+        if not os.path.isdir(analysis_folder):
+            ga_log.debug(f'Creating analysis folder {gen_folder}')
+            os.mkdir(analysis_folder)
+
         run_params['folder'] = run_path
         run_params['mol_a'] = f'{run_path}/input/{mol_a}'
         run_params['mol_b'] = f'{run_path}/input/{mol_b}'
