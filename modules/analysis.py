@@ -1,14 +1,18 @@
 import configparser
 import os
+import subprocess
+import shlex
+import logging
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from utils.files import get_full_path
 from utils.functions import format_coords
+ga_log = logging.getLogger('ga_log')
 
 etc_folder = get_full_path('etc')
 ini = configparser.ConfigParser(os.environ)
 ini.read(os.path.join(etc_folder, 'gdock.ini'), encoding='utf-8')
-fcc = ini.get('third_party', 'dockq_exe')
+fcc = ini.get('third_party', 'fcc_path')
 
 
 class Analysis:
@@ -18,10 +22,12 @@ class Analysis:
         self.input_structures = input_structures
         self.result_dic = result_dic
         self.analysis_path = f"{run_params['folder']}/analysis"
+        self.nproc = run_params['np']
+        self.structure_list = []
+        self.cluster_dic = {}
 
     def generate_structures(self):
         """Read information from simulation and generate structures."""
-        structure_list = []
         input_structure_dic = {}
         for line in self.input_structures.split('\n'):
             if line.startswith('ATOM'):
@@ -58,13 +64,67 @@ class Analysis:
                             new_line = f'{line[:30]} {new_x} {new_y} {new_z} {line[55:]}\n'
                             fh.write(new_line)
                 fh.close()
-                structure_list.append(pdb_name)
+                self.structure_list.append(pdb_name)
 
-        return structure_list
+        self.structure_list.sort()
 
-    def cluster(self):
-        # Use FCC for this
-        pass
+        return self.structure_list
+
+    def cluster(self, cutoff=0.75):
+        """Use FCC to cluster structures"""
+        ga_log.info('FCC - making contacts')
+        # TODO: Make this run using multiple processors
+        make_contacts = f'{fcc}/scripts/make_contacts.py'
+        pdb_list = f'{self.analysis_path}/pdb.list'
+        with open(pdb_list, 'w') as fh:
+            for pdb in self.structure_list:
+                fh.write(f'{pdb}\n')
+        fh.close()
+
+        cmd = f'{make_contacts} -f {pdb_list}'
+        ga_log.debug(f'cmd is: {cmd}')
+        out = subprocess.check_output(shlex.split(cmd), shell=False, stderr=subprocess.PIPE)  # nosec
+        if 'Finished' not in out.decode('utf-8'):
+            ga_log.error('FCC - make_contacts.py failed')
+            exit()
+
+        ga_log.info('FCC - Calculating matrix')
+        calc_fcc_matrix = f'{fcc}/scripts/calc_fcc_matrix.py'
+        contact_list = f'{self.analysis_path}/contact.list'
+        fcc_matrix = f'{self.analysis_path}/fcc.matrix'
+        with open(contact_list, 'w') as fh:
+            for pdb in self.structure_list:
+                contact_fname = pdb.replace('.pdb', '.contacts')
+                fh.write(f'{contact_fname}\n')
+        fh.close()
+
+        cmd = f'{calc_fcc_matrix} -f {contact_list} -o {fcc_matrix}'
+        subprocess.check_output(shlex.split(cmd), shell=False, stderr=subprocess.PIPE)  # nosec
+        if not os.path.isfile(fcc_matrix):
+            ga_log.error('FCC - calc_fcc_matrix.py failed')
+            exit()
+
+        ga_log.info(f'FCC - Clustering with cutoff={cutoff}')
+        cluster_fcc = f'{fcc}/scripts/cluster_fcc.py'
+        cluster_out = f'{self.analysis_path}/cluster.out'
+        cmd = f'{cluster_fcc} {fcc_matrix} {cutoff} -o {cluster_out}'
+        subprocess.check_output(shlex.split(cmd), shell=False, stderr=subprocess.PIPE)  # nosec
+        if os.stat(cluster_out).st_size == 0:
+            ga_log.warning('No clusters were written!')
+            return
+        else:
+            with open(cluster_out, 'r') as fh:
+                for line in fh.readlines():
+                    data = line.split()
+                    cluster_id = int(data[1])
+                    self.cluster_dic[cluster_id] = []
+                    cluster_elements = map(int, data[4:])
+                    for element in cluster_elements:
+                        element_name = os.path.split(self.structure_list[element])[1].split('.pdb')[0]
+                        self.cluster_dic[cluster_id].append(element_name)
+            ga_log.info(f'FCC - {len(self.cluster_dic)} clusters identified')
+
+        return self.cluster_dic
 
     def output(self):
         pass

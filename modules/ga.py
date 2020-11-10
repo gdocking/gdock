@@ -16,6 +16,10 @@ ga_log = logging.getLogger('ga_log')
 ga_params = toml.load(f"{get_full_path('etc')}/genetic_algorithm_params.toml")
 secretsGenerator = secrets.SystemRandom()
 
+# This needs to be outside..! https://github.com/rsteca/sklearn-deap/issues/59
+creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # -1 will optimize towards negative
+creator.create("Individual", list, fitness=creator.FitnessMin)
+
 
 class GeneticAlgorithm:
 
@@ -48,8 +52,7 @@ class GeneticAlgorithm:
         """Setup the genetic algorithm."""
         ga_log.debug('Creating the creator')
 
-        creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # -1 will optimize towards negative
-        creator.create("Individual", list, fitness=creator.FitnessMin)
+        # creator was here!
 
         # Individual and population functions
         ga_log.debug('Creating the individual and population functions')
@@ -76,7 +79,6 @@ class GeneticAlgorithm:
         ga_log.info('Running GA!')
         conv_l = []
         result_l = []
-        kill_counter = 0
         run = True
         ga_log.info(f'Generations: Inf. Population: {self.popsize}')
         pop = self.toolbox.population(n=self.popsize)
@@ -142,7 +144,7 @@ class GeneticAlgorithm:
             ga_log.info(f"Gen {ngen_str} iRMSD {mean_fitness:.2f} +- {std_fitness:.2f} [{max_fitness:.2f},"
                         f"{min_fitness:.2f}] ({conv:.3f})")
 
-            if len(conv_l) >= 5 and sum(conv_l[-5:]) == .0:
+            if len(conv_l) >= 3 and sum(conv_l[-3:]) == .0:
                 ga_log.info('Simulation converged, activating kill-switch!')
                 run = False
 

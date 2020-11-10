@@ -53,9 +53,10 @@ if __name__ == '__main__':
     results = ga.run()
 
     # 5. Analysis
+    ga_log.info('Loading Analysis')
     ana = Analysis(initial_complex, results, run_params)
     ana.generate_structures()
-    ana.cluster()
+    ana.cluster(cutoff=0.1)
     ana.output()
     ana.plot()
 
