@@ -67,7 +67,6 @@ class Analysis:
                 self.structure_list.append(pdb_name)
 
         self.structure_list.sort()
-
         return self.structure_list
 
     def cluster(self, cutoff=0.75):
@@ -127,7 +126,17 @@ class Analysis:
         return self.cluster_dic
 
     def output(self):
-        pass
+        """Generate a script friendly output table"""
+        output_f = f'{self.analysis_path}/gdock.dat'
+        ga_log.info(f'Saving output file to {output_f}')
+        with open(output_f, 'w') as fh:
+            fh.write('generation,individual,fitness\n')
+            for generation in self.result_dic:
+                for individual in self.result_dic[generation]:
+                    _, fitness = self.result_dic[generation][individual]
+                    fitness = fitness[0] # placeholder for multiple values of fitnessess
+                    fh.write(f"{str(generation).rjust(3, '0')},{str(individual).rjust(3, '0')},{fitness}\n")
+        fh.close()
 
     def plot(self):
         pass

@@ -1,6 +1,5 @@
 # GDock
 import argparse
-
 from modules.analysis import Analysis
 from modules.geometry import Geometry
 from modules.setup import Setup
@@ -56,7 +55,7 @@ if __name__ == '__main__':
     ga_log.info('Loading Analysis')
     ana = Analysis(initial_complex, results, run_params)
     ana.generate_structures()
-    ana.cluster(cutoff=0.1)
+    ana.cluster(cutoff=0.75)
     ana.output()
     ana.plot()
 
