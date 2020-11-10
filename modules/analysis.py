@@ -1,6 +1,6 @@
 import configparser
 import os
-import subprocess
+import subprocess  # nosec
 import shlex
 import logging
 import numpy as np
@@ -70,7 +70,7 @@ class Analysis:
         return self.structure_list
 
     def cluster(self, cutoff=0.75):
-        """Use FCC to cluster structures"""
+        """Use FCC to cluster structures."""
         ga_log.info('FCC - making contacts')
         # TODO: Make this run using multiple processors
         make_contacts = f'{fcc}/scripts/make_contacts.py'
@@ -126,7 +126,7 @@ class Analysis:
         return self.cluster_dic
 
     def output(self):
-        """Generate a script friendly output table"""
+        """Generate a script friendly output table."""
         output_f = f'{self.analysis_path}/gdock.dat'
         ga_log.info(f'Saving output file to {output_f}')
         with open(output_f, 'w') as fh:
