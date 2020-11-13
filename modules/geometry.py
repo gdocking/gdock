@@ -1,11 +1,13 @@
+"""Geometry Module."""
+import logging
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from utils.functions import tidy  # , write_coords, add_dummy
-import logging
 ga_log = logging.getLogger('ga_log')
 
 
 class Geometry:
+    """Geometry Class."""
 
     def __init__(self, input_data, restraint):
         """Initialize the geometry class."""
@@ -50,10 +52,10 @@ class Geometry:
         # ====
         # Align the vectors between molecule center and interface
 
-        a = np.array([r_center, r_rest_center_c])
-        b = np.array([l_center, l_rest_center_c])
+        a_array = np.array([r_center, r_rest_center_c])
+        b_array = np.array([l_center, l_rest_center_c])
 
-        mat, _ = R.align_vectors(a, b)
+        mat, _ = R.align_vectors(a_array, b_array)
 
         rot_l_c = mat.apply(l_c)
         rot_l_rest_c = mat.apply(l_rest_c)
@@ -62,19 +64,19 @@ class Geometry:
         rot_l_rest_center = rot_l_rest_c.mean(axis=0)
 
         # Move them apart
-        a = np.array([r_center, r_rest_center_c])
-        b = np.array([rot_l_center, rot_l_rest_center])
+        i_array = np.array([r_center, r_rest_center_c])
+        j_array = np.array([rot_l_center, rot_l_rest_center])
 
-        _, b_i = np.add(a, b)
+        _, j_i = np.add(i_array, j_array)
 
-        rot_l_c += b_i
-        rot_l_rest_c += b_i
+        rot_l_c += j_i
+        rot_l_rest_c += j_i
 
         # Rotate so that they face each other
         # Move to origin and rotate again
-        c = rot_l_c.mean(axis=0)
-        rot_l_c -= c
-        rot_l_rest_c -= c
+        center = rot_l_c.mean(axis=0)
+        rot_l_c -= center
+        rot_l_rest_c -= center
 
         rotation_radians = np.radians(180)
         rotation_axis = np.array([0, 0, 1])
@@ -84,8 +86,8 @@ class Geometry:
         l_c = rotation.apply(rot_l_c)
         l_rest_c = rotation.apply(rot_l_rest_c)
 
-        l_c += c
-        l_rest_c += c
+        l_c += center
+        l_rest_c += center
 
         self.ligand_coord = l_c
         self.receptor_coord = r_c
@@ -127,10 +129,11 @@ class Geometry:
     def rotation_matrix_from_vectors(vec1, vec2):
         """Find the rotation matrix that aligns vec1 (source) to vec2 (destination)."""
         # Copied from https://stackoverflow.com/a/59204638
-        a, b = (vec1 / np.linalg.norm(vec1)).reshape(3), (vec2 / np.linalg.norm(vec2)).reshape(3)
-        v = np.cross(a, b)
-        c = np.dot(a, b)
-        s = np.linalg.norm(v)
-        kmat = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
-        rotation_matrix = np.eye(3) + kmat + kmat.dot(kmat) * ((1 - c) / (s ** 2))
+        a_c = (vec1 / np.linalg.norm(vec1)).reshape(3)
+        b_c = (vec2 / np.linalg.norm(vec2)).reshape(3)
+        v_c = np.cross(a_c, b_c)
+        c_c = np.dot(a_c, b_c)
+        s_c = np.linalg.norm(v_c)
+        kmat = np.array([[0, -v_c[2], v_c[1]], [v_c[2], 0, -v_c[0]], [-v_c[1], v_c[0], 0]])
+        rotation_matrix = np.eye(3) + kmat + kmat.dot(kmat) * ((1 - c_c) / (s_c ** 2))
         return rotation_matrix

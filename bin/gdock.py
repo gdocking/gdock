@@ -1,11 +1,11 @@
-# gdock
+"""Genetic Algorithm Docking."""
 import argparse
+import logging
 from modules.setup import Setup
 from modules.geometry import Geometry
 from modules.structure import PDB, Restraint
 from modules.ga import GeneticAlgorithm
 from modules.analysis import Analysis
-import logging
 
 ga_log = logging.getLogger('ga_log')
 ga_log.setLevel(logging.INFO)
