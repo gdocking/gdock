@@ -1,11 +1,14 @@
+"""Setup Module."""
 import os
 import shutil
-import toml
 import logging
+import toml
 ga_log = logging.getLogger('ga_log')
 
 
 class Setup:
+    """Setup Class."""
+
     def __init__(self, toml_file):
         """Initialize setup class."""
         self.input_params = toml.load(toml_file)
@@ -17,8 +20,8 @@ class Setup:
         identifier_folder = self.input_params['main']['identifier']
         run_path = f'{os.getcwd()}/{identifier_folder}'
         ga_log.info('Initializing')
-        ga_log.debug(f'Run path: {run_path}')
-        ga_log.debug(f'Run folder: {identifier_folder}')
+        ga_log.debug('Run path: %s', run_path)
+        ga_log.debug('Run folder: %s', identifier_folder)
         if not os.path.isdir(identifier_folder):
             os.mkdir(identifier_folder)
 
@@ -28,26 +31,26 @@ class Setup:
 
         ga_log.info('Copying input molecules to run folder')
         if not os.path.isdir(input_folder):
-            ga_log.debug(f'Creating input folder: {input_folder}')
+            ga_log.debug('Creating input folder: %s', input_folder)
             os.mkdir(input_folder)
-            ga_log.debug(f'Copying {mol_a}')
+            ga_log.debug('Copying %s', mol_a)
             shutil.copy(mol_a, input_folder)
-            ga_log.debug(f'Copying {mol_b}')
+            ga_log.debug('Copying %s', mol_b)
             shutil.copy(mol_b, input_folder)
 
         begin_folder = f'{identifier_folder}/begin'
         if not os.path.isdir(begin_folder):
-            ga_log.debug(f'Creating begin folder {begin_folder}')
+            ga_log.debug('Creating begin folder %s', begin_folder)
             os.mkdir(begin_folder)
 
         gen_folder = f'{identifier_folder}/gen'
         if not os.path.isdir(gen_folder):
-            ga_log.debug(f'Creating gen folder {gen_folder}')
+            ga_log.debug('Creating gen folder %s', gen_folder)
             os.mkdir(gen_folder)
 
         analysis_folder = f'{identifier_folder}/analysis'
         if not os.path.isdir(analysis_folder):
-            ga_log.debug(f'Creating analysis folder {gen_folder}')
+            ga_log.debug('Creating analysis folder %s', gen_folder)
             os.mkdir(analysis_folder)
 
         run_params['folder'] = run_path

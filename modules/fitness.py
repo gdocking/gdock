@@ -1,3 +1,4 @@
+"""Fitness module."""
 import os
 import logging
 import configparser
@@ -17,7 +18,7 @@ dockq_exe = ini.get('third_party', 'dockq_exe')
 def calc_irmsd(pdb_f):
     """Calculate the interface root mean square deviation."""
     cmd = f'{dockq_exe} {pdb_f} {native}'
-    ga_log.debug(f'cmd is: {cmd}')
+    ga_log.debug('cmd is: %s', cmd)
     out = subprocess.check_output(shlex.split(cmd), shell=False)  # nosec
     result = out.decode('utf-8')
     irmsd = float(result.split('\n')[-6].split()[-1])
