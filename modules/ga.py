@@ -1,16 +1,15 @@
-"""Genetic Algorithm Module."""
 import os
 import secrets
 import multiprocessing
-import logging
-from tempfile import NamedTemporaryFile
 import numpy as np
-import toml
+import toml as toml
+from tempfile import NamedTemporaryFile
 from deap import base, creator, tools
 from scipy.spatial.transform import Rotation as R
 from utils.files import get_full_path
 from utils.functions import format_coords
 from modules.fitness import calc_irmsd
+import logging
 
 ga_log = logging.getLogger('ga_log')
 
@@ -23,7 +22,6 @@ creator.create("Individual", list, fitness=creator.FitnessMin)
 
 
 class GeneticAlgorithm:
-    """Genetic Algorithm Class."""
 
     def __init__(self, pioneer, run_params):
         """Initialize GeneticAlgorithm class."""
@@ -41,12 +39,12 @@ class GeneticAlgorithm:
         for line in pioneer.split('\n'):
             if line.startswith('ATOM'):
                 chain = line[21]
-                x_c = float(line[31:38])
-                y_c = float(line[39:46])
-                z_c = float(line[47:54])
+                x = float(line[31:38])
+                y = float(line[39:46])
+                z = float(line[47:54])
                 if chain not in self.pioneer_dic:
                     self.pioneer_dic[chain] = {'coord': [], 'raw': []}
-                self.pioneer_dic[chain]['coord'].append((x_c, y_c, z_c))
+                self.pioneer_dic[chain]['coord'].append((x, y, z))
                 self.pioneer_dic[chain]['raw'].append(line)
 
     # @timeit
@@ -64,18 +62,8 @@ class GeneticAlgorithm:
         toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
         toolbox.register("mate", tools.cxTwoPoint)
-        toolbox.register("mutate_rot",
-                            tools.mutPolynomialBounded,
-                            eta=self.eta,
-                            low=0,
-                            up=360,
-                            indpb=self.indpb)
-        toolbox.register("mutate_trans",
-                            tools.mutPolynomialBounded,
-                            eta=self.eta,
-                            low=-4,
-                            up=+4,
-                            indpb=self.indpb)
+        toolbox.register("mutate_rot", tools.mutPolynomialBounded, eta=self.eta, low=0, up=360, indpb=self.indpb)
+        toolbox.register("mutate_trans", tools.mutPolynomialBounded, eta=self.eta, low=-4, up=+4, indpb=self.indpb)
         toolbox.register("select", tools.selTournament, tournsize=2)
         toolbox.register("evaluate", self.fitness_function,
                          self.pioneer_dic)
@@ -92,7 +80,7 @@ class GeneticAlgorithm:
         conv_l = []
         result_l = []
         run = True
-        ga_log.info('Generations: Inf. Population: %i', self.popsize)
+        ga_log.info(f'Generations: Inf. Population: {self.popsize}')
         pop = self.toolbox.population(n=self.popsize)
         ngen = 1
         while run:
@@ -153,8 +141,9 @@ class GeneticAlgorithm:
             conv_l.append(conv)
 
             ngen_str = str(ngen).rjust(3, '0')
-            ga_log.info("Gen %s iRMSD %.2f +- %.2f [%.2f,%.2f] (%.3f)", ngen_str, mean_fitness,
-                            std_fitness, max_fitness, min_fitness, conv)
+            ga_log.info(f"Gen {ngen_str} iRMSD {mean_fitness:.2f} +- {std_fitness:.2f} [{max_fitness:.2f},"
+                        f"{min_fitness:.2f}] ({conv:.3f})")
+
             if len(conv_l) >= 3 and sum(conv_l[-3:]) == .0:
                 ga_log.info('Simulation converged, activating kill-switch!')
                 run = False
@@ -167,18 +156,18 @@ class GeneticAlgorithm:
     def fitness_function(pdb_dic, individual):
         """Calculate the fitness of an individual."""
         # use the chromossome and create the structure!
-        ligand_c = np.array(pdb_dic['B']['coord'])
+        c = np.array(pdb_dic['B']['coord'])
         # transform
         rot = R.from_euler('zyx', individual[:3])
         transl = individual[3:]
 
-        center = ligand_c.mean(axis=0)
-        ligand_c -= center
-        ligand_c -= transl
-        ligand_r = np.array([rot.apply(e) for e in ligand_c])
-        ligand_r += center
+        center = c.mean(axis=0)
+        c -= center
+        c -= transl
+        r = np.array([rot.apply(e) for e in c])
+        r += center
 
-        pdb_dic['B']['coord'] = list(ligand_r)
+        pdb_dic['B']['coord'] = list(r)
 
         # use a temporary file, nothing lasts forever
         pdb = NamedTemporaryFile(delete=False)

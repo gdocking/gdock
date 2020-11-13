@@ -1,6 +1,5 @@
 .DS_Store
 *.pdb
 *.pyc
-.idea
-.vscode
+.idea/*
 src/*
