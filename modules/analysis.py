@@ -3,6 +3,8 @@ import os
 import subprocess  # nosec
 import shlex
 import logging
+import multiprocessing
+from pathlib import Path
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from utils.files import get_full_path
@@ -13,6 +15,7 @@ etc_folder = get_full_path('etc')
 ini = configparser.ConfigParser(os.environ)
 ini.read(os.path.join(etc_folder, 'gdock.ini'), encoding='utf-8')
 fcc = ini.get('third_party', 'fcc_path')
+dockq_exe = ini.get('third_party', 'dockq_exe')
 
 
 class Analysis:
@@ -22,9 +25,14 @@ class Analysis:
         self.input_structures = input_structures
         self.result_dic = result_dic
         self.analysis_path = f"{run_params['folder']}/analysis"
+        if 'native' in run_params:
+            self.native = run_params['native']
+        else:
+            self.native = ''
         self.nproc = run_params['np']
         self.structure_list = []
         self.cluster_dic = {}
+        self.irmsd_dic = {}
 
     def generate_structures(self):
         """Read information from simulation and generate structures."""
@@ -71,7 +79,7 @@ class Analysis:
 
     def cluster(self, cutoff=0.75):
         """Use FCC to cluster structures."""
-        ga_log.info('FCC - making contacts')
+        ga_log.info('Calculating contacts')
         # TODO: Make this run using multiple processors
         make_contacts = f'{fcc}/scripts/make_contacts.py'
         pdb_list = f'{self.analysis_path}/pdb.list'
@@ -87,7 +95,7 @@ class Analysis:
             ga_log.error('FCC - make_contacts.py failed')
             exit()
 
-        ga_log.info('FCC - Calculating matrix')
+        ga_log.info('Calculating contact matrix')
         calc_fcc_matrix = f'{fcc}/scripts/calc_fcc_matrix.py'
         contact_list = f'{self.analysis_path}/contact.list'
         fcc_matrix = f'{self.analysis_path}/fcc.matrix'
@@ -125,15 +133,48 @@ class Analysis:
 
         return self.cluster_dic
 
+    def capri_eval(self):
+        """Calculate the CAPRI metrics for benchmarking purposes."""
+        if not self.native:
+            ga_log.warning('Native not defined, capri evaluation skipped')
+            return
+        ga_log.info(f'Calculating iRMSD against native structure {self.native}')
+        pool = multiprocessing.Pool(processes=self.nproc)  # no logging inside the pool because its way to complicated
+        for pdb in self.structure_list:
+            irmsd = pool.apply_async(self.calc_irmsd, args=(dockq_exe, pdb, self.native)).get()
+            pdb_identifier = Path(pdb).name[:-4]
+            self.irmsd_dic[pdb_identifier] = irmsd
+        pool.close()
+        pool.join()
+
+    def calc_irmsd(self, dockq_exe, pdb_f, native):
+        """Calculate the interface root mean square deviation."""
+        cmd = f'{dockq_exe} {pdb_f} {native}'
+        ga_log.debug(f'cmd is: {cmd}')
+        try:
+            out = subprocess.check_output(shlex.split(cmd), shell=False)  # nosec
+            result = out.decode('utf-8')
+            irmsd = float(result.split('\n')[-6].split()[-1])
+        except Exception:
+            # This will happen when there is something very wrong with the PDB
+            irmsd = float('nan')
+        return irmsd
+
     def output(self):
         """Generate a script friendly output table."""
         output_f = f'{self.analysis_path}/gdock.dat'
         ga_log.info(f'Saving output file to {output_f}')
         with open(output_f, 'w') as fh:
-            fh.write('generation,individual,fitness\n')
+            fh.write('generation,individual,fitness,irmsd\n')
             for generation in self.result_dic:
                 for individual in self.result_dic[generation]:
                     _, fitness = self.result_dic[generation][individual]
                     fitness = fitness[0]  # placeholder for multiple values of fitnessess
-                    fh.write(f"{str(generation).rjust(3, '0')},{str(individual).rjust(3, '0')},{fitness}\n")
+                    generation_str = str(generation).rjust(3, '0')
+                    individual_str = str(individual).rjust(3, '0')
+                    try:
+                        irmsd = self.irmsd_dic[f'{generation_str}_{individual_str}']
+                    except KeyError:
+                        irmsd = float('nan')
+                    fh.write(f"{generation_str},{individual_str},{fitness:.3f},{irmsd:.2f}\n")
         fh.close()
