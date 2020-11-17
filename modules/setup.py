@@ -24,6 +24,10 @@ class Setup:
 
         mol_a = self.input_params['molecules']['A'].split('/')[-1]
         mol_b = self.input_params['molecules']['B'].split('/')[-1]
+        if 'native' in self.input_params['molecules']:
+            native = self.input_params['molecules']['native']
+        else:
+            native = ''
         input_folder = f'{identifier_folder}/input'
 
         ga_log.info('Copying input molecules to run folder')
@@ -34,25 +38,24 @@ class Setup:
             shutil.copy(mol_a, input_folder)
             ga_log.debug(f'Copying {mol_b}')
             shutil.copy(mol_b, input_folder)
+            if native:
+                ga_log.debug(f'Copying {native}')
+                shutil.copy(native, input_folder)
 
         begin_folder = f'{identifier_folder}/begin'
         if not os.path.isdir(begin_folder):
             ga_log.debug(f'Creating begin folder {begin_folder}')
             os.mkdir(begin_folder)
 
-        gen_folder = f'{identifier_folder}/gen'
-        if not os.path.isdir(gen_folder):
-            ga_log.debug(f'Creating gen folder {gen_folder}')
-            os.mkdir(gen_folder)
-
         analysis_folder = f'{identifier_folder}/analysis'
         if not os.path.isdir(analysis_folder):
-            ga_log.debug(f'Creating analysis folder {gen_folder}')
+            ga_log.debug(f'Creating analysis folder {analysis_folder}')
             os.mkdir(analysis_folder)
 
         run_params['folder'] = run_path
         run_params['mol_a'] = f'{run_path}/input/{mol_a}'
         run_params['mol_b'] = f'{run_path}/input/{mol_b}'
+        run_params['native'] = f'{run_path}/input/{native}'
         run_params['restraints_a'] = self.input_params['restraints']['A']
         run_params['restraints_b'] = self.input_params['restraints']['B']
         run_params['np'] = self.input_params['main']['number_of_processors']

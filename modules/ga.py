@@ -8,7 +8,7 @@ from deap import base, creator, tools
 from scipy.spatial.transform import Rotation as R
 from utils.files import get_full_path
 from utils.functions import format_coords
-from modules.fitness import calc_irmsd
+from modules.fitness import run_foldx
 import logging
 
 ga_log = logging.getLogger('ga_log')
@@ -141,7 +141,7 @@ class GeneticAlgorithm:
             conv_l.append(conv)
 
             ngen_str = str(ngen).rjust(3, '0')
-            ga_log.info(f"Gen {ngen_str} iRMSD {mean_fitness:.2f} +- {std_fitness:.2f} [{max_fitness:.2f},"
+            ga_log.info(f"Gen {ngen_str} fitness {mean_fitness:.2f} +- {std_fitness:.2f} [{max_fitness:.2f},"
                         f"{min_fitness:.2f}] ({conv:.3f})")
 
             if len(conv_l) >= 3 and sum(conv_l[-3:]) == .0:
@@ -170,7 +170,7 @@ class GeneticAlgorithm:
         pdb_dic['B']['coord'] = list(r)
 
         # use a temporary file, nothing lasts forever
-        pdb = NamedTemporaryFile(delete=False)
+        pdb = NamedTemporaryFile(delete=False, suffix='.pdb')
         for chain in pdb_dic:
             for coord, line in zip(pdb_dic[chain]['coord'], pdb_dic[chain]['raw']):
                 new_x, new_y, new_z = format_coords(coord)
@@ -180,17 +180,14 @@ class GeneticAlgorithm:
 
         # Calculate fitnesses!
         # ================================#
-        irmsd = calc_irmsd(pdb.name)
-        # clash = calc_clash(rotated_pdb)
-        # center_distance = calc_centerdistance(rotated_pdb)
-        # fit = dcomplex(rotated_pdb)
+        energy = run_foldx(pdb.name)
         # ================================#
 
         # unlink the pdb so that it disappears
         os.unlink(pdb.name)
 
         # this must (?) be a list: github.com/DEAP/deap/issues/256
-        return [irmsd]
+        return [energy]
 
     @staticmethod
     def generate_individual():
