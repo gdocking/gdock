@@ -1,0 +1,11 @@
+{
+    "python.pythonPath": "/Users/rodrigo/software/anaconda3/envs/gdock/bin/python",
+    "python.linting.pylintEnabled": false,
+    "python.linting.banditEnabled": false,
+    "python.linting.enabled": true,
+    "python.linting.flake8Enabled": true,
+    "python.linting.flake8Args": [
+        "--max-line-length=120",
+        "--ignore="
+    ]
+}
