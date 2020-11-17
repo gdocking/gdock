@@ -1,5 +1,7 @@
 .DS_Store
-*.pdb
 *.pyc
 .idea/*
 src/*
+examples/dev
+examples/rotabase.txt
+examples/molecules
