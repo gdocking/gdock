@@ -2,6 +2,9 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 from utils.functions import tidy  # , write_coords, add_dummy
 import logging
+import warnings
+warnings.filterwarnings('ignore', '.*Optimal rotation is not unique.*')
+
 ga_log = logging.getLogger('ga_log')
 
 

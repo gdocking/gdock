@@ -5,6 +5,7 @@ from modules.geometry import Geometry
 from modules.structure import PDB, Restraint
 from modules.ga import GeneticAlgorithm
 from modules.analysis import Analysis
+from utils.functions import random_quote
 import logging
 
 ga_log = logging.getLogger('ga_log')
@@ -20,6 +21,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("input_file")
     args = parser.parse_args()
+    author, quote = random_quote()
+    ga_log.info('============================================================================')
+    ga_log.info('#                            Welcome to gdock!                              ')
+    ga_log.info('#')
+    ga_log.info(f'# "{quote}"')
+    ga_log.info(f'#   -{author}')
+    ga_log.info('#')
+    ga_log.info('============================================================================')
 
     ga_log.info('Setting up simulation')
     s = Setup(args.input_file)

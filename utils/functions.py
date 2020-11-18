@@ -4,6 +4,8 @@ import subprocess  # nosec
 import os
 import numpy as np
 import logging
+import secrets
+from utils.files import get_full_path
 
 ga_log = logging.getLogger('ga_log')
 
@@ -104,3 +106,20 @@ def format_coords(coord):
     new_y = f'{coord[1]:.3f}'.rjust(7, ' ')
     new_z = f'{coord[2]:.3f}'.rjust(7, ' ')
     return new_x, new_y, new_z
+
+
+def random_quote():
+    """Retrieve a correctly formatted quote."""
+    quote_file = f"{get_full_path('etc')}/quotes"
+    quote_list = []
+    if not os.path.isfile(quote_file):
+        return '', ''
+    else:
+        with open(quote_file, 'r') as quote_h:
+            for line in quote_h.readlines():
+                auth, quote = line.split('__')
+                quote = quote[:-1]
+                quote_list.append((auth, quote))
+
+        random_author, random_quote = quote_list[secrets.choice(range(0, len(quote_list)))]
+        return random_author, random_quote

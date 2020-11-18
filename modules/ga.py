@@ -144,7 +144,7 @@ class GeneticAlgorithm:
             ga_log.info(f"Gen {ngen_str} fitness {mean_fitness:.2f} +- {std_fitness:.2f} [{max_fitness:.2f},"
                         f"{min_fitness:.2f}] ({conv:.3f})")
 
-            # kill if its not varying over 25 units 
+            # kill if its not varying over 25 units
             if len(conv_l) >= 3 and abs(sum(conv_l[-3:])) <= 25:
                 ga_log.info('Simulation converged, activating kill-switch!')
                 run = False
