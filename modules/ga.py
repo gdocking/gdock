@@ -144,12 +144,8 @@ class GeneticAlgorithm:
             ga_log.info(f"Gen {ngen_str} fitness {mean_fitness:.2f} +- {std_fitness:.2f} [{max_fitness:.2f},"
                         f"{min_fitness:.2f}] ({conv:.3f})")
 
-            # kill if its not varying over 25 units
-            if len(conv_l) >= 3 and abs(sum(conv_l[-3:])) <= 25:
-                ga_log.info('Simulation converged or went for too long, activating kill-switch!')
-                run = False
-            elif ngen == self.max_ngen:
-                ga_log.info(f'Simulation went for too long, killing it at {ngen} generations.')
+            if ngen == self.max_ngen:
+                ga_log.info(f'Simulation reached maximum number of generations, stopping at {ngen}.')
                 run = False
 
             ngen += 1
