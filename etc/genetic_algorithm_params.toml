@@ -1,6 +1,6 @@
 [general]
 population_size       = 150
-#number_of_generations = 25
+max_number_of_generations = 100
 
 crossover_probability = 0.2
 mutation_probability  = 0.6
