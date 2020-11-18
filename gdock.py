@@ -64,7 +64,7 @@ if __name__ == '__main__':
     ga_log.info('Loading Analysis')
     ana = Analysis(initial_complex, results, run_params)
     ana.generate_structures()
-    ana.cluster(cutoff=0.75)
+    ana.cluster(cutoff=0.2)
     ana.capri_eval()
     ana.output()
 

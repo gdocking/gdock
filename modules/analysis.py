@@ -125,7 +125,7 @@ class Analysis:
                     data = line.split()
                     cluster_id = int(data[1])
                     self.cluster_dic[cluster_id] = []
-                    cluster_elements = map(int, data[4:])
+                    cluster_elements = list(map(int, data[4:]))
                     for element in cluster_elements:
                         element_name = os.path.split(self.structure_list[element])[1].split('.pdb')[0]
                         self.cluster_dic[cluster_id].append(element_name)
@@ -140,8 +140,11 @@ class Analysis:
             return
         ga_log.info(f'Calculating iRMSD against native structure {self.native}')
         pool = multiprocessing.Pool(processes=self.nproc)  # no logging inside the pool because its way to complicated
+        results = []
         for pdb in self.structure_list:
-            irmsd = pool.apply_async(self.calc_irmsd, args=(dockq_exe, pdb, self.native)).get()
+            results.append((pdb, pool.apply_async(self.calc_irmsd, args=(dockq_exe, pdb, self.native))))
+        for p in results:
+            pdb, irmsd = p[0], p[1].get()
             pdb_identifier = Path(pdb).name[:-4]
             self.irmsd_dic[pdb_identifier] = irmsd
         pool.close()

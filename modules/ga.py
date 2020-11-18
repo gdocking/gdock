@@ -27,7 +27,7 @@ class GeneticAlgorithm:
         """Initialize GeneticAlgorithm class."""
         self.run_params = run_params
         self.nproc = self.run_params['np']
-        # self.ngen = ga_params['general']['number_of_generations']
+        self.max_ngen = ga_params['general']['max_number_of_generations']
         self.popsize = ga_params['general']['population_size']
         self.cxpb = ga_params['general']['crossover_probability']
         self.mutpb = ga_params['general']['mutation_probability']
@@ -146,7 +146,10 @@ class GeneticAlgorithm:
 
             # kill if its not varying over 25 units
             if len(conv_l) >= 3 and abs(sum(conv_l[-3:])) <= 25:
-                ga_log.info('Simulation converged, activating kill-switch!')
+                ga_log.info('Simulation converged or went for too long, activating kill-switch!')
+                run = False
+            elif ngen == self.max_ngen:
+                ga_log.info(f'Simulation went for too long, killing it at {ngen} generations.')
                 run = False
 
             ngen += 1
