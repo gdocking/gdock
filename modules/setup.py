@@ -19,8 +19,12 @@ class Setup:
         ga_log.info('Initializing')
         ga_log.debug(f'Run path: {run_path}')
         ga_log.debug(f'Run folder: {identifier_folder}')
-        if not os.path.isdir(identifier_folder):
-            os.mkdir(identifier_folder)
+
+        if os.path.isdir(identifier_folder):
+            ga_log.warning(f'Your run folder {identifier_folder} will be deleted!')
+            shutil.rmtree(identifier_folder)
+
+        os.mkdir(identifier_folder)
 
         mol_a = self.input_params['molecules']['A'].split('/')[-1]
         mol_b = self.input_params['molecules']['B'].split('/')[-1]

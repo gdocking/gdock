@@ -16,6 +16,7 @@ foldx_exe = ini.get('third_party', 'foldx_exe')
 
 def run_foldx(pdb_f):
     """Use FoldX to calculate the PDBs energy."""
+    # in FoldX - More negative energies indicate better binding. Positive energies indicate no binding.
     # foldx needs both the pdbfilename and where it is
     loc = Path(pdb_f)
     pdb_location = str(loc.parent)
