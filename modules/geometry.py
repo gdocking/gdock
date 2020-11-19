@@ -68,7 +68,7 @@ class Geometry:
         a = np.array([r_center, r_rest_center_c])
         b = np.array([rot_l_center, rot_l_rest_center])
 
-        _, b_i = np.add(a, b)
+        _, b_i = np.add(a, b + 5)  # +5 to keep them further apart
 
         rot_l_c += b_i
         rot_l_rest_c += b_i
@@ -120,20 +120,18 @@ class Geometry:
         return tidy_complex
 
     @staticmethod
-    def calc_center(coords):
-        """Calculate the geometric center."""
-        coord_array = np.array(coords)
-        center = coord_array.mean(axis=0)
-        return center
+    def translate(coords, point):
+        """Translation function."""
+        trans_coords = coords + point
+        return trans_coords
 
     @staticmethod
-    def rotation_matrix_from_vectors(vec1, vec2):
-        """Find the rotation matrix that aligns vec1 (source) to vec2 (destination)."""
-        # Copied from https://stackoverflow.com/a/59204638
-        a, b = (vec1 / np.linalg.norm(vec1)).reshape(3), (vec2 / np.linalg.norm(vec2)).reshape(3)
-        v = np.cross(a, b)
-        c = np.dot(a, b)
-        s = np.linalg.norm(v)
-        kmat = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
-        rotation_matrix = np.eye(3) + kmat + kmat.dot(kmat) * ((1 - c) / (s ** 2))
-        return rotation_matrix
+    def rotate(coords, rotation):
+        """Rotation function."""
+        center = coords.mean(axis=0)
+        coords -= center
+        rot = R.from_euler('zyx', rotation)
+        r = np.array([rot.apply(e) for e in coords])
+        r += center
+        rotated_coords = r
+        return rotated_coords

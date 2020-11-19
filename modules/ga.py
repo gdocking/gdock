@@ -9,6 +9,7 @@ from scipy.spatial.transform import Rotation as R
 from utils.files import get_full_path
 from utils.functions import format_coords
 from modules.fitness import run_foldx
+from modules.geometry import Geometry
 import logging
 
 ga_log = logging.getLogger('ga_log')
@@ -33,6 +34,7 @@ class GeneticAlgorithm:
         self.mutpb = ga_params['general']['mutation_probability']
         self.eta = ga_params['general']['eta']
         self.indpb = ga_params['general']['indpb']
+        self.convergence_counter = ga_params['general']['convergence_cutoff']
         self.toolbox = None
         self.generation_dic = {}
         self.pioneer_dic = {}
@@ -63,7 +65,7 @@ class GeneticAlgorithm:
 
         toolbox.register("mate", tools.cxTwoPoint)
         toolbox.register("mutate_rot", tools.mutPolynomialBounded, eta=self.eta, low=0, up=360, indpb=self.indpb)
-        toolbox.register("mutate_trans", tools.mutPolynomialBounded, eta=self.eta, low=-4, up=+4, indpb=self.indpb)
+        toolbox.register("mutate_trans", tools.mutPolynomialBounded, eta=self.eta, low=-5, up=+5, indpb=self.indpb)
         toolbox.register("select", tools.selTournament, tournsize=2)
         toolbox.register("evaluate", self.fitness_function,
                          self.pioneer_dic)
@@ -80,7 +82,7 @@ class GeneticAlgorithm:
         conv_l = []
         result_l = []
         run = True
-        ga_log.info(f'Generations: Inf. Population: {self.popsize}')
+        ga_log.info(f'Generations: {self.max_ngen} Population: {self.popsize}')
         pop = self.toolbox.population(n=self.popsize)
         ngen = 1
         while run:
@@ -148,6 +150,10 @@ class GeneticAlgorithm:
                 ga_log.info(f'Simulation reached maximum number of generations, stopping at {ngen}.')
                 run = False
 
+            if len(conv_l) >= self.convergence_counter and all(e == 0 for e in conv_l[:self.convergence_counter]):
+                ga_log.info(f'Simulation "converged", stopping at {ngen}')
+                run = False
+
             ngen += 1
 
         return self.generation_dic
@@ -157,17 +163,14 @@ class GeneticAlgorithm:
         """Calculate the fitness of an individual."""
         # use the chromossome and create the structure!
         c = np.array(pdb_dic['B']['coord'])
-        # transform
-        rot = R.from_euler('zyx', individual[:3])
-        transl = individual[3:]
 
-        center = c.mean(axis=0)
-        c -= center
-        c -= transl
-        r = np.array([rot.apply(e) for e in c])
-        r += center
+        translation_center = individual[3:]
+        rotation_angles = individual[:3]
 
-        pdb_dic['B']['coord'] = list(r)
+        translated_coords = Geometry.translate(c, translation_center)
+        rotated_coords = Geometry.rotate(translated_coords, rotation_angles)
+
+        pdb_dic['B']['coord'] = list(rotated_coords)
 
         # use a temporary file, nothing lasts forever
         pdb = NamedTemporaryFile(delete=False, suffix='.pdb')
@@ -195,8 +198,8 @@ class GeneticAlgorithm:
         ind = [round(secretsGenerator.uniform(0, 360), 2),
                round(secretsGenerator.uniform(0, 360), 2),
                round(secretsGenerator.uniform(0, 360), 2),
-               round(secretsGenerator.uniform(-4, 4), 3),
-               round(secretsGenerator.uniform(-4, 4), 3),
-               round(secretsGenerator.uniform(-4, 4), 3)]
+               round(secretsGenerator.uniform(-5, 5), 3),
+               round(secretsGenerator.uniform(-5, 5), 3),
+               round(secretsGenerator.uniform(-5, 5), 3)]
 
         return ind

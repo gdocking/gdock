@@ -9,6 +9,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 from utils.files import get_full_path
 from utils.functions import format_coords
+from modules.geometry import Geometry
 
 ga_log = logging.getLogger('ga_log')
 etc_folder = get_full_path('etc')
@@ -49,20 +50,19 @@ class Analysis:
                 input_structure_dic[chain]['raw'].append(line)
 
         # use the chromossome and create the structure!
+        c = np.array(input_structure_dic['B']['coord'])
         for gen in self.result_dic:
             for idx in self.result_dic[gen]:
+
                 individual = self.result_dic[gen][idx][0]
 
-                # transform
-                rot = R.from_euler('zyx', individual[:3])
-                transl = individual[3:]
-                c = np.array(input_structure_dic['B']['coord'])
-                center = c.mean(axis=0)
-                c -= center
-                c -= transl
-                r = np.array([rot.apply(e) for e in c])
-                r += center
-                input_structure_dic['B']['coord'] = list(r)
+                translation_center = individual[3:]
+                rotation_angles = individual[:3]
+
+                translated_coords = Geometry.translate(c, translation_center)
+                rotated_coords = Geometry.rotate(translated_coords, rotation_angles)
+
+                input_structure_dic['B']['coord'] = list(rotated_coords)
 
                 pdb_name = f"{self.analysis_path}/{str(gen).rjust(3, '0')}_{str(idx).rjust(3, '0')}.pdb"
                 with open(pdb_name, 'w') as fh:
