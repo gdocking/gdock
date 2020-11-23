@@ -6,7 +6,6 @@ import logging
 import multiprocessing
 from pathlib import Path
 import numpy as np
-from scipy.spatial.transform import Rotation as R
 from utils.files import get_full_path
 from utils.functions import format_coords
 from modules.geometry import Geometry

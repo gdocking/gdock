@@ -5,7 +5,6 @@ import numpy as np
 import toml as toml
 from tempfile import NamedTemporaryFile
 from deap import base, creator, tools
-from scipy.spatial.transform import Rotation as R
 from utils.files import get_full_path
 from utils.functions import format_coords
 from modules.fitness import run_foldx

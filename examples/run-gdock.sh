@@ -6,5 +6,5 @@
 
 cd /home/rodrigo/projects/gdock-run
 source /home/rodrigo/software/miniconda3/etc/profile.d/conda.csh
-conda activate gadock
+conda activate gdock
 python /home/rodrigo/repos/gdock/gdock.py run.toml >& gdock.out
