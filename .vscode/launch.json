@@ -5,13 +5,22 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
+            "name": "gdock",
             "type": "python",
             "request": "launch",
             "program": "/Users/rodrigo/repos/gdock/gdock.py",
             "console": "integratedTerminal",
             "cwd": "/Users/rodrigo/repos/gdock/examples",
             "args":["/Users/rodrigo/repos/gdock/examples/run.toml"]
+        },
+        {
+            "name": "prepare-benchmark",
+            "type": "python",
+            "request": "launch",
+            "program": "/Users/rodrigo/repos/gdock/tools/prepare-benchmark.py",
+            "console": "integratedTerminal",
+            "cwd": "/Users/rodrigo/repos/gdock/benchmark",
+            "args":["/Users/rodrigo/repos/BM5-clean", "/Users/rodrigo/repos/gdock/benchmark"]
         }
     ]
 }
