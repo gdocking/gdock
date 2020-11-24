@@ -3,6 +3,7 @@
 */__pycache__
 .idea/*
 src/*
+benchmark/*
 examples/dev
 examples/rotabase.txt
 examples/molecules
