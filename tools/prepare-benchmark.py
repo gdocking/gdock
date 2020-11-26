@@ -46,10 +46,15 @@ if __name__ == '__main__':
     parser.add_argument("gdockbm_path", help="Location where the prepared folders will be")
     args = parser.parse_args()
 
-    target_folders = glob.glob(f'{args.bm5_path}/HADDOCK-ready/*')
-    excluded_folders = ['ana_scripts', 'data', 'scripts']
+    folder_list = []
 
-    folder_list = list(set(target_folders) - set(excluded_folders))
+    for folder in glob.glob(f'{args.bm5_path}/HADDOCK-ready/*'):
+        folder_name = Path(folder).name
+        if not any([j in folder_name for j in ['.', 'ana_scripts', 'data', 'scripts']]):
+            folder_list.append(folder)
+
+    folder_list.sort()
+
     bm_log.info(f'Found {len(folder_list)} targets')
 
     if not os.path.isdir(args.gdockbm_path):
@@ -79,10 +84,10 @@ if __name__ == '__main__':
         # Prepare folder
         if os.path.isdir(f'{args.gdockbm_path}/{target_name}'):
             bm_log.warning(f'{target_name} found in {args.gdockbm_path}')
-            # shutil.rmtree(f'{args.gdockbm_path}/{target_name}')
-        else:
-            bm_log.info(f'Creating {args.gdockbm_path}/{target_name}')
-            os.mkdir(f'{args.gdockbm_path}/{target_name}')
+            shutil.rmtree(f'{args.gdockbm_path}/{target_name}')
+
+        bm_log.info(f'Creating {args.gdockbm_path}/{target_name}')
+        os.mkdir(f'{args.gdockbm_path}/{target_name}')
 
         bm_log.info('Copying receptor, ligand and native files to the target folder')
         shutil.copy(f'{target_path}/{target_name}/{receptor_unbound}', f'{args.gdockbm_path}/{target_name}')
