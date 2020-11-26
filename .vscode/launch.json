@@ -21,6 +21,24 @@
             "console": "integratedTerminal",
             "cwd": "/Users/rodrigo/repos/gdock/benchmark",
             "args":["/Users/rodrigo/repos/BM5-clean", "/Users/rodrigo/repos/gdock/benchmark"]
+        },
+        {
+            "name": "run-benchmark",
+            "type": "python",
+            "request": "launch",
+            "program": "/Users/rodrigo/repos/gdock/tools/run-benchmark.py",
+            "console": "integratedTerminal",
+            "cwd": "/Users/rodrigo/repos/gdock/benchmark",
+            "args":["/Users/rodrigo/repos/gdock/benchmark"]
+        },
+        {
+            "name": "analyze-benchmark",
+            "type": "python",
+            "request": "launch",
+            "program": "/Users/rodrigo/repos/gdock/tools/analyze-benchmark.py",
+            "console": "integratedTerminal",
+            "cwd": "/Users/rodrigo/repos/gdock/benchmark",
+            "args":["/Users/rodrigo/repos/gdock/benchmark"]
         }
     ]
 }

@@ -1,5 +1,6 @@
 import configparser
 import os
+import sys
 import subprocess  # nosec
 import shlex
 import logging
@@ -149,9 +150,10 @@ class Analysis:
         pool.close()
         pool.join()
 
-    def calc_irmsd(self, dockq_exe, pdb_f, native):
+    @staticmethod
+    def calc_irmsd(dockq_exe, pdb_f, native):
         """Calculate the interface root mean square deviation."""
-        cmd = f'{dockq_exe} {pdb_f} {native}'
+        cmd = f'{sys.executable} {dockq_exe} {pdb_f} {native}'
         ga_log.debug(f'cmd is: {cmd}')
         try:
             out = subprocess.check_output(shlex.split(cmd), shell=False)  # nosec
