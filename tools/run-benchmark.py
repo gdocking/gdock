@@ -17,7 +17,7 @@ bm_log.addHandler(ch)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("gdockbm_path", help="Location where the prepared folders will be")
+    parser.add_argument("gdockbm_path", help="Location of the prepared folders")
     args = parser.parse_args()
 
     # FIXME: There is probably a better way of doing this
