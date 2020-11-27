@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
     if not os.path.isdir(args.gdockbm_path):
         bm_log.info(f'Creating Benchmark Path {args.gdockbm_path}')
-        os.path.mkdir(args.gdockbm_path)
+        os.mkdir(args.gdockbm_path)
     else:
         bm_log.info(f'Path already created {args.gdockbm_path}')
 

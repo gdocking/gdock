@@ -25,7 +25,7 @@ if __name__ == '__main__':
     gdock_exe = f'{dirname}/../gdock.py'
     python_exe = sys.executable
 
-    benchmark = glob.glob(f'{args.gdockbm_path}/*')
+    benchmark = [f for f in glob.glob(f'{args.gdockbm_path}/*') if '.' not in f]
     benchmark.sort()
 
     total = len(benchmark)
