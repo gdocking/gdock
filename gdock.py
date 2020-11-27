@@ -68,5 +68,7 @@ if __name__ == '__main__':
     ana.capri_eval()
     ana.output()
 
+    s.clean()
+
     ga_log.info('GDock finished.')
     # done :)

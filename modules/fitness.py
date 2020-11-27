@@ -26,9 +26,13 @@ def run_foldx(pdb_f):
     cmd = (f'{foldx_exe} -c AnalyseComplex --pdb {pdb_filename} --noHeader 1 --pdb-dir={pdb_location} '
            f'--output-dir={temp_dir.name}')
     ga_log.debug(f'cmd is: {cmd}')
-    out = subprocess.check_output(shlex.split(cmd), shell=False)  # nosec
+    try:
+        out = subprocess.check_output(shlex.split(cmd), shell=False)  # nosec
+        result = out.decode('utf-8').split('\n')
+        # FIXME: put some fancy regex here
+        energy = float(result[-8].split()[-1])
+    except subprocess.CalledProcessError as e:
+        ga_log.error(f'Foldx failed with {e}')
+        energy = float('nan')
     temp_dir.cleanup()
-    result = out.decode('utf-8').split('\n')
-    # FIXME: put some fancy regex here
-    energy = float(result[-8].split()[-1])
     return energy
