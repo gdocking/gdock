@@ -44,6 +44,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("bm5_path", help="Location of the Protein-Protein Docking Benchmark v5")
     parser.add_argument("gdockbm_path", help="Location where the prepared folders will be")
+    parser.add_argument("--np", help="Number of processors to be used for each run", type=int, default=4)
     args = parser.parse_args()
 
     folder_list = []
@@ -98,7 +99,7 @@ if __name__ == '__main__':
         bm_log.info(f'Writing run parameters to {args.gdockbm_path}/{target_name}/run.toml')
         run = "[main]\n"
         run += "identifier = 'run'\n"
-        run += "number_of_processors = 4\n"
+        run += f"number_of_processors = {args.np}\n"
         run += "\n"
         run += "[restraints]\n"
         run += f"A = {restraints['A']}\n"
