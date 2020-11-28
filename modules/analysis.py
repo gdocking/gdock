@@ -1,5 +1,6 @@
 import configparser
 import os
+import sys
 import subprocess  # nosec
 import shlex
 import logging
@@ -89,10 +90,14 @@ class Analysis:
 
         cmd = f'{make_contacts} -f {pdb_list}'
         ga_log.debug(f'cmd is: {cmd}')
-        out = subprocess.check_output(shlex.split(cmd), shell=False, stderr=subprocess.PIPE)  # nosec
+        try:
+            out = subprocess.check_output(shlex.split(cmd), shell=False, stderr=subprocess.PIPE)  # nosec
+        except subprocess.CalledProcessError as e:
+            ga_log.error(f'FCC failed with {e}')
+            return
         if 'Finished' not in out.decode('utf-8'):
             ga_log.error('FCC - make_contacts.py failed')
-            exit()
+            return
 
         ga_log.info('Calculating contact matrix')
         calc_fcc_matrix = f'{fcc}/scripts/calc_fcc_matrix.py'
@@ -126,7 +131,7 @@ class Analysis:
                     self.cluster_dic[cluster_id] = []
                     cluster_elements = list(map(int, data[4:]))
                     for element in cluster_elements:
-                        element_name = os.path.split(self.structure_list[element])[1].split('.pdb')[0]
+                        element_name = os.path.split(self.structure_list[element - 1])[1].split('.pdb')[0]
                         self.cluster_dic[cluster_id].append(element_name)
             ga_log.info(f'FCC - {len(self.cluster_dic)} clusters identified')
 
@@ -149,9 +154,10 @@ class Analysis:
         pool.close()
         pool.join()
 
-    def calc_irmsd(self, dockq_exe, pdb_f, native):
+    @staticmethod
+    def calc_irmsd(dockq_exe, pdb_f, native):
         """Calculate the interface root mean square deviation."""
-        cmd = f'{dockq_exe} {pdb_f} {native}'
+        cmd = f'{sys.executable} {dockq_exe} {pdb_f} {native}'
         ga_log.debug(f'cmd is: {cmd}')
         try:
             out = subprocess.check_output(shlex.split(cmd), shell=False)  # nosec
