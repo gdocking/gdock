@@ -113,7 +113,7 @@ class Analysis:
         subprocess.check_output(shlex.split(cmd), shell=False, stderr=subprocess.PIPE)  # nosec
         if not os.path.isfile(fcc_matrix):
             ga_log.error('FCC - calc_fcc_matrix.py failed')
-            exit()
+            sys.exit()
 
         ga_log.info(f'FCC - Clustering with cutoff={cutoff}')
         cluster_fcc = f'{fcc}/scripts/cluster_fcc.py'
@@ -143,7 +143,7 @@ class Analysis:
             ga_log.warning('Native not defined, capri evaluation skipped')
             return
         ga_log.info(f'Calculating iRMSD against native structure {self.native}')
-        pool = multiprocessing.Pool(processes=self.nproc)  # no logging inside the pool because its way to complicated
+        pool = multiprocessing.Pool(processes=self.nproc)  # no logging inside the pool because its way too complicated
         results = []
         for pdb in self.structure_list:
             results.append((pdb, pool.apply_async(self.calc_irmsd, args=(dockq_exe, pdb, self.native))))
@@ -153,6 +153,15 @@ class Analysis:
             self.irmsd_dic[pdb_identifier] = irmsd
         pool.close()
         pool.join()
+
+        # do some analysis
+        irmsd_list = list(self.irmsd_dic.values())
+        irmsd_quantiles = np.quantile(irmsd_list, [0.0, 0.25, 0.5, 0.75, 1.0])
+        irmsd_mean = irmsd_quantiles[2]
+        irmsd_min = irmsd_quantiles[0]
+        irmsd_max = irmsd_quantiles[4]
+        irmsd_sd = np.std(irmsd_list)
+        ga_log.info(f'min: {irmsd_min:.2f} Å max: {irmsd_max:.2f} Å mean: {irmsd_mean:.2f} Å sd: {irmsd_sd:.2f} Å')
 
     @staticmethod
     def calc_irmsd(dockq_exe, pdb_f, native):
