@@ -7,7 +7,7 @@ from tempfile import NamedTemporaryFile
 from deap import base, creator, tools
 from utils.files import get_full_path
 from utils.functions import format_coords
-from modules.fitness import run_foldx
+from modules.fitness import run_dcomplex
 from modules.geometry import Geometry
 import logging
 
@@ -81,7 +81,7 @@ class GeneticAlgorithm:
         conv_l = []
         result_l = []
         run = True
-        ga_log.info(f'Generations: {self.max_ngen} Population: {self.popsize}')
+        ga_log.info(f'Population: {self.popsize} Generations: {self.max_ngen} ')
         pop = self.toolbox.population(n=self.popsize)
         ngen = 1
         while run:
@@ -182,7 +182,7 @@ class GeneticAlgorithm:
 
         # Calculate fitnesses!
         # ================================#
-        energy = run_foldx(pdb.name)
+        energy = run_dcomplex(pdb.name)
         # ================================#
 
         # unlink the pdb so that it disappears
