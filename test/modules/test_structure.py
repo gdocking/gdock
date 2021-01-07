@@ -12,6 +12,7 @@ class TestPDB(unittest.TestCase):
     def test_load(self):
         pass
 
+
 class TestRestraint(unittest.TestCase):
     def setUp(self):
         raw_pdb = {'A': ['ATOM      1  CA  CYS A   1       2.945 -15.164  18.823  1.00 13.76      A   19  \n',
@@ -26,10 +27,9 @@ class TestRestraint(unittest.TestCase):
                          'ATOM      5  CA  ALA B   5      11.893 -18.739  14.665  1.00 15.49      A   19  \n']}
         self.Restraint = Restraint(raw_pdb=raw_pdb)
 
-
     def test_load(self):
         expected = {'A': [(6.035, -13.796, 20.667),
                           (8.279, -16.791, 19.929),
                           (10.599, -16.062, 16.976)]}
-        self.Restraint.load(restraint=[2,3,4], identifier='A')
+        self.Restraint.load(restraint=[2, 3, 4], identifier='A')
         self.assertEqual(self.Restraint.coords, expected)

@@ -7,7 +7,7 @@
 # gdock
 _logo coming soon!_
 
-# License
+## License
 
 This project license is the [Unlicense](https://unlicense.org) and by so:
 
@@ -15,17 +15,17 @@ This project license is the [Unlicense](https://unlicense.org) and by so:
 
 :) 
 
-**The code is indented for the public domain.**
+### **The code is indented for the public domain.**
 
-Be warned that the third-party dependencies have different licenses.
+Be warned that the third-party dependencies used here have different licenses.
 
-# Disclaimer
+## Disclaimer
 
 I am by no means an expert in genetic algorithms, and do not aspire this software to compete with any of the tens of dozens similar software out there. It was idealized as an exercise in programming and to test a few concepts.
 
 I am also aware that there is still very much to be done and improved. Check the [CONTRIBUTING](CONTRIBUTING.md) if you would like to help/criticize (:
 
-# Concept
+## Concept
 
 In the project we apply [Genetic Algorithm](https://en.wikipedia.org/wiki/Genetic_algorithm) to protein-protein docking. Each individual is represented by its cartesian coordinates and euler angles, and the fitness of each conformation is given by a scoring function.
 
@@ -35,55 +35,54 @@ Initial placement of the molecule is done in a way that each of the interface co
 
 The fitness of each one of these individual is evaluated (=scored) and over each generation, individuals have a chance of mutation, where one of the six descriptors is randomly changed and also a chance of crossover, where individuals exchange descriptors.
 
-# Installation 
+## Installation 
 
-## Python Dependencies
+### Python Dependencies
 
 An `environment.yml` file is provided and Anaconda is recomended.
 
-```
+```bash
 $ conda env create -f environment.yml
 $ conda activate gdock
 (gdock) $
 ```
 
-## Third-party Dependencies
+### Third-party Dependencies
 
 **gdock** uses [DComplex](https://sparks-lab.org/Publications_files/zhou061.pdf) as the scoring function, [FCC](https://github.com/haddocking/FCC) as the clustering engine and [DockQ](https://github.com/bjornwallner/DockQ) to calculate CAPRI metrics.
 
-* DComplex
-
+  * DComplex
     * Download from [this link](http://servers.sparks-lab.org/downloads/dcomplex2.tar.gz)
     * For it to work as intended in **gdock** you need to change line 115 and 148 of `dcomplex.c` and provide the full path to the DComplex installation:
-    ```c++
-    // L115
-    read_charge_file("/Users/rodrigo/software/dcomplex_single_file/charge_inp.dat");
-    // L148
-    fp=(FILE *)fopen("/Users/rodrigo/software/dcomplex_single_file/fort.21_alla","r"); //monomic 1.61
-    ```
+      ```c++
+      // L115
+      read_charge_file("/Users/rodrigo/software/dcomplex_single_file/charge_inp.dat");
+      // L148
+      fp=(FILE *)fopen("/Users/rodrigo/software/dcomplex_single_file/fort.21_alla","r"); //monomic 1.61
+      ```
     Then compile normally.
 
-* FCC
+  * FCC
     * Clone the repository from [this link](https://github.com/haddocking/FCC)
     * Follow the install instructions
     * Set the default branch to `python3`
-    ```bash
-    ~/repos/fcc $ git checkout python3
-    ```
-* DockQ
+      ```bash
+      ~/repos/fcc $ git checkout python3
+      ```
+  * DockQ
     * Download it from [this link](https://github.com/bjornwallner/DockQ)
     * Follow the install instructions
 
 Edit `etc/gdock.ini` with the correct paths
 
-# How-to-use
+## How-to-use
 
 An `examples/` folder is provided, navigate to it and inspect the `run.toml` parameter file, change the number of processors to match what is available in your system.
 
-```
+```bash
 (gdock) examples $ python ~/repos/gdock/gdock.py run.toml
 ```
 
-# Benchmark
+## Benchmark
 
 _coming soon!_ :)
