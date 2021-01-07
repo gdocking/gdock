@@ -15,7 +15,7 @@ This project license is the [Unlicense](https://unlicense.org) and by so:
 
 :) 
 
-### **The code is indented for the public domain.**
+### **The code is indented for the public domain**
 
 Be warned that the third-party dependencies used here have different licenses.
 
@@ -51,27 +51,27 @@ $ conda activate gdock
 
 **gdock** uses [DComplex](https://sparks-lab.org/Publications_files/zhou061.pdf) as the scoring function, [FCC](https://github.com/haddocking/FCC) as the clustering engine and [DockQ](https://github.com/bjornwallner/DockQ) to calculate CAPRI metrics.
 
-  * DComplex
-    * Download from [this link](http://servers.sparks-lab.org/downloads/dcomplex2.tar.gz)
-    * For it to work as intended in **gdock** you need to change line 115 and 148 of `dcomplex.c` and provide the full path to the DComplex installation:
-      ```c++
-      // L115
-      read_charge_file("/Users/rodrigo/software/dcomplex_single_file/charge_inp.dat");
-      // L148
-      fp=(FILE *)fopen("/Users/rodrigo/software/dcomplex_single_file/fort.21_alla","r"); //monomic 1.61
-      ```
-    Then compile normally.
+* DComplex
+  * Download from [this link](http://servers.sparks-lab.org/downloads/dcomplex2.tar.gz)
+  * For it to work as intended in **gdock** you need to change line 115 and 148 of `dcomplex.c` and provide the full path to the DComplex installation,   then compile normally.
+    ```c++
+    // L115
+    read_charge_file("/Users/rodrigo/software/dcomplex_single_file/charge_inp.dat");
+    // L148
+    fp=(FILE *)fopen("/Users/rodrigo/software/dcomplex_single_file/fort.21_alla","r"); //monomic 1.61
+    ```
 
-  * FCC
-    * Clone the repository from [this link](https://github.com/haddocking/FCC)
-    * Follow the install instructions
-    * Set the default branch to `python3`
-      ```bash
-      ~/repos/fcc $ git checkout python3
-      ```
-  * DockQ
-    * Download it from [this link](https://github.com/bjornwallner/DockQ)
-    * Follow the install instructions
+
+* FCC
+  * Clone the repository from [this link](https://github.com/haddocking/FCC)
+  * Follow the install instructions
+  * Set the default branch to `python3`
+    ```bash
+    ~/repos/fcc $ git checkout python3
+    ```
+* DockQ
+  * Download it from [this link](https://github.com/bjornwallner/DockQ)
+  * Follow the install instructions
 
 Edit `etc/gdock.ini` with the correct paths
 
