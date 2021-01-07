@@ -1,6 +1,6 @@
 import os
-import secrets
 import multiprocessing
+import random
 import numpy as np
 import toml as toml
 from tempfile import NamedTemporaryFile
@@ -14,7 +14,7 @@ import logging
 ga_log = logging.getLogger('ga_log')
 
 ga_params = toml.load(f"{get_full_path('etc')}/genetic_algorithm_params.toml")
-secretsGenerator = secrets.SystemRandom()
+random.seed(ga_params['parameters']['random_seed'])
 
 # This needs to be outside..! https://github.com/rsteca/sklearn-deap/issues/59
 creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # -1 will optimize towards negative
@@ -33,7 +33,7 @@ class GeneticAlgorithm:
         self.mutpb = ga_params['general']['mutation_probability']
         self.eta = ga_params['general']['eta']
         self.indpb = ga_params['general']['indpb']
-        self.convergence_counter = ga_params['general']['convergence_cutoff']
+        self.convergence_counter = ga_params['parameters']['convergence_cutoff']
         self.toolbox = None
         self.generation_dic = {}
         self.pioneer_dic = {}
@@ -77,8 +77,9 @@ class GeneticAlgorithm:
 
     def run(self):
         """Run the genetic algorithm."""
-        ga_log.info('Running GA!')
-        conv_l = []
+        ga_log.info('Running the Genetic Algorithm!')
+        ga_log.info(f'Your random seed is: {ga_params["parameters"]["random_seed"]}')
+        variation_l = []
         result_l = []
         run = True
         ga_log.info(f'Population: {self.popsize} Max Generations: {self.max_ngen}')
@@ -93,7 +94,7 @@ class GeneticAlgorithm:
             # Apply crossover on the offspring
             ga_log.debug('Applying crossover')
             for child1, child2 in zip(offspring[::2], offspring[1::2]):
-                if secretsGenerator.uniform(0, 1) < self.cxpb:
+                if random.random() < self.cxpb:
                     self.toolbox.mate(child1, child2)
                     del child1.fitness.values
                     del child2.fitness.values
@@ -101,7 +102,7 @@ class GeneticAlgorithm:
             # Apply mutation on the offspring
             ga_log.debug('Applying mutation')
             for mutant in offspring:
-                if secretsGenerator.uniform(0, 1) < self.mutpb:
+                if random.random() < self.mutpb:
                     self.toolbox.mutate_rot(mutant[:3])
                     self.toolbox.mutate_trans(mutant[3:])
                     del mutant.fitness.values
@@ -134,24 +135,26 @@ class GeneticAlgorithm:
             min_fitness = min(irmsd_list)
 
             result_l.append(mean_fitness)
-            if len(result_l) >= 2:
-                conv = round(result_l[-1] - result_l[-2], 3)
-            else:
-                conv = round(.0, 3)
 
-            conv_l.append(conv)
+            last_results = result_l[-self.convergence_counter:]
+            variation = min(last_results) - max(last_results)
+
+            variation_l.append(variation)
 
             ngen_str = str(ngen).rjust(3, '0')
             ga_log.info(f"Gen {ngen_str} fitness {mean_fitness:.2f} +- {std_fitness:.2f} [{max_fitness:.2f},"
-                        f"{min_fitness:.2f}] ({conv:.3f})")
+                        f"{min_fitness:.2f}] ({variation:.3f})")
 
             if ngen == self.max_ngen:
                 ga_log.info(f'Simulation reached maximum number of generations, stopping at {ngen}.')
                 run = False
 
-            if len(conv_l) >= self.convergence_counter and all(e == 0.0 for e in conv_l[-self.convergence_counter:]):
-                ga_log.info(f'Simulation "converged", stopping at generation {ngen}')
-                run = False
+            if len(result_l) >= self.convergence_counter:
+                if all(abs(e) < 0.1 for e in variation_l[-self.convergence_counter:]):
+                    ga_log.info('Simulation "converged"')
+                    ga_log.info(f'Absolute fitness variation is < .1 for last {self.convergence_counter} generations')
+                    ga_log.info(f'Stopped at generation {ngen}')
+                    run = False
 
             ngen += 1
 
@@ -194,11 +197,11 @@ class GeneticAlgorithm:
     @staticmethod
     def generate_individual():
         """Generates the individual."""
-        ind = [round(secretsGenerator.uniform(0, 360), 2),
-               round(secretsGenerator.uniform(0, 360), 2),
-               round(secretsGenerator.uniform(0, 360), 2),
-               round(secretsGenerator.uniform(-5, 5), 3),
-               round(secretsGenerator.uniform(-5, 5), 3),
-               round(secretsGenerator.uniform(-5, 5), 3)]
+        ind = [random.randint(0, 360),
+               random.randint(0, 360),
+               random.randint(0, 360),
+               random.randint(-5, 5),
+               random.randint(-5, 5),
+               random.randint(-5, 5)]
 
         return ind
