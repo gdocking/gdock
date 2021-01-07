@@ -81,7 +81,7 @@ class GeneticAlgorithm:
         conv_l = []
         result_l = []
         run = True
-        ga_log.info(f'Population: {self.popsize} Generations: {self.max_ngen} ')
+        ga_log.info(f'Population: {self.popsize} Max Generations: {self.max_ngen}')
         pop = self.toolbox.population(n=self.popsize)
         ngen = 1
         while run:
@@ -149,8 +149,8 @@ class GeneticAlgorithm:
                 ga_log.info(f'Simulation reached maximum number of generations, stopping at {ngen}.')
                 run = False
 
-            if len(conv_l) >= self.convergence_counter and all(e == 0 for e in conv_l[:self.convergence_counter]):
-                ga_log.info(f'Simulation "converged", stopping at {ngen}')
+            if len(conv_l) >= self.convergence_counter and all(e == 0.0 for e in conv_l[-self.convergence_counter:]):
+                ga_log.info(f'Simulation "converged", stopping at generation {ngen}')
                 run = False
 
             ngen += 1
