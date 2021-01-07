@@ -5,6 +5,7 @@ import os
 import numpy as np
 import logging
 import secrets
+from pathlib import Path
 from utils.files import get_full_path
 
 ga_log = logging.getLogger('ga_log')
@@ -127,4 +128,4 @@ def random_quote():
 
 def du(path):
     """Disk Usage."""
-    return subprocess.check_output(['du', '-sh', path]).split()[0].decode('utf-8')
+    return sum(file.stat().st_size for file in Path(path).rglob('*'))

@@ -94,7 +94,7 @@ class GeneticAlgorithm:
             # Apply crossover on the offspring
             ga_log.debug('Applying crossover')
             for child1, child2 in zip(offspring[::2], offspring[1::2]):
-                if random.random() < self.cxpb:
+                if random.random() < self.cxpb:  # nosec
                     self.toolbox.mate(child1, child2)
                     del child1.fitness.values
                     del child2.fitness.values
@@ -102,7 +102,7 @@ class GeneticAlgorithm:
             # Apply mutation on the offspring
             ga_log.debug('Applying mutation')
             for mutant in offspring:
-                if random.random() < self.mutpb:
+                if random.random() < self.mutpb:  # nosec
                     self.toolbox.mutate_rot(mutant[:3])
                     self.toolbox.mutate_trans(mutant[3:])
                     del mutant.fitness.values
@@ -197,7 +197,7 @@ class GeneticAlgorithm:
     @staticmethod
     def generate_individual():
         """Generates the individual."""
-        ind = [random.randint(0, 360),
+        ind = [random.randint(0, 360),  # nosec
                random.randint(0, 360),
                random.randint(0, 360),
                random.randint(-5, 5),
