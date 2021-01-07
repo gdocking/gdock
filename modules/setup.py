@@ -2,6 +2,9 @@ import os
 import shutil
 import toml
 import logging
+import glob
+import gzip
+from utils.functions import du
 ga_log = logging.getLogger('ga_log')
 
 
@@ -65,3 +68,27 @@ class Setup:
         run_params['np'] = self.input_params['main']['number_of_processors']
 
         return run_params
+
+    def clean(self):
+        """Clean the run directory."""
+        identifier_folder = self.input_params['main']['identifier']
+        run_path = f'{os.getcwd()}/{identifier_folder}'
+        analysis_path = f'{os.getcwd()}/{identifier_folder}/analysis'
+        pdb_list = glob.glob(f'{analysis_path}/*pdb')
+        size = du(run_path)
+        ga_log.info(f'Compressing PDB structures - current size: {size}')
+        for pdb in pdb_list:
+            fp = open(pdb, 'rb')
+            data = fp.read()
+            bindata = bytearray(data)
+            with gzip.open(f'{pdb}.gz', 'wb') as f:
+                f.write(bindata)
+            os.remove(pdb)
+
+        ga_log.info('Deleting .contacts files')
+        contact_list = glob.glob(f'{analysis_path}/*contacts')
+        for contact in contact_list:
+            os.remove(contact)
+
+        size = du(run_path)
+        ga_log.info(f'Run cleaned - current size: {size}')

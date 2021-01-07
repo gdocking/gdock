@@ -1,7 +1,6 @@
 [general]
-population_size       = 150
-max_number_of_generations = 30
-convergence_cutoff = 3
+population_size       = 100
+max_number_of_generations = 50
 
 crossover_probability = 0.2
 mutation_probability  = 0.6
@@ -13,3 +12,7 @@ eta = 0.6
 
 # Independent probability for each attribute to be exchanged.
 indpb = 0.2
+
+[parameters]
+random_seed        = 42
+convergence_cutoff = 3
