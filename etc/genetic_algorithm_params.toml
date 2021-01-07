@@ -1,6 +1,6 @@
 [general]
-population_size       = 150
-max_number_of_generations = 30
+population_size       = 100
+max_number_of_generations = 50
 convergence_cutoff = 3
 
 crossover_probability = 0.2
