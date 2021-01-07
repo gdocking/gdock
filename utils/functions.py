@@ -123,3 +123,8 @@ def random_quote():
 
         random_author, random_quote = quote_list[secrets.choice(range(0, len(quote_list)))]
         return random_author, random_quote
+
+
+def du(path):
+    """Disk Usage."""
+    return subprocess.check_output(['du', '-sh', path]).split()[0].decode('utf-8')

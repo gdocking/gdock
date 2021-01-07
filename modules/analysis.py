@@ -1,9 +1,11 @@
 import configparser
 import os
+import sys
 import subprocess  # nosec
 import shlex
 import logging
 import multiprocessing
+import math
 from pathlib import Path
 import numpy as np
 from utils.files import get_full_path
@@ -78,7 +80,7 @@ class Analysis:
 
     def cluster(self, cutoff=0.75):
         """Use FCC to cluster structures."""
-        ga_log.info('Calculating contacts')
+        ga_log.info('FCC - Calculating contacts')
         # TODO: Make this run using multiple processors
         make_contacts = f'{fcc}/scripts/make_contacts.py'
         pdb_list = f'{self.analysis_path}/pdb.list'
@@ -89,12 +91,16 @@ class Analysis:
 
         cmd = f'{make_contacts} -f {pdb_list}'
         ga_log.debug(f'cmd is: {cmd}')
-        out = subprocess.check_output(shlex.split(cmd), shell=False, stderr=subprocess.PIPE)  # nosec
+        try:
+            out = subprocess.check_output(shlex.split(cmd), shell=False, stderr=subprocess.PIPE)  # nosec
+        except subprocess.CalledProcessError as e:
+            ga_log.error(f'FCC failed with {e}')
+            return
         if 'Finished' not in out.decode('utf-8'):
             ga_log.error('FCC - make_contacts.py failed')
-            exit()
+            return
 
-        ga_log.info('Calculating contact matrix')
+        ga_log.info('FCC - Calculating contact matrix')
         calc_fcc_matrix = f'{fcc}/scripts/calc_fcc_matrix.py'
         contact_list = f'{self.analysis_path}/contact.list'
         fcc_matrix = f'{self.analysis_path}/fcc.matrix'
@@ -108,7 +114,7 @@ class Analysis:
         subprocess.check_output(shlex.split(cmd), shell=False, stderr=subprocess.PIPE)  # nosec
         if not os.path.isfile(fcc_matrix):
             ga_log.error('FCC - calc_fcc_matrix.py failed')
-            exit()
+            sys.exit()
 
         ga_log.info(f'FCC - Clustering with cutoff={cutoff}')
         cluster_fcc = f'{fcc}/scripts/cluster_fcc.py'
@@ -126,7 +132,7 @@ class Analysis:
                     self.cluster_dic[cluster_id] = []
                     cluster_elements = list(map(int, data[4:]))
                     for element in cluster_elements:
-                        element_name = os.path.split(self.structure_list[element])[1].split('.pdb')[0]
+                        element_name = os.path.split(self.structure_list[element - 1])[1].split('.pdb')[0]
                         self.cluster_dic[cluster_id].append(element_name)
             ga_log.info(f'FCC - {len(self.cluster_dic)} clusters identified')
 
@@ -135,10 +141,10 @@ class Analysis:
     def capri_eval(self):
         """Calculate the CAPRI metrics for benchmarking purposes."""
         if not self.native:
-            ga_log.warning('Native not defined, capri evaluation skipped')
+            ga_log.warning('Native not defined, CAPRI evaluation skipped')
             return
-        ga_log.info(f'Calculating iRMSD against native structure {self.native}')
-        pool = multiprocessing.Pool(processes=self.nproc)  # no logging inside the pool because its way to complicated
+        ga_log.info(f'DockQ - Calculating iRMSD against native structure {self.native}')
+        pool = multiprocessing.Pool(processes=self.nproc)  # no logging inside the pool because its way too complicated
         results = []
         for pdb in self.structure_list:
             results.append((pdb, pool.apply_async(self.calc_irmsd, args=(dockq_exe, pdb, self.native))))
@@ -149,9 +155,19 @@ class Analysis:
         pool.close()
         pool.join()
 
-    def calc_irmsd(self, dockq_exe, pdb_f, native):
+        # do some analysis
+        irmsd_list = list(self.irmsd_dic.values())
+        irmsd_quantiles = np.quantile(irmsd_list, [0.0, 0.25, 0.5, 0.75, 1.0])
+        irmsd_mean = irmsd_quantiles[2]
+        irmsd_min = irmsd_quantiles[0]
+        irmsd_max = irmsd_quantiles[4]
+        irmsd_sd = np.std(irmsd_list)
+        ga_log.info(f'min: {irmsd_min:.2f} Å max: {irmsd_max:.2f} Å mean: {irmsd_mean:.2f} Å sd: {irmsd_sd:.2f} Å')
+
+    @staticmethod
+    def calc_irmsd(dockq_exe, pdb_f, native):
         """Calculate the interface root mean square deviation."""
-        cmd = f'{dockq_exe} {pdb_f} {native}'
+        cmd = f'{sys.executable} {dockq_exe} {pdb_f} {native}'
         ga_log.debug(f'cmd is: {cmd}')
         try:
             out = subprocess.check_output(shlex.split(cmd), shell=False)  # nosec
@@ -167,7 +183,7 @@ class Analysis:
         output_f = f'{self.analysis_path}/gdock.dat'
         ga_log.info(f'Saving output file to {output_f}')
         with open(output_f, 'w') as fh:
-            fh.write('generation,individual,fitness,irmsd\n')
+            fh.write('generation,individual,fitness,irmsd,cluster_id,internal_ranking\n')
             for generation in self.result_dic:
                 for individual in self.result_dic[generation]:
                     _, fitness = self.result_dic[generation][individual]
@@ -178,5 +194,28 @@ class Analysis:
                         irmsd = self.irmsd_dic[f'{generation_str}_{individual_str}']
                     except KeyError:
                         irmsd = float('nan')
-                    fh.write(f"{generation_str},{individual_str},{fitness:.3f},{irmsd:.2f}\n")
+
+                    # Add the clustering information
+                    # TODO: Improve this part, its very messy.
+                    model = f'{generation_str}_{individual_str}'
+                    internal_ranking = float('nan')
+                    cluster_id = float('nan')
+                    if self.cluster_dic:
+                        for cluster_id in self.cluster_dic:
+                            if model in self.cluster_dic[cluster_id]:
+                                # the center has already been removed
+                                internal_ranking = self.cluster_dic[cluster_id].index(model) + 1
+                                break
+                    if math.isnan(internal_ranking):
+                        cluster_id = float('nan')
+
+                    output_str = f"{generation},"
+                    output_str += f"{individual},"
+                    output_str += f"{fitness:.3f},"
+                    output_str += f"{irmsd:.2f},"
+                    output_str += f"{cluster_id},"
+                    output_str += f"{internal_ranking}\n"
+                    fh.write(output_str)
+
+                    ga_log.debug(output_str)
         fh.close()
