@@ -5,8 +5,9 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/a794c83bedbc4e50b4bb6a0ed73ba3d0)](https://www.codacy.com/gh/rvhonorato/gdock/dashboard?utm_source=github.com&utm_medium=referral&utm_content=rvhonorato/gdock&utm_campaign=Badge_Grade) 
 
 
-![logo](imgs/gdock_logo.png)
+<img src="imgs/gdock_logo.png" width="500">
 
+_Genetic Algorithm applied to Protein-Protein Docking_
 
 ## License
 
@@ -14,7 +15,7 @@ This project license is the [Unlicense](https://unlicense.org) and by so:
 
 > "_anyone is free to copy, modify, publish, use, compile, sell, or distribute this software, either in source code form or as a compiled binary, for any purpose, commercial or non-commercial, and by any means_" 
 
-:) 
+(:
 
 ### **The code is indented for the public domain**
 
@@ -46,4 +47,4 @@ Check the `examples/` folder
 
 ## Benchmark
 
-_coming soon!_ :)
+_coming soon!_
