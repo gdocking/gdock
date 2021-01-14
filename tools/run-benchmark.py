@@ -17,42 +17,40 @@ bm_log.addHandler(ch)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("gdockbm_path", help="Location of the prepared folders")
+    parser.add_argument("gdockbm_path", help="Full path of the root directory of the prepared folders")
     args = parser.parse_args()
+
+    benchmark_path = Path(args.gdockbm_path).resolve()
+    if not benchmark_path.exists():
+        bm_log.error(f'Path {benchmark_path} does not exist.')
+        sys.exit()
 
     # FIXME: There is probably a better way of doing this
     dirname, filename = os.path.split(os.path.abspath(__file__))
     gdock_exe = f'{dirname}/../gdock.py'
     python_exe = sys.executable
 
-    benchmark = [f for f in glob.glob(f'{args.gdockbm_path}/*') if '.' not in f]
+    benchmark = [f for f in glob.glob(f'{benchmark_path}/*') if '.' not in f]
     benchmark.sort()
 
     total = len(benchmark)
 
     for i, folder in enumerate(benchmark):
         target_name = Path(folder).name
-        bm_log.info(f'{target_name} Running - Remaining {total-i}')
+        output_file = f'{folder}/run/analysis/gdock.dat'
+        if not os.path.isfile(output_file):
 
-        os.chdir(folder)
-        bm_log.debug(f'chdir {folder}')
+            bm_log.info(f'{target_name} Running - Remaining {total-i}')
 
-        cmd = (f'{python_exe} {gdock_exe} run.toml')
-        bm_log.debug(f'cmd is: {cmd}')
-        result = subprocess.run(shlex.split(cmd), capture_output=True, shell=False)  # nosec
+            os.chdir(folder)
+            bm_log.debug(f'chdir {folder}')
 
-        # Make this explicit so eventually we can capture stuff from stderr/out
-        stdout = result.stdout.decode('utf-8')
-        stderr = result.stderr.decode('utf-8')
+            cmd = (f'{python_exe} {gdock_exe} run.toml')
+            bm_log.debug(f'cmd is: {cmd}')
+            result = subprocess.run(shlex.split(cmd), capture_output=True, shell=False)  # nosec
 
-        with open(f'{folder}/gdock.out', 'w') as out_fh:
-            out_fh.write(stderr)
-
-        if result.returncode != 0:
-            bm_log.warning(f'Something went wrong with {target_name}')
-        elif result.returncode == 0:
-            bm_log.info(f'{target_name} Complete')
-
-        # FIXME: WIP
-        if i == 5:
-            sys.exit()
+            # Make this explicit so eventually we can capture stuff from stderr/out
+            stdout = result.stdout.decode('utf-8')
+            stderr = result.stderr.decode('utf-8')
+        else:
+            bm_log.info(f'{target_name} DONE - Remaining {total-i}')
