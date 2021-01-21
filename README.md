@@ -58,7 +58,7 @@ Single-structure analysis; for each target in the benchmark, we could rank the g
 
 Cluster-based; here the clusters are sorted by fitness and we consider the top5 models of the top 1, 3, 5 or 10 clusters. Same logic as the single-structure analysis is applied.
 
-The results for v1.0.0 (_under preparation_) are as follows:
+The results for v1.0.0 (_unreleased_) are as follows:
 
 <img src="imgs/v1.0.0_BM5.png">
 
