@@ -79,3 +79,5 @@ There are many reasons for such bad perfomance, to address it the following work
 -   <ins>Add flexibility</ins>; currently it is doing rigid-body docking
 -   <ins>Optimize the many Genetic Algorithm parameters</ins>; currently its using the ones I choose based on gut feeling (:
 -   <ins>Code optimization</ins>; the simulation time could (hopefully) be decreased with some smart code optimizations
+
+:octopus:
