@@ -60,7 +60,7 @@ Cluster-based; here the clusters are sorted by fitness and we consider the top5 
 
 The results for v1.0.0 (_under preparation_) are as follows:
 
-<img src="imgs/v1.0.0_BM5.png" width="500">
+<img src="imgs/v1.0.0_BM5.png">
 
 _Note: Some conformations were excluded since dcomplex could not be executed on them._
 
