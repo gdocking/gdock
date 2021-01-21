@@ -52,5 +52,16 @@ if __name__ == '__main__':
             # Make this explicit so eventually we can capture stuff from stderr/out
             stdout = result.stdout.decode('utf-8')
             stderr = result.stderr.decode('utf-8')
+
+            with open(f'{folder}/gdock.out', 'w') as out_fh:
+                out_fh.write(stderr)
+            out_fh.close()
+
+            if not os.path.isfile(output_file):
+                bm_log.error(f'Something wrong with {target_name}')
+                with open(f'{folder}/FAIL', 'w') as fail_fh:
+                    fail_fh.write('I failed :(')
+                fail_fh.close()
+
         else:
             bm_log.info(f'{target_name} DONE - Remaining {total-i}')
