@@ -1,4 +1,5 @@
 import os
+import sys
 import multiprocessing
 import random
 import numpy as np
@@ -116,7 +117,12 @@ class GeneticAlgorithm:
             # self.fitness_function(self.pioneer_dic, offspring[0])
             #
             # =====
-            fitnesses = self.toolbox.map(self.toolbox.evaluate, offspring)
+            try:
+                fitnesses = self.toolbox.map(self.toolbox.evaluate, offspring)
+            except Exception as e:
+                ga_log.error('Fitness function could not be executed', e)
+                sys.exit()
+
             for ind, fit in zip(offspring, fitnesses):
                 ind.fitness.values = fit  # , fit
 

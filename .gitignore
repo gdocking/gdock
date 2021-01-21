@@ -1,11 +1,10 @@
 .DS_Store
 *.pyc
 */__pycache__
+__pycache__
 .idea/*
 .vscode/launch.json
 .vscode/settings.json
 src/*
-benchmark/*
+benchmark/*/
 examples/dev
-examples/rotabase.txt
-examples/molecules
