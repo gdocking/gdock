@@ -22,9 +22,9 @@ Be warned that the third-party dependencies used here have different licenses.
 
 ## Disclaimer
 
-I am by no means an expert in genetic algorithms, and do not aspire this software to compete with any of the tens of dozens similar software out there. It was idealized as an exercise in programming and to test a few concepts.
+I am by no means an expert in genetic algorithms, and do not aspire this software to compete with any of the tens of dozens similar software out there. It was idealized as an exercise in programming, to test a few concepts and as a quarentine project.
 
-I am also aware that there is still very much to be done and improved. Check the [CONTRIBUTING.md](CONTRIBUTING.md) if you would like to help/criticize (:
+I am also aware that there is still very much to be done and improved, so far this is a one-man show. Check the [CONTRIBUTING.md](CONTRIBUTING.md) if you would like to help/criticize (:
 
 ## Concept
 
