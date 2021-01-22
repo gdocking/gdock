@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Rotation
 from utils.functions import tidy  # , write_coords, add_dummy
 import logging
 import warnings
@@ -56,7 +56,7 @@ class Geometry:
         a = np.array([r_center, r_rest_center_c])
         b = np.array([l_center, l_rest_center_c])
 
-        mat, _ = R.align_vectors(a, b)
+        mat, _ = Rotation.align_vectors(a, b)
 
         rot_l_c = mat.apply(l_c)
         rot_l_rest_c = mat.apply(l_rest_c)
@@ -82,7 +82,7 @@ class Geometry:
         rotation_radians = np.radians(180)
         rotation_axis = np.array([0, 0, 1])
         rotation_vector = rotation_radians * rotation_axis
-        rotation = R.from_rotvec(rotation_vector)
+        rotation = Rotation.from_rotvec(rotation_vector)
 
         l_c = rotation.apply(rot_l_c)
         l_rest_c = rotation.apply(rot_l_rest_c)
@@ -130,7 +130,7 @@ class Geometry:
         """Rotation function."""
         center = coords.mean(axis=0)
         coords -= center
-        rot = R.from_euler('zyx', rotation)
+        rot = Rotation.from_euler('zyx', rotation)
         r = np.array([rot.apply(e) for e in coords])
         r += center
         rotated_coords = r
