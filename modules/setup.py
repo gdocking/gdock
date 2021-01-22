@@ -4,6 +4,7 @@ import toml
 import logging
 import glob
 import gzip
+from utils.files import get_full_path
 from utils.functions import du
 ga_log = logging.getLogger('ga_log')
 
@@ -16,6 +17,7 @@ class Setup:
 
     def initialize(self):
         """Load the parameters and create the folder structure."""
+        ga_params = toml.load(f"{get_full_path('etc')}/genetic_algorithm_params.toml")
         run_params = {}
         identifier_folder = self.input_params['main']['identifier']
         run_path = f'{os.getcwd()}/{identifier_folder}'
@@ -70,7 +72,7 @@ class Setup:
         run_params['restraints_b'] = self.input_params['restraints']['B']
         run_params['np'] = self.input_params['main']['number_of_processors']
 
-        return run_params
+        return run_params, ga_params
 
     def clean(self):
         """Clean the run directory."""

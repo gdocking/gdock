@@ -3,10 +3,8 @@ import sys
 import multiprocessing
 import random
 import numpy as np
-import toml as toml
 from tempfile import NamedTemporaryFile
 from deap import base, creator, tools
-from utils.files import get_full_path
 from utils.functions import format_coords
 from modules.fitness import run_dcomplex
 from modules.geometry import Geometry
@@ -14,8 +12,6 @@ import logging
 
 ga_log = logging.getLogger('ga_log')
 
-ga_params = toml.load(f"{get_full_path('etc')}/genetic_algorithm_params.toml")
-random.seed(ga_params['parameters']['random_seed'])
 
 # This needs to be outside..! https://github.com/rsteca/sklearn-deap/issues/59
 creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # -1 will optimize towards negative
@@ -24,8 +20,9 @@ creator.create("Individual", list, fitness=creator.FitnessMin)
 
 class GeneticAlgorithm:
 
-    def __init__(self, pioneer, run_params):
+    def __init__(self, pioneer, run_params, ga_params):
         """Initialize GeneticAlgorithm class."""
+        self.random_seed = ga_params['parameters']['random_seed']
         self.run_params = run_params
         self.nproc = self.run_params['np']
         self.max_ngen = ga_params['general']['max_number_of_generations']
@@ -79,7 +76,8 @@ class GeneticAlgorithm:
     def run(self):
         """Run the genetic algorithm."""
         ga_log.info('Running the Genetic Algorithm!')
-        ga_log.info(f'Your random seed is: {ga_params["parameters"]["random_seed"]}')
+        ga_log.info(f'Your random seed is: {self.random_seed}')
+        random.seed(self.random_seed)
         variation_l = []
         result_l = []
         run = True
