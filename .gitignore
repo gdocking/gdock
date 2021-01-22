@@ -8,3 +8,4 @@ __pycache__
 src/*
 benchmark/*/
 examples/dev
+tests/test_data/setup.toml
