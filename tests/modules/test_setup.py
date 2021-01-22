@@ -30,7 +30,7 @@ B = '{data_folder}/molB.pdb'
         self.Setup = Setup(f'{data_folder}/setup.toml')
 
     def test_initialize(self):
-        observed_run_params = self.Setup.initialize()
+        observed_run_params, observed_ga_params = self.Setup.initialize()
         expected_run_params = {'folder': f'{self.setup_rundir}',
                                'mol_a': f'{self.setup_rundir}/input/molA.pdb',
                                'mol_b': f'{self.setup_rundir}/input/molB.pdb',
@@ -40,7 +40,7 @@ B = '{data_folder}/molB.pdb'
         self.assertEqual(observed_run_params, expected_run_params)
 
     def test_clean(self):
-        self.pdb_dir.mkdir(parents=True)
+        self.pdb_dir.mkdir(exist_ok=True, parents=True)
         expected_directory_contents = []
         for i in range(10):
             shutil.copy(f'{data_folder}/molA.pdb', f'{self.pdb_dir}/{i}.pdb')
