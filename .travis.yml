@@ -23,7 +23,7 @@ before_script:
   - cd $HOME/src/dcomplex_single_file
   - sed -i "s|5400|54000|g" dcomplex.c
   - sed -i "s|charge_inp.dat|$HOME/src/dcomplex_single_file/charge_inp.dat|g" dcomplex.c
-  - sed -i "s|\"fort.21_alla\"|$HOME/src/dcomplex_single_file/fort.21_alla|g" dcomplex.c
+  - sed -i "s|\"fort.21_alla\"|\"$HOME/src/dcomplex_single_file/fort.21_alla\"|g" dcomplex.c
   - g++ -o dcomplex dcomplex.c
   - cd $HOME/src
   - git clone https://github.com/haddocking/fcc.git
