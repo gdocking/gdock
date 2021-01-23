@@ -33,22 +33,25 @@ B = '{data_folder}/molB.pdb'
         test_run_params, _ = Setup(test_param_f.name).initialize()
 
         self.GeneticAlgorithm = GeneticAlgorithm(test_pioneer, test_run_params, test_ga_params)
+        self.GeneticAlgorithm.setup()
 
     def test_setup(self):
-        self.GeneticAlgorithm.setup()
         observed_toolbox = self.GeneticAlgorithm.toolbox
         self.assertTrue(observed_toolbox)
 
     def test_run(self):
-        # is this correct?
-        self.GeneticAlgorithm.setup()
-
         observed_ga_dic = self.GeneticAlgorithm.run()
         expected_ga_dic = {1: {0: ([327, 57, 12, -1, -2, -2], [-4.7])}}
         self.assertDictEqual(observed_ga_dic, expected_ga_dic)
 
     def test_fitness_function(self):
-        pass
+        test_pdb_dic = self.GeneticAlgorithm.pioneer_dic
+        test_individual = [327, 57, 12, -1, -2, -2]
+        observed_fitness_l = self.GeneticAlgorithm.fitness_function(test_pdb_dic, test_individual)
+        expected_fitness_l = [-4.7]
+        self.assertEqual(observed_fitness_l, expected_fitness_l)
 
     def test_generate_individual(self):
-        pass
+        observed_individual = self.GeneticAlgorithm.generate_individual()
+        expected_individual = [327, 57, 12, -1, -2, -2]
+        self.assertEqual(observed_individual, expected_individual)
