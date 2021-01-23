@@ -39,7 +39,6 @@ B = '{data_folder}/molB.pdb'
         observed_toolbox = self.GeneticAlgorithm.toolbox
         self.assertTrue(observed_toolbox)
 
-    @unittest.skip("DComplex needs to be configured")
     def test_run(self):
         # is this correct?
         self.GeneticAlgorithm.setup()
