@@ -27,6 +27,7 @@ before_script:
   - g++ -o dcomplex dcomplex.c
   - cd $HOME/src
   - git clone https://github.com/haddocking/fcc.git
+  - cd fcc
   - git checkout python3
   - cd $HOME/src
   - git clone https://github.com/bjornwallner/DockQ/
