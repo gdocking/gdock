@@ -33,8 +33,8 @@ before_script:
   - git clone https://github.com/bjornwallner/DockQ/
   - cd DockQ
   - make
-  - cd $HOME
-  - sed s"|/Users/rodrigo/repos/gdock|$HOME|g" $TRAVIS_BUILD_DIR/etc/gdock.ini
+  - cd $TRAVIS_BUILD_DIR
+  - sed -i s"|/Users/rodrigo/repos/gdock|$HOME|g" etc/gdock.ini
 
 script:
   - coverage run -m unittest discover
