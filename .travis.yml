@@ -14,6 +14,27 @@ install:
   - conda activate test-environment
   - pip install coverage
 
+before_script:
+  - cd $HOME 
+  - mkdir $HOME/src
+  - cd $HOME/src
+  - wget http://servers.sparks-lab.org/downloads/dcomplex2.tar.gz
+  - tar zxfv dcomplex2.tar.gz
+  - cd $HOME/src/dcomplex_single_file
+  - sed -i "s|5400|54000|g" dcomplex.c
+  - sed -i "s|charge_inp.dat|$HOME/src/dcomplex_single_file/charge_inp.dat|g" dcomplex.c
+  - sed "s|\"fort.21_alla\"|$HOME/src/dcomplex_single_file/fort.21_alla|g" dcomplex.c
+  - g++ -o dcomplex dcomplex.c
+  - cd $HOME/src
+  - git clone https://github.com/haddocking/fcc.git
+  - git checkout python3
+  - cd $HOME/src
+  - git clone https://github.com/bjornwallner/DockQ/
+  - cd DockQ
+  - make
+  - cd $HOME
+  - sed s"|/Users/rodrigo/repos/gdock|$HOME|g" $TRAVIS_BUILD_DIR/gdock/etc/gdock.ini
+
 script:
   - coverage run -m unittest discover
 
