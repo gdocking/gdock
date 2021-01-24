@@ -34,7 +34,7 @@ if __name__ == '__main__':
     s = Setup(args.input_file)
     # TODO: implement setup file validation
 
-    run_params = s.initialize()
+    run_params, ga_params = s.initialize()
 
     # 1. Load structure
     ga_log.info('Loading structures')
@@ -56,7 +56,8 @@ if __name__ == '__main__':
 
     # 4. Run GA
     ga_log.info('Loading Genetic Algorithm')
-    ga = GeneticAlgorithm(initial_complex, run_params)
+
+    ga = GeneticAlgorithm(initial_complex, run_params, ga_params)
     ga.setup()
     results = ga.run()
 

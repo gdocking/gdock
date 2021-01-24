@@ -4,6 +4,7 @@ import toml
 import logging
 import glob
 import gzip
+from utils.files import get_full_path
 from utils.functions import du
 ga_log = logging.getLogger('ga_log')
 
@@ -16,6 +17,7 @@ class Setup:
 
     def initialize(self):
         """Load the parameters and create the folder structure."""
+        ga_params = toml.load(f"{get_full_path('etc')}/genetic_algorithm_params.toml")
         run_params = {}
         identifier_folder = self.input_params['main']['identifier']
         run_path = f'{os.getcwd()}/{identifier_folder}'
@@ -29,8 +31,10 @@ class Setup:
 
         os.mkdir(identifier_folder)
 
-        mol_a = self.input_params['molecules']['A'].split('/')[-1]
-        mol_b = self.input_params['molecules']['B'].split('/')[-1]
+        mol_a = self.input_params['molecules']['A']
+        mol_a_name = mol_a.split('/')[-1]
+        mol_b = self.input_params['molecules']['B']
+        mol_b_name = mol_b.split('/')[-1]
         if 'native' in self.input_params['molecules']:
             native = self.input_params['molecules']['native']
         else:
@@ -60,14 +64,15 @@ class Setup:
             os.mkdir(analysis_folder)
 
         run_params['folder'] = run_path
-        run_params['mol_a'] = f'{run_path}/input/{mol_a}'
-        run_params['mol_b'] = f'{run_path}/input/{mol_b}'
-        run_params['native'] = f'{run_path}/input/{native}'
+        run_params['mol_a'] = f'{run_path}/input/{mol_a_name}'
+        run_params['mol_b'] = f'{run_path}/input/{mol_b_name}'
+        if native:
+            run_params['native'] = f'{run_path}/input/{native}'
         run_params['restraints_a'] = self.input_params['restraints']['A']
         run_params['restraints_b'] = self.input_params['restraints']['B']
         run_params['np'] = self.input_params['main']['number_of_processors']
 
-        return run_params
+        return run_params, ga_params
 
     def clean(self):
         """Clean the run directory."""
@@ -84,6 +89,7 @@ class Setup:
             with gzip.open(f'{pdb}.gz', 'wb') as f:
                 f.write(bindata)
             os.remove(pdb)
+            fp.close()
 
         ga_log.info('Deleting .contacts files')
         contact_list = glob.glob(f'{analysis_path}/*contacts')
