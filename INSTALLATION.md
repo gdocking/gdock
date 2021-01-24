@@ -1,8 +1,13 @@
+### gdock
+
+Download the latest relase or clone a stable branch of the repository.
+
 ### Python Dependencies
 
 An `environment.yml` file is provided and Anaconda is recomended.
 
 ```bash
+$ cd gdock
 $ conda env create -f environment.yml
 $ conda activate gdock
 (gdock) $
@@ -16,6 +21,8 @@ $ conda activate gdock
     -   Download from [this link](http://servers.sparks-lab.org/downloads/dcomplex2.tar.gz)
     -   For it to work as intended in **gdock** you need to change line 115 and 148 of `dcomplex.c` and provide the full path to the DComplex installation,   then compile normally.
         ```c++
+        // L28
+        #define MAXA		54000  //total atom number in one protein.
         // L115
         read_charge_file("/Users/rodrigo/software/dcomplex_single_file/charge_inp.dat");
         // L148
