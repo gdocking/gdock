@@ -46,7 +46,6 @@ class GeneticAlgorithm:
                 self.pioneer_dic[chain]['coord'].append((x, y, z))
                 self.pioneer_dic[chain]['raw'].append(line)
 
-    # @timeit
     def setup(self):
         """Setup the genetic algorithm."""
         ga_log.debug('Creating the creator')
@@ -132,11 +131,11 @@ class GeneticAlgorithm:
                 for fitness_v in ind.fitness.values:
                     self.generation_dic[ngen][idx][1].append(fitness_v)
 
-            irmsd_list = [self.generation_dic[ngen][f][1][0] for f in self.generation_dic[ngen]]
-            mean_fitness = np.mean(irmsd_list)
-            std_fitness = np.std(irmsd_list)
-            max_fitness = max(irmsd_list)
-            min_fitness = min(irmsd_list)
+            fitness_list = [self.generation_dic[ngen][f][1][0] for f in self.generation_dic[ngen]]
+            mean_fitness = np.mean(fitness_list)
+            std_fitness = np.std(fitness_list)
+            max_fitness = max(fitness_list)
+            min_fitness = min(fitness_list)
 
             result_l.append(mean_fitness)
 
