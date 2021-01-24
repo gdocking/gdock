@@ -1,4 +1,4 @@
-![Version:](https://img.shields.io/badge/version-in%20preparation-inactive)
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/rvhonorato/gdock?color=red)
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/) 
 [![Build Status](https://travis-ci.com/rvhonorato/gdock.svg?branch=master)](https://travis-ci.com/rvhonorato/gdock)
 [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/a794c83bedbc4e50b4bb6a0ed73ba3d0)](https://www.codacy.com/gh/rvhonorato/gdock/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=rvhonorato/gdock&amp;utm_campaign=Badge_Coverage)
