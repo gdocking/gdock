@@ -42,6 +42,11 @@ Check [INSTALLATION.md](INSTALLATION.md)
 
 ## How-to-use
 
+```bash
+$ conda activate gdock
+(gdock) $ python gdock/gdock.py run.toml
+```
+
 Check the [`examples/`](examples/) folder
 
 ## Benchmark
