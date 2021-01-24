@@ -6,6 +6,7 @@ from modules.structure import PDB, Restraint
 from modules.ga import GeneticAlgorithm
 from modules.analysis import Analysis
 from utils.functions import random_quote
+from modules.version import CURRENT_VERSION
 import logging
 
 ga_log = logging.getLogger('ga_log')
@@ -29,6 +30,7 @@ if __name__ == '__main__':
     print(f'#   -{author}')
     print('#')
     print('============================================================================')
+    ga_log.info(f'Running {CURRENT_VERSION}')
 
     ga_log.info('Setting up simulation')
     s = Setup(args.input_file)
@@ -71,5 +73,5 @@ if __name__ == '__main__':
 
     s.clean()
 
-    ga_log.info('GDock finished.')
-    # done :)
+    ga_log.info('gdock finished.')
+    # done (:

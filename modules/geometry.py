@@ -24,7 +24,6 @@ class Geometry:
     def calc_initial_position(self):
         """Position the molecules in the initial position."""
         # calculate the geometric center of the molecule and of the restraints
-        # Q: Maybe use quaternions here as well!
 
         ga_log.info('Positioning molecules in starting conformation')
         r_c = np.array(self.receptor_coord)

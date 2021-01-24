@@ -46,9 +46,14 @@ def random_quote():
     else:
         with open(quote_file, 'r') as quote_h:
             for line in quote_h.readlines():
-                auth, quote = line.split('__')
-                quote = quote[:-1]
-                quote_list.append((auth, quote))
+                if not line.startswith('#'):
+                    try:
+                        auth, quote = line.split('__')
+                        quote = quote[:-1]
+                        quote_list.append((auth, quote))
+                    except ValueError:
+                        auth = ''
+                        quote = ''
 
         random_author, random_quote = quote_list[secrets.choice(range(0, len(quote_list)))]
         return random_author, random_quote
