@@ -5,7 +5,8 @@ __pycache__
 .idea/*
 .vscode/launch.json
 .vscode/settings.json
-src/*
+src/*/
 benchmark/*/
 examples/dev
 tests/test_data/setup.toml
+.coverage
