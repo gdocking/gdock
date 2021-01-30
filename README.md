@@ -52,7 +52,7 @@ Check the [`examples/`](examples/) folder
 
 ## Benchmark
 
-The accuracy of a docking software can be measured by its ability to reconstruct experimentally determined structures. This can be done using the Protein-Protein Docking Benchmark v5 ([10.1016/j.jmb.2015.07.016](https://www-sciencedirect-com.proxy.library.uu.nl/science/article/pii/S0022283615004180)). To setup the benchmark, clone the [BM5-clean](https://github.com/haddocking/BM5-clean) repository and use the `*-benchmark.py` scripts in `tools/`.
+The accuracy of a docking software can be measured by its ability to reconstruct experimentally determined structures. This can be done using the Protein-Protein Docking Benchmark v5 ([10.1016/j.jmb.2015.07.016](https://www-sciencedirect-com.proxy.library.uu.nl/science/article/pii/S0022283615004180)). To setup the benchmark, clone the [BM5-clean](https://github.com/haddocking/BM5-clean) repository and use the `*-benchmark.py` scripts in `tools/`; by default it will use the true-interface as restraints and use the unbound structures as input and the bound conformation as the native model.
 
 The resulting complexes are analyzed according to the [_Critical Assessment of PRediction of Interactions_](https://www.ebi.ac.uk/pdbe/complex-pred/capri/) (CAPRI) parameters, specifically the interface root mean square deviation (i-RMSD). This metric is used to evaluate the success rate of _gdock_ in different subsets of generated solutions. 
 
@@ -72,7 +72,7 @@ _Note: Some conformations were excluded since dcomplex could not be executed on 
 
 ### But what does this means?
 
-In layman's terms it means that the perfomance of _gdock_ is currently very bad. 
+In layman's terms it means that the perfomance is currently very bad. 
 
 For you to get `Acceptable` conformations would you need to check 1000 structures, and only for 60 cases. The low perfomance is also observed in the cluster based analysis. The expected scenario is that as many cases as possible are in the `High` category and within the smallest subset. 
 
