@@ -4,6 +4,7 @@ import subprocess  # nosec
 import os
 import logging
 import secrets
+import ast
 from pathlib import Path
 from utils.files import get_full_path
 
@@ -62,6 +63,17 @@ def random_quote():
 def du(path):
     """Disk Usage."""
     return sum(file.stat().st_size for file in Path(path).rglob('*'))
+
+
+def check_if_py3(code_f):
+    """Test if the code is python3 compatible."""
+    try:
+        ast.parse(open(code_f, 'rb').read())
+    except SyntaxError as e:
+        ga_log.debug(e)
+        return False
+
+    return True
 
 
 # ======
