@@ -8,6 +8,8 @@ import sys
 import configparser
 import pathlib
 import subprocess
+import tempfile
+import shlex
 from utils.files import get_full_path
 from utils.functions import du, check_if_py3
 from modules.error import (DependencyNotDefinedError, DependencyNotFoundError,
@@ -69,11 +71,10 @@ class Setup:
             if native:
                 ga_log.debug(f'Copying {native}')
                 shutil.copy(native, input_folder)
-
-        begin_folder = f'{identifier_folder}/begin'
-        if not os.path.isdir(begin_folder):
-            ga_log.debug(f'Creating begin folder {begin_folder}')
-            os.mkdir(begin_folder)
+                izone = native.replace('.pdb', '.izone')
+                izone = pathlib.Path(izone)
+                if izone.exists():
+                    shutil.copy(izone, input_folder)
 
         analysis_folder = f'{identifier_folder}/analysis'
         if not os.path.isdir(analysis_folder):
@@ -185,5 +186,26 @@ class Setup:
                 raise Exception(f'{dcomplex_exe} execution failed', err)
         else:
             raise DependencyNotFoundError(dcomplex_exe)
+
+        # Check PROFIT
+        try:
+            profit_exe = pathlib.Path(ga_ini.get('third_party',
+                                                 'profit_exe'))
+        except configparser.NoOptionError:
+            raise DependencyNotDefinedError('profit_exe')
+
+        if profit_exe.exists():
+            # check if executable
+            dummy_script = tempfile.NamedTemporaryFile(delete=False,
+                                                       suffix='.txt')
+            cmd = f'{profit_exe} -f {dummy_script.name}'
+            out = subprocess.check_output(shlex.split(cmd), shell=False)
+            out = out.decode('utf-8')
+            os.unlink(dummy_script.name)
+
+            if 'Finished script' not in out:
+                raise Exception(f'{profit_exe} execution failed')
+        else:
+            raise DependencyNotFoundError(profit_exe)
 
         return True
