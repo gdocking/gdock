@@ -1,13 +1,12 @@
-#
 [main]
 identifier = 'dev'
-number_of_processors = 4
+number_of_processors = 2
 
 [restraints]
-A = [39,40,41,42,43,57,58,142,145,146,147,148,149,150,151,172,175,191,194,195,214,215,216,217,218,219,220]
-B = [4,5,6,7,39,40,41,42,43,44,45,46,47,48,49,55,68,69,70]
+A = [69, 242, 259, 260, 292, 294, 295, 321, 323, 324]
+B = [76, 71, 67, 39, 41, 42, 44, 69]
 
 [molecules]
-A = 'target-unbound_A.pdb'
-B = 'target-unbound_B.pdb'
-native = 'target-unbound.pdb'
+A = '1A2K_r_u.pdb'
+B = '1A2K_l_u.pdb'
+native = '1a2k_complex_bound.pdb'
