@@ -2,8 +2,8 @@
 population_size       = 100
 max_number_of_generations = 50
 
-crossover_probability = 0.2
-mutation_probability  = 0.6
+crossover_probability = 0.4
+mutation_probability  = 0.8
 
 # eta - Crowding degree of the mutation.
 #   A high eta will produce a mutant resembling its parent,

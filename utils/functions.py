@@ -5,6 +5,7 @@ import os
 import logging
 import secrets
 import ast
+import numpy
 from pathlib import Path
 from utils.files import get_full_path
 
@@ -79,6 +80,14 @@ def check_if_py3(code_f):
 
     return True
 
+
+def summary(value_list):
+    """Calculate the summary statistics of a value list."""
+    mean = numpy.mean(value_list)
+    std = numpy.std(value_list)
+    max_v = max(value_list)
+    min_v = min(value_list)
+    return {'mean': mean, 'std': std, 'max': max_v, 'min': min_v}
 
 # ======
 #  Helper functions to assist in geometric stuff, dev only

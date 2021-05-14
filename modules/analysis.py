@@ -167,13 +167,14 @@ class Analysis:
         output_f = f'{self.analysis_path}/gdock.dat'
         ga_log.info(f'Saving output file to {output_f}')
         with open(output_f, 'w') as fh:
-            fh.write('generation,individual,fitness,irmsd,cluster_id,'
-                     'internal_ranking' + os.linesep)
+            fh.write('generation,individual,satisfaction,energy,'
+                     'irmsd,cluster_id,internal_ranking' + os.linesep)
             for generation in self.result_dic:
                 for individual in self.result_dic[generation]:
                     _, fitness = self.result_dic[generation][individual]
                     # placeholder for multiple values of fitnessess
-                    fitness = fitness[0]
+                    satisfaction = fitness[0]
+                    energy = fitness[1]
                     generation_str = str(generation).rjust(3, '0')
                     individual_str = str(individual).rjust(3, '0')
                     structure_name = f'{generation_str}_{individual_str}'
@@ -199,7 +200,8 @@ class Analysis:
 
                     output_str = f"{generation},"
                     output_str += f"{individual},"
-                    output_str += f"{fitness:.3f},"
+                    output_str += f"{satisfaction:.3f},"
+                    output_str += f"{energy:.3f},"
                     output_str += f"{irmsd:.2f},"
                     output_str += f"{cluster_id},"
                     output_str += f"{internal_ranking}" + os.linesep
