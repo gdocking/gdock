@@ -18,6 +18,7 @@ before_script:
   - cd $HOME 
   - mkdir $HOME/src
   - cd $HOME/src
+  / Dcomplex
   - wget http://servers.sparks-lab.org/downloads/dcomplex2.tar.gz
   - tar zxfv dcomplex2.tar.gz
   - cd $HOME/src/dcomplex_single_file
@@ -26,14 +27,21 @@ before_script:
   - sed -i "s|\"fort.21_alla\"|\"$HOME/src/dcomplex_single_file/fort.21_alla\"|g" dcomplex.c
   - g++ -o dcomplex dcomplex.c
   - cd $HOME/src
+  / FCC
   - git clone https://github.com/haddocking/fcc.git
   - cd fcc
   - git checkout python3
   - cd $HOME/src
-  - git clone https://github.com/bjornwallner/DockQ/
-  - cd DockQ
+  / pdb-tools
+  - git clone https://github.com/haddocking/pdb-tools
+  - cd $HOME/src
+  / ProFit
+  - wget http://www.bioinf.org.uk/software/profit/235216/profit.tar.gz
+  - tar zxvf profit.tar.gz
+  - cd ProFit_V3.3/src
   - make
   - cd $TRAVIS_BUILD_DIR
+  / edit paths
   - sed -i s"|/Users/rodrigo/repos/gdock|$HOME|g" etc/gdock.ini
 
 script:
