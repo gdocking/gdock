@@ -20,7 +20,10 @@ def tidy(pdb_str):
     cmd = f'pdb_tidy {tmp.name}'
     ga_log.debug(f'Tidying up with command {cmd}')
     out = open(f'{tmp_out.name}', 'w')
-    p = subprocess.Popen(shlex.split(cmd), shell=False, stdout=out, stderr=subprocess.PIPE)  # nosec
+    p = subprocess.Popen(shlex.split(cmd),
+                         shell=False,
+                         stdout=out,
+                         stderr=subprocess.PIPE)  # nosec
     p.communicate()
     if not os.path.isfile(tmp.name):
         ga_log.error('Could not tidy the pdb!')
@@ -56,7 +59,8 @@ def random_quote():
                         auth = ''
                         quote = ''
 
-        random_author, random_quote = quote_list[secrets.choice(range(0, len(quote_list)))]
+        pick = secrets.choice(range(0, len(quote_list)))
+        random_author, random_quote = quote_list[pick]
         return random_author, random_quote
 
 
@@ -94,7 +98,8 @@ def check_if_py3(code_f):
 #         dum_x = f'{dummy_coord[0]:.3f}'.rjust(7, ' ')
 #         dum_y = f'{dummy_coord[1]:.3f}'.rjust(7, ' ')
 #         dum_z = f'{dummy_coord[2]:.3f}'.rjust(7, ' ')
-#         dummy_line = f'ATOM    999  H   DUM X   1     {dum_x} {dum_y} {dum_z}  1.00  1.00           H  \n'
+#        dummy_line = (f'ATOM    999  H   DUM X   1     {dum_x} {dum_y}'
+#                      f' {dum_z}  1.00  1.00           H  \n')
 #         new_pdb.append(dummy_line)
 #     with open(output_f, 'w') as out_fh:
 #         for line in new_pdb:
@@ -112,7 +117,8 @@ def check_if_py3(code_f):
 #                     new_x = f'{coords[c][0]:.3f}'.rjust(7, ' ')
 #                     new_y = f'{coords[c][1]:.3f}'.rjust(7, ' ')
 #                     new_z = f'{coords[c][2]:.3f}'.rjust(7, ' ')
-#                     new_line = f'{line[:30]} {new_x} {new_y} {new_z} {line[55:]}'
+#                    new_line = (f'{line[:30]} {new_x} {new_y} {new_z}'
+#                                f' {line[55:]}')
 #                     out_fh.write(new_line)
 #                     c += 1
 #         ref_fh.close()
@@ -125,6 +131,7 @@ def check_if_py3(code_f):
 #         dum_x = f'{dummy_coord[0]:.3f}'.rjust(7, ' ')
 #         dum_y = f'{dummy_coord[1]:.3f}'.rjust(7, ' ')
 #         dum_z = f'{dummy_coord[2]:.3f}'.rjust(7, ' ')
-#         dummy_line = f'ATOM    999  H   DUM X   1     {dum_x} {dum_y} {dum_z}     1.00  1.00           H  \n'
+#        dummy_line = (f'ATOM    999  H   DUM X   1     {dum_x} {dum_y} '
+#                      f'{dum_z}     1.00  1.00           H  \n')
 #         out_fh.write(dummy_line)
 #     out_fh.close()
