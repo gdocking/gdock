@@ -177,7 +177,6 @@ class GeneticAlgorithm:
                 run = False
 
             if len(result_l) >= self.conv_counter:
-                # previous_variations = variation_l[-self.convergence_counter:]
                 convergence = []
                 for var in variation_l[-self.conv_counter:]:
                     if abs(var) < 0.1:
@@ -188,7 +187,7 @@ class GeneticAlgorithm:
                 if all(convergence):
                     ga_log.info('Simulation "converged"')
                     ga_log.info(f'Absolute fitness variation is < .1 for '
-                                f'last {self.convergence_counter} generations')
+                                f'last {self.conv_counter} generations')
                     ga_log.info(f'Stopped at generation {ngen}')
                     run = False
 
