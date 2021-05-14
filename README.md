@@ -1,9 +1,9 @@
-[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/rvhonorato/gdock?color=red)](https://github.com/rvhonorato/gdock/releases/tag/v1.0.0)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4467795.svg)](https://doi.org/10.5281/zenodo.4467795)
+<!-- [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/rvhonorato/gdock?color=red)](https://github.com/rvhonorato/gdock/releases/tag/v1.0.0) -->
+<!-- [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4467795.svg)](https://doi.org/10.5281/zenodo.4467795) -->
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/) 
-[![Build Status](https://travis-ci.com/rvhonorato/gdock.svg?branch=master)](https://travis-ci.com/rvhonorato/gdock)
-[![Codacy Badge](https://app.codacy.com/project/badge/Coverage/a794c83bedbc4e50b4bb6a0ed73ba3d0)](https://www.codacy.com/gh/rvhonorato/gdock/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=rvhonorato/gdock&amp;utm_campaign=Badge_Coverage)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/a794c83bedbc4e50b4bb6a0ed73ba3d0)](https://www.codacy.com/gh/rvhonorato/gdock/dashboard?utm_source=github.com&utm_medium=referral&utm_content=rvhonorato/gdock&utm_campaign=Badge_Grade) 
+[![Build Status](https://travis-ci.com/rvhonorato/gdock.svg?branch=development)](https://travis-ci.com/rvhonorato/gdock)
+<!-- [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/a794c83bedbc4e50b4bb6a0ed73ba3d0)](https://www.codacy.com/gh/rvhonorato/gdock/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=rvhonorato/gdock&amp;utm_campaign=Badge_Coverage) -->
+<!-- [![Codacy Badge](https://app.codacy.com/project/badge/Grade/a794c83bedbc4e50b4bb6a0ed73ba3d0)](https://www.codacy.com/gh/rvhonorato/gdock/dashboard?utm_source=github.com&utm_medium=referral&utm_content=rvhonorato/gdock&utm_campaign=Badge_Grade)  -->
 
 <img src="imgs/gdock_logo.png" width="500">
 
