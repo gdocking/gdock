@@ -14,7 +14,8 @@ ga_log = logging.getLogger('ga_log')
 
 
 # This needs to be outside..! https://github.com/rsteca/sklearn-deap/issues/59
-creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # -1 will optimize towards negative
+# -1 will optimize towards negative
+creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
 creator.create("Individual", list, fitness=creator.FitnessMin)
 
 
@@ -31,7 +32,7 @@ class GeneticAlgorithm:
         self.mutpb = ga_params['general']['mutation_probability']
         self.eta = ga_params['general']['eta']
         self.indpb = ga_params['general']['indpb']
-        self.convergence_counter = ga_params['parameters']['convergence_cutoff']
+        self.conv_counter = ga_params['parameters']['convergence_cutoff']
         self.toolbox = None
         self.generation_dic = {}
         self.pioneer_dic = {}
@@ -56,12 +57,28 @@ class GeneticAlgorithm:
         ga_log.debug('Creating the individual and population functions')
         toolbox = base.Toolbox()
         toolbox.register("attr", self.generate_individual)
-        toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.attr)
-        toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+        toolbox.register("individual",
+                         tools.initIterate,
+                         creator.Individual,
+                         toolbox.attr)
+        toolbox.register("population",
+                         tools.initRepeat,
+                         list,
+                         toolbox.individual)
 
         toolbox.register("mate", tools.cxTwoPoint)
-        toolbox.register("mutate_rot", tools.mutPolynomialBounded, eta=self.eta, low=0, up=360, indpb=self.indpb)
-        toolbox.register("mutate_trans", tools.mutPolynomialBounded, eta=self.eta, low=-5, up=+5, indpb=self.indpb)
+        toolbox.register("mutate_rot",
+                         tools.mutPolynomialBounded,
+                         eta=self.eta,
+                         low=0,
+                         up=360,
+                         indpb=self.indpb)
+        toolbox.register("mutate_trans",
+                         tools.mutPolynomialBounded,
+                         eta=self.eta,
+                         low=-5,
+                         up=+5,
+                         indpb=self.indpb)
         toolbox.register("select", tools.selTournament, tournsize=2)
         toolbox.register("evaluate", self.fitness_function,
                          self.pioneer_dic)
@@ -80,7 +97,8 @@ class GeneticAlgorithm:
         variation_l = []
         result_l = []
         run = True
-        ga_log.info(f'Population: {self.popsize} Max Generations: {self.max_ngen}')
+        ga_log.info(f'Population: {self.popsize} Max Generations:'
+                    f' {self.max_ngen}')
         pop = self.toolbox.population(n=self.popsize)
         ngen = 1
         while run:
@@ -131,7 +149,11 @@ class GeneticAlgorithm:
                 for fitness_v in ind.fitness.values:
                     self.generation_dic[ngen][idx][1].append(fitness_v)
 
-            fitness_list = [self.generation_dic[ngen][f][1][0] for f in self.generation_dic[ngen]]
+            fitness_list = []
+            for elem in self.generation_dic[ngen]:
+                fitness_v = self.generation_dic[ngen][elem][1][0]
+                fitness_list.append(fitness_v)
+
             mean_fitness = np.mean(fitness_list)
             std_fitness = np.std(fitness_list)
             max_fitness = max(fitness_list)
@@ -139,23 +161,34 @@ class GeneticAlgorithm:
 
             result_l.append(mean_fitness)
 
-            last_results = result_l[-self.convergence_counter:]
+            last_results = result_l[-self.conv_counter:]
             variation = min(last_results) - max(last_results)
 
             variation_l.append(variation)
 
             ngen_str = str(ngen).rjust(3, '0')
-            ga_log.info(f"Gen {ngen_str} fitness {mean_fitness:.2f} +- {std_fitness:.2f} [{max_fitness:.2f},"
+            ga_log.info(f"Gen {ngen_str} fitness {mean_fitness:.2f} +-"
+                        f" {std_fitness:.2f} [{max_fitness:.2f},"
                         f"{min_fitness:.2f}] ({variation:.3f})")
 
             if ngen == self.max_ngen:
-                ga_log.info(f'Simulation reached maximum number of generations, stopping at {ngen}.')
+                ga_log.info(f'Simulation reached maximum number of '
+                            f'generations, stopping at {ngen}.')
                 run = False
 
-            if len(result_l) >= self.convergence_counter:
-                if all(abs(e) < 0.1 for e in variation_l[-self.convergence_counter:]):
+            if len(result_l) >= self.conv_counter:
+                # previous_variations = variation_l[-self.convergence_counter:]
+                convergence = []
+                for var in variation_l[-self.conv_counter:]:
+                    if abs(var) < 0.1:
+                        convergence.append(True)
+                    else:
+                        convergence.append(False)
+
+                if all(convergence):
                     ga_log.info('Simulation "converged"')
-                    ga_log.info(f'Absolute fitness variation is < .1 for last {self.convergence_counter} generations')
+                    ga_log.info(f'Absolute fitness variation is < .1 for '
+                                f'last {self.convergence_counter} generations')
                     ga_log.info(f'Stopped at generation {ngen}')
                     run = False
 
@@ -180,9 +213,12 @@ class GeneticAlgorithm:
         # use a temporary file, nothing lasts forever
         pdb = NamedTemporaryFile(delete=False, suffix='.pdb')
         for chain in pdb_dic:
-            for coord, line in zip(pdb_dic[chain]['coord'], pdb_dic[chain]['raw']):
+            coord_l = pdb_dic[chain]['coord']
+            raw_l = pdb_dic[chain]['raw']
+            for coord, line in zip(coord_l, raw_l):
                 new_x, new_y, new_z = format_coords(coord)
-                new_line = f'{line[:30]} {new_x} {new_y} {new_z} {line[55:]}\n'
+                new_line = (f'{line[:30]} {new_x} {new_y} {new_z} '
+                            f'{line[55:]}' + os.linesep)
                 pdb.write(str.encode(new_line))
         pdb.close()
 

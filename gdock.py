@@ -12,7 +12,8 @@ import logging
 ga_log = logging.getLogger('ga_log')
 ga_log.setLevel(logging.INFO)
 ch = logging.StreamHandler()
-formatter = logging.Formatter(' %(asctime)s %(module)s:%(lineno)d %(levelname)s - %(message)s')
+formatter = logging.Formatter(' %(asctime)s %(module)s:%(lineno)d '
+                              '%(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 ga_log.addHandler(ch)
 
@@ -23,13 +24,13 @@ if __name__ == '__main__':
     parser.add_argument("input_file")
     args = parser.parse_args()
     author, quote = random_quote()
-    print('============================================================================')
-    print('#                            Welcome to gdock!                              ')
+    print('==================================================================')
+    print('#                      Welcome to gdock!                          ')
     print('#')
     print(f'# "{quote}"')
     print(f'#   -{author}')
     print('#')
-    print('============================================================================')
+    print('==================================================================')
     ga_log.info(f'Running {CURRENT_VERSION}')
 
     ga_log.info('Setting up simulation')
