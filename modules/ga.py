@@ -5,8 +5,8 @@ import random
 import numpy as np
 from tempfile import NamedTemporaryFile
 from deap import base, creator, tools
-from utils.functions import format_coords
-from modules.fitness import run_dcomplex
+from utils.functions import format_coords, summary
+from modules.fitness import run_dcomplex, calc_satisfaction
 from modules.geometry import Geometry
 import logging
 
@@ -15,8 +15,8 @@ ga_log = logging.getLogger('ga_log')
 
 # This needs to be outside..! https://github.com/rsteca/sklearn-deap/issues/59
 # -1 will optimize towards negative
-creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
-creator.create("Individual", list, fitness=creator.FitnessMin)
+creator.create("FitnessMulti", base.Fitness, weights=(+1.0, -0.8))
+creator.create("Individual", list, fitness=creator.FitnessMulti)
 
 
 class GeneticAlgorithm:
@@ -46,6 +46,9 @@ class GeneticAlgorithm:
                     self.pioneer_dic[chain] = {'coord': [], 'raw': []}
                 self.pioneer_dic[chain]['coord'].append((x, y, z))
                 self.pioneer_dic[chain]['raw'].append(line)
+        # TODO: find a better way of assigning chains here
+        self.pioneer_dic['A']['restraints'] = run_params['restraints_a']
+        self.pioneer_dic['B']['restraints'] = run_params['restraints_b']
 
     def setup(self):
         """Setup the genetic algorithm."""
@@ -79,8 +82,13 @@ class GeneticAlgorithm:
                          low=-5,
                          up=+5,
                          indpb=self.indpb)
-        toolbox.register("select", tools.selTournament, tournsize=2)
-        toolbox.register("evaluate", self.fitness_function,
+        # Deb, Kalyan & Agrawal, S. & Pratab, A. & Meyarivan, T.. (2000).
+        #  A fast elitist non-dominated sorting genetic algorithm for
+        #  multi-objective optimization: NSGA-II. 1917.
+        toolbox.register("select", tools.selNSGA2)
+
+        toolbox.register("evaluate", 
+                         self.fitness_function,
                          self.pioneer_dic)
 
         ga_log.debug('Creating the multiprocessing pool')
@@ -99,6 +107,7 @@ class GeneticAlgorithm:
         run = True
         ga_log.info(f'Population: {self.popsize} Max Generations:'
                     f' {self.max_ngen}')
+        ga_log.info("Gen ... (mean_satisfaction, mean_energy)")
         pop = self.toolbox.population(n=self.popsize)
         ngen = 1
         while run:
@@ -144,22 +153,21 @@ class GeneticAlgorithm:
             # replace the old population by the offspring
             pop[:] = offspring
 
+            energy_values = []
+            satisfaction_values = []
             for idx, ind in enumerate(pop):
-                self.generation_dic[ngen][idx] = ind, []
-                for fitness_v in ind.fitness.values:
-                    self.generation_dic[ngen][idx][1].append(fitness_v)
+                self.generation_dic[ngen][idx] = ind, ind.fitness.values
 
-            fitness_list = []
-            for elem in self.generation_dic[ngen]:
-                fitness_v = self.generation_dic[ngen][elem][1][0]
-                fitness_list.append(fitness_v)
+                energy = ind.fitness.values[1]
+                energy_values.append(energy)
 
-            mean_fitness = np.mean(fitness_list)
-            std_fitness = np.std(fitness_list)
-            max_fitness = max(fitness_list)
-            min_fitness = min(fitness_list)
+                satisfaction = ind.fitness.values[0]
+                satisfaction_values.append(satisfaction)
 
-            result_l.append(mean_fitness)
+            energy_summary = summary(energy_values)
+            satisfaction_summary = summary(satisfaction_values)
+
+            result_l.append(energy_summary['mean'])
 
             last_results = result_l[-self.conv_counter:]
             variation = min(last_results) - max(last_results)
@@ -167,9 +175,8 @@ class GeneticAlgorithm:
             variation_l.append(variation)
 
             ngen_str = str(ngen).rjust(3, '0')
-            ga_log.info(f"Gen {ngen_str} fitness {mean_fitness:.2f} +-"
-                        f" {std_fitness:.2f} [{max_fitness:.2f},"
-                        f"{min_fitness:.2f}] ({variation:.3f})")
+            ga_log.info(f"Gen {ngen_str} ({satisfaction_summary['mean']:.2f}"
+                        f", {energy_summary['mean']:.3f})")
 
             if ngen == self.max_ngen:
                 ga_log.info(f'Simulation reached maximum number of '
@@ -186,7 +193,7 @@ class GeneticAlgorithm:
 
                 if all(convergence):
                     ga_log.info('Simulation "converged"')
-                    ga_log.info(f'Absolute fitness variation is < .1 for '
+                    ga_log.info(f'Absolute energy variation is < .1 for '
                                 f'last {self.conv_counter} generations')
                     ga_log.info(f'Stopped at generation {ngen}')
                     run = False
@@ -224,13 +231,16 @@ class GeneticAlgorithm:
         # Calculate fitnesses!
         # ================================#
         energy = run_dcomplex(pdb.name)
+        satisfaction = calc_satisfaction(pdb.name,
+                                         pdb_dic['A']['restraints'],
+                                         pdb_dic['B']['restraints'])
         # ================================#
 
         # unlink the pdb so that it disappears
         os.unlink(pdb.name)
 
         # this must (?) be a list: github.com/DEAP/deap/issues/256
-        return [energy]
+        return [satisfaction, energy]
 
     @staticmethod
     def generate_individual():
