@@ -68,7 +68,7 @@ if __name__ == '__main__':
     ana = Analysis(initial_complex, results, run_params)
     ana.generate_structures()
     ana.cluster()
-    ana.capri_eval()
+    ana.evaluate()
     ana.output()
 
     s.clean()
