@@ -11,13 +11,13 @@ import numpy as np
 from utils.files import get_full_path
 from utils.functions import format_coords
 from modules.geometry import Geometry
+from modules.profit import Profit
 
 ga_log = logging.getLogger('ga_log')
 etc_folder = get_full_path('etc')
 ini = configparser.ConfigParser(os.environ)
 ini.read(os.path.join(etc_folder, 'gdock.ini'), encoding='utf-8')
 fcc = ini.get('third_party', 'fcc_path')
-dockq_exe = ini.get('third_party', 'dockq_exe')
 
 
 class Analysis:
@@ -61,16 +61,19 @@ class Analysis:
                 rotation_angles = individual[:3]
 
                 translated_coords = Geometry.translate(c, translation_center)
-                rotated_coords = Geometry.rotate(translated_coords, rotation_angles)
+                rotated_coords = Geometry.rotate(translated_coords,
+                                                 rotation_angles)
 
                 input_structure_dic['B']['coord'] = list(rotated_coords)
 
-                pdb_name = f"{self.analysis_path}/{str(gen).rjust(3, '0')}_{str(idx).rjust(3, '0')}.pdb"
+                pdb_name = (f"{self.analysis_path}/{str(gen).rjust(3, '0')}"
+                            f"_{str(idx).rjust(3, '0')}.pdb")
                 with open(pdb_name, 'w') as fh:
                     for chain in input_structure_dic:
                         for coord, line in zip(input_structure_dic[chain]['coord'], input_structure_dic[chain]['raw']):
                             new_x, new_y, new_z = format_coords(coord)
-                            new_line = f'{line[:30]} {new_x} {new_y} {new_z} {line[55:]}\n'
+                            new_line = (f'{line[:30]} {new_x} {new_y} {new_z}'
+                                        f' {line[55:]}\n')
                             fh.write(new_line)
                 fh.close()
                 self.structure_list.append(pdb_name)
@@ -92,7 +95,9 @@ class Analysis:
         cmd = f'{make_contacts} -f {pdb_list}'
         ga_log.debug(f'cmd is: {cmd}')
         try:
-            out = subprocess.check_output(shlex.split(cmd), shell=False, stderr=subprocess.PIPE)  # nosec
+            out = subprocess.check_output(shlex.split(cmd),
+                                          shell=False,
+                                          stderr=subprocess.PIPE)  # nosec
         except subprocess.CalledProcessError as e:
             ga_log.error(f'FCC failed with {e}')
             return
@@ -111,7 +116,9 @@ class Analysis:
         fh.close()
 
         cmd = f'{calc_fcc_matrix} -f {contact_list} -o {fcc_matrix}'
-        subprocess.check_output(shlex.split(cmd), shell=False, stderr=subprocess.PIPE)  # nosec
+        subprocess.check_output(shlex.split(cmd),
+                                shell=False,
+                                stderr=subprocess.PIPE)  # nosec
         if not os.path.isfile(fcc_matrix):
             ga_log.error('FCC - calc_fcc_matrix.py failed')
             sys.exit()
@@ -120,7 +127,9 @@ class Analysis:
         cluster_fcc = f'{fcc}/scripts/cluster_fcc.py'
         cluster_out = f'{self.analysis_path}/cluster.out'
         cmd = f'{cluster_fcc} {fcc_matrix} {cutoff} -o {cluster_out}'
-        subprocess.check_output(shlex.split(cmd), shell=False, stderr=subprocess.PIPE)  # nosec
+        subprocess.check_output(shlex.split(cmd),
+                                shell=False, 
+                                stderr=subprocess.PIPE)  # nosec
         if os.stat(cluster_out).st_size == 0:
             ga_log.warning('No clusters were written!')
             return
@@ -138,45 +147,16 @@ class Analysis:
 
         return self.cluster_dic
 
-    def capri_eval(self):
-        """Calculate the CAPRI metrics for benchmarking purposes."""
-        if not self.native:
-            ga_log.warning('Native not defined, CAPRI evaluation skipped')
-            return
-        ga_log.info(f'DockQ - Calculating iRMSD against native structure {self.native}')
-        pool = multiprocessing.Pool(processes=self.nproc)  # no logging inside the pool because its way too complicated
-        results = []
-        for pdb in self.structure_list:
-            results.append((pdb, pool.apply_async(self.calc_irmsd, args=(dockq_exe, pdb, self.native))))
-        for p in results:
-            pdb, irmsd = p[0], p[1].get()
-            pdb_identifier = Path(pdb).name[:-4]
-            self.irmsd_dic[pdb_identifier] = irmsd
-        pool.close()
-        pool.join()
-
-        # do some analysis
-        irmsd_list = list(self.irmsd_dic.values())
-        irmsd_quantiles = np.quantile(irmsd_list, [0.0, 0.25, 0.5, 0.75, 1.0])
-        irmsd_mean = irmsd_quantiles[2]
-        irmsd_min = irmsd_quantiles[0]
-        irmsd_max = irmsd_quantiles[4]
-        irmsd_sd = np.std(irmsd_list)
-        ga_log.info(f'min: {irmsd_min:.2f} Å max: {irmsd_max:.2f} Å mean: {irmsd_mean:.2f} Å sd: {irmsd_sd:.2f} Å')
-
-    @staticmethod
-    def calc_irmsd(dockq_exe, pdb_f, native):
-        """Calculate the interface root mean square deviation."""
-        cmd = f'{sys.executable} {dockq_exe} {pdb_f} {native}'
-        ga_log.debug(f'cmd is: {cmd}')
+    def evaluate(self):
+        """Use PROFIT to calculate the interface rmsd."""
         try:
-            out = subprocess.check_output(shlex.split(cmd), shell=False)  # nosec
-            result = out.decode('utf-8')
-            irmsd = float(result.split('\n')[-6].split()[-1])
-        except Exception:
-            # This will happen when there is something very wrong with the PDB
-            irmsd = float('nan')
-        return irmsd
+            profit = Profit(ref=self.native,
+                            mobi=self.structure_list,
+                            nproc=self.nproc)
+            self.irmsd_dic = profit.calc_irmsd()
+        except Exception as e:
+            ga_log.warning(e)
+            ga_log.warning('Skipping evaluation')
 
     def output(self):
         """Generate a script friendly output table."""
