@@ -6,7 +6,8 @@ import shlex
 import logging
 import math
 import pathlib
-import numpy as np
+import multiprocessing
+import numpy
 from utils.files import get_full_path
 from utils.functions import format_coords
 from modules.geometry import Geometry
@@ -50,38 +51,45 @@ class Analysis:
                 input_structure_dic[chain]['coord'].append((x, y, z))
                 input_structure_dic[chain]['raw'].append(line)
 
-        # use the chromossome and create the structure!
-        c = np.array(input_structure_dic['B']['coord'])
+        pool = multiprocessing.Pool(processes=self.nproc)
+
         for gen in self.result_dic:
             for idx in self.result_dic[gen]:
-
                 individual = self.result_dic[gen][idx][0]
-
-                translation_center = individual[3:]
-                rotation_angles = individual[:3]
-
-                translated_coords = Geometry.translate(c, translation_center)
-                rotated_coords = Geometry.rotate(translated_coords,
-                                                 rotation_angles)
-
-                input_structure_dic['B']['coord'] = list(rotated_coords)
-
                 pdb_name = (f"{self.analysis_path}/{str(gen).rjust(3, '0')}"
                             f"_{str(idx).rjust(3, '0')}.pdb")
-                with open(pdb_name, 'w') as fh:
-                    for chain in input_structure_dic:
-                        coord_l = input_structure_dic[chain]['coord']
-                        raw_l = input_structure_dic[chain]['raw']
-                        for coord, line in zip(coord_l, raw_l):
-                            new_x, new_y, new_z = format_coords(coord)
-                            new_line = (f'{line[:30]} {new_x} {new_y} {new_z}'
-                                        f' {line[55:]}' + os.linesep)
-                            fh.write(new_line)
-                fh.close()
                 self.structure_list.append(pdb_name)
 
-        self.structure_list.sort()
-        return self.structure_list
+                pool.apply_async(self._recreate, args=(input_structure_dic,
+                                                       individual,
+                                                       pdb_name))
+
+        pool.close()
+        pool.join()
+
+    @staticmethod
+    def _recreate(input_structure_dic, individual, pdb_name):
+        """Use the chromossome information and create the structure."""
+        c = numpy.array(input_structure_dic['B']['coord'])
+
+        translation_center = individual[3:]
+        rotation_angles = individual[:3]
+
+        translated_coords = Geometry.translate(c, translation_center)
+        rotated_coords = Geometry.rotate(translated_coords, rotation_angles)
+
+        input_structure_dic['B']['coord'] = list(rotated_coords)
+
+        with open(pdb_name, 'w') as fh:
+            for chain in input_structure_dic:
+                coord_l = input_structure_dic[chain]['coord']
+                raw_l = input_structure_dic[chain]['raw']
+                for coord, line in zip(coord_l, raw_l):
+                    new_x, new_y, new_z = format_coords(coord)
+                    new_line = (f'{line[:30]} {new_x} {new_y} {new_z}'
+                                f' {line[55:]}' + os.linesep)
+                    fh.write(new_line)
+        fh.close()
 
     def cluster(self, cutoff=0.75):
         """Use FCC to cluster structures."""
