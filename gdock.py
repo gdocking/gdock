@@ -4,6 +4,7 @@ from modules.setup import Setup
 from modules.geometry import Geometry
 from modules.structure import PDB, Restraint
 from modules.ga import GeneticAlgorithm
+from modules.scoring import Scoring
 from modules.analysis import Analysis
 from utils.functions import random_quote
 from modules.version import CURRENT_VERSION
@@ -59,15 +60,18 @@ if __name__ == '__main__':
 
     # 4. Run GA
     ga_log.info('Loading Genetic Algorithm')
-
     ga = GeneticAlgorithm(initial_complex, run_params, ga_params)
     ga.setup()
     results = ga.run()
 
-    # 5. Analysis
+    # 5. Scoring
+    ga_log.info('Loading Scoring')
+    scoring = Scoring(results, run_params)
+    results = scoring.score()
+
+    # 6. Analysis
     ga_log.info('Loading Analysis')
-    ana = Analysis(initial_complex, results, run_params)
-    ana.generate_structures()
+    ana = Analysis(results, run_params)
     ana.cluster()
     ana.evaluate()
     ana.output()
