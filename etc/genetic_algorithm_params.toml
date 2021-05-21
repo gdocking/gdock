@@ -8,7 +8,7 @@ mutation_probability  = 0.8
 # eta - Crowding degree of the mutation.
 #   A high eta will produce a mutant resembling its parent,
 #   while a small eta will produce a solution much more different.
-eta = 0.6
+eta = 0.1
 
 # Independent probability for each attribute to be exchanged.
 indpb = 0.2
