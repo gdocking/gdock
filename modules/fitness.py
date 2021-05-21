@@ -17,16 +17,6 @@ dcomplex_exe = ini.get('third_party', 'dcomplex_exe')
 # ============================================= #
 
 
-def run_dcomplex(pdb_f):
-    """Use DCOMPLEX to calculate the PDB's energy."""
-    cmd = (f'{dcomplex_exe} {pdb_f} A B')
-    ga_log.debug(f'cmd is: {cmd}')
-    out = subprocess.check_output(shlex.split(cmd), shell=False)  # nosec
-    result = out.decode('utf-8').split('\n')
-    energy = float(result[-2].split()[1])
-    return energy
-
-
 # TODO: speed this up!
 def calc_satisfaction(pdb_f, restraints_a, restraints_b, cutoff=4.9):
     """Calculate the restraints satisfaction ratio."""
@@ -68,7 +58,8 @@ def calc_satisfaction(pdb_f, restraints_a, restraints_b, cutoff=4.9):
 
                     distance = scipy.spatial.distance.euclidean(c_i, c_j)
 
-                    if distance <= cutoff:
+                    if distance <= cutoff and distance > 2.0:
+                        # assumme that if distance is > 2.0 it is a clash
                         contacts['A'].append(res_a)
                         contacts['B'].append(res_b)
 
