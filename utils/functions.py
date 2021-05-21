@@ -67,7 +67,18 @@ def random_quote():
 
 def du(path):
     """Disk Usage."""
-    return sum(file.stat().st_size for file in Path(path).rglob('*'))
+    size_in_bytes = sum(file.stat().st_size for file in Path(path).rglob('*'))
+    size_in_kb = size_in_bytes / 1024
+    size_in_mb = size_in_bytes / (1024 * 1024)
+    size_in_gb = size_in_bytes / (1024 * 1024 * 1024)
+    if int(size_in_gb) > 0:
+        return f'{size_in_gb:.2f} GB'
+    elif int(size_in_mb) > 0:
+        return f'{size_in_mb:.2f} MB'
+    elif int(size_in_kb) > 0:
+        return f'{size_in_kb:.2f} KB'
+    else:
+        return f'{size_in_bytes} B'
 
 
 def check_if_py3(code_f):
