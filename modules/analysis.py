@@ -6,11 +6,7 @@ import shlex
 import logging
 import math
 import pathlib
-import multiprocessing
-import numpy
 from utils.files import get_full_path
-from utils.functions import format_coords
-from modules.geometry import Geometry
 from modules.profit import Profit
 
 ga_log = logging.getLogger('ga_log')
@@ -22,9 +18,8 @@ fcc = ini.get('third_party', 'fcc_path')
 
 class Analysis:
 
-    def __init__(self, input_structures, result_dic, run_params):
+    def __init__(self, result_dic, run_params):
         """Setup the analysis class."""
-        self.input_structures = input_structures
         self.result_dic = result_dic
         self.analysis_path = f"{run_params['folder']}/analysis"
         if 'native' in run_params:
@@ -32,69 +27,23 @@ class Analysis:
         else:
             self.native = ''
         self.nproc = run_params['np']
-        self.structure_list = []
+        self.structure_list = self.get_structures(result_dic)
         self.cluster_dic = {}
         self.irmsd_dic = {}
 
-    def generate_structures(self):
-        """Read information from simulation and generate structures."""
-        ga_log.info('Re-generating structures')
-        input_structure_dic = {}
-        for line in self.input_structures.split(os.linesep):
-            if line.startswith('ATOM'):
-                chain = line[21]
-                x = float(line[31:38])
-                y = float(line[39:46])
-                z = float(line[47:54])
-                if chain not in input_structure_dic:
-                    input_structure_dic[chain] = {'coord': [], 'raw': []}
-                input_structure_dic[chain]['coord'].append((x, y, z))
-                input_structure_dic[chain]['raw'].append(line)
-
-        pool = multiprocessing.Pool(processes=self.nproc)
-
-        for gen in self.result_dic:
-            for idx in self.result_dic[gen]:
-                individual = self.result_dic[gen][idx][0]
-                pdb_name = (f"{self.analysis_path}/{str(gen).rjust(3, '0')}"
-                            f"_{str(idx).rjust(3, '0')}.pdb")
-                self.structure_list.append(pdb_name)
-
-                pool.apply_async(self._recreate, args=(input_structure_dic,
-                                                       individual,
-                                                       pdb_name))
-
-        pool.close()
-        pool.join()
-
     @staticmethod
-    def _recreate(input_structure_dic, individual, pdb_name):
-        """Use the chromossome information and create the structure."""
-        c = numpy.array(input_structure_dic['B']['coord'])
-
-        translation_center = individual[3:]
-        rotation_angles = individual[:3]
-
-        translated_coords = Geometry.translate(c, translation_center)
-        rotated_coords = Geometry.rotate(translated_coords, rotation_angles)
-
-        input_structure_dic['B']['coord'] = list(rotated_coords)
-
-        with open(pdb_name, 'w') as fh:
-            for chain in input_structure_dic:
-                coord_l = input_structure_dic[chain]['coord']
-                raw_l = input_structure_dic[chain]['raw']
-                for coord, line in zip(coord_l, raw_l):
-                    new_x, new_y, new_z = format_coords(coord)
-                    new_line = (f'{line[:30]} {new_x} {new_y} {new_z}'
-                                f' {line[55:]}' + os.linesep)
-                    fh.write(new_line)
-        fh.close()
+    def get_structures(data_dic):
+        structure_l = []
+        for gen in data_dic:
+            for ind in data_dic[gen]:
+                struct = data_dic[gen][ind]['structure']
+                if struct:
+                    structure_l.append(struct)
+        return structure_l
 
     def cluster(self, cutoff=0.75):
         """Use FCC to cluster structures."""
         ga_log.info('FCC - Calculating contacts')
-        # TODO: Make this run using multiple processors
         make_contacts = f'{fcc}/scripts/make_contacts.py'
         pdb_list = f'{self.analysis_path}/pdb.list'
         with open(pdb_list, 'w') as fh:
@@ -102,7 +51,7 @@ class Analysis:
                 fh.write(f'{pdb}' + os.linesep)
         fh.close()
 
-        cmd = f'{make_contacts} -f {pdb_list}'
+        cmd = f'{make_contacts} -n {self.nproc}  -f {pdb_list}'
         ga_log.debug(f'cmd is: {cmd}')
         try:
             out = subprocess.check_output(shlex.split(cmd),
@@ -141,7 +90,7 @@ class Analysis:
                                 shell=False,
                                 stderr=subprocess.PIPE)  # nosec
         if os.stat(cluster_out).st_size == 0:
-            ga_log.warning('No clusters were written!')
+            ga_log.warning('No clusters were found')
             return
         else:
             with open(cluster_out, 'r') as fh:
@@ -174,21 +123,43 @@ class Analysis:
         """Generate a script friendly output table."""
         output_f = f'{self.analysis_path}/gdock.dat'
         ga_log.info(f'Saving output file to {output_f}')
+
+        sep = '\t'
+        header = 'gen' + sep
+        header += 'ind' + sep
+        header += 'ranking' + sep
+        header += 'score' + sep
+        header += 'fitness' + sep
+        header += 'energy' + sep
+        header += 'irmsd' + sep
+        header += 'cluster_id' + sep
+        header += 'internal_cluster_ranking' + sep
+        header += 'structure_path' + os.linesep
+
         with open(output_f, 'w') as fh:
-            fh.write('generation,individual,satisfaction,energy,'
-                     'irmsd,cluster_id,internal_ranking' + os.linesep)
-            for generation in self.result_dic:
-                for individual in self.result_dic[generation]:
-                    _, fitness = self.result_dic[generation][individual]
+            fh.write(header)
+            for gen in self.result_dic:
+                for ind in self.result_dic[gen]:
+                    fitness_values = self.result_dic[gen][ind]['fitness']
+
                     # placeholder for multiple values of fitnessess
-                    satisfaction = fitness[0]
-                    energy = fitness[1]
-                    generation_str = str(generation).rjust(3, '0')
-                    individual_str = str(individual).rjust(3, '0')
-                    structure_name = f'{generation_str}_{individual_str}'
-                    try:
-                        irmsd = self.irmsd_dic[structure_name]
-                    except KeyError:
+                    fitness = fitness_values[0]
+
+                    score = self.result_dic[gen][ind]['score']
+                    ranking = self.result_dic[gen][ind]['ranking']
+                    energy = self.result_dic[gen][ind]['energy']
+
+                    generation_str = str(gen).rjust(3, '0')
+                    individual_str = str(ind).rjust(3, '0')
+
+                    structure = self.result_dic[gen][ind]['structure']
+                    if structure:
+                        structure_id = pathlib.Path(structure).stem
+                        try:
+                            irmsd = self.irmsd_dic[structure_id]
+                        except KeyError:
+                            irmsd = float('nan')
+                    else:
                         irmsd = float('nan')
 
                     # Add the clustering information
@@ -206,14 +177,20 @@ class Analysis:
                     if math.isnan(internal_ranking):
                         cluster_id = float('nan')
 
-                    output_str = f"{generation},"
-                    output_str += f"{individual},"
-                    output_str += f"{satisfaction:.3f},"
-                    output_str += f"{energy:.3f},"
-                    output_str += f"{irmsd:.2f},"
-                    output_str += f"{cluster_id},"
-                    output_str += f"{internal_ranking}" + os.linesep
-                    fh.write(output_str)
-
+                    output_str = f"{gen}" + sep
+                    output_str += f"{ind}" + sep
+                    output_str += f"{ranking}" + sep
+                    output_str += f"{score:.3f}" + sep
+                    output_str += f"{fitness:.3f}" + sep
+                    output_str += f"{energy:.3f}" + sep
+                    output_str += f"{irmsd:.2f}" + sep
+                    output_str += f"{cluster_id}" + sep
+                    output_str += f"{internal_ranking}" + sep
+                    output_str += f"{structure}" + os.linesep
                     ga_log.debug(output_str)
+
+                    if not math.isnan(ranking):
+                        # do not write to data file if there's no ranking
+                        fh.write(output_str)
+
         fh.close()
