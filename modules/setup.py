@@ -10,6 +10,7 @@ import pathlib
 import subprocess
 import tempfile
 import shlex
+import multiprocessing
 from utils.files import get_full_path
 from utils.functions import du, check_if_py3
 from modules.error import (DependencyNotDefinedError, DependencyNotFoundError,
@@ -23,6 +24,7 @@ class Setup:
         self.input_params = toml.load(toml_file)
         self.data = {}
         self.etc_folder = get_full_path('etc')
+        self.nproc = self.input_params['main']['number_of_processors']
 
     def initialize(self):
         """Load the parameters and create the folder structure."""
@@ -99,28 +101,49 @@ class Setup:
 
     def clean(self):
         """Clean the run directory."""
+        ga_log.info('Cleaning the simulation directory')
         identifier_folder = self.input_params['main']['identifier']
+
         run_path = f'{os.getcwd()}/{identifier_folder}'
         structure_path = f'{os.getcwd()}/{identifier_folder}/structures'
-        pdb_list = glob.glob(f'{structure_path}/*pdb')
+        analysis_path = f'{os.getcwd()}/{identifier_folder}/analysis'
+        fcc_matrix_f = f'{analysis_path}/fcc.matrix'
+
+        pool = multiprocessing.Pool(processes=self.nproc)
+
         size = du(run_path)
-        ga_log.info(f'Compressing PDB structures - current size: {size}')
-        for pdb in pdb_list:
-            fp = open(pdb, 'rb')
-            data = fp.read()
-            bindata = bytearray(data)
-            with gzip.open(f'{pdb}.gz', 'wb') as f:
-                f.write(bindata)
-            os.remove(pdb)
-            fp.close()
+        ga_log.info(f'Current size: {size}')
+
+        ga_log.info('Compressing PDB structures')
+        pdb_list = glob.glob(f'{structure_path}/*pdb')
+        pool.map_async(self._compress, pdb_list)
 
         ga_log.info('Deleting .contacts files')
         contact_list = glob.glob(f'{structure_path}/*contacts')
-        for contact in contact_list:
-            os.remove(contact)
+        pool.map_async(os.remove, contact_list)
+
+        pool.close()
+        pool.join()
+
+        if os.path.isfile(fcc_matrix_f):
+            ga_log.info('Compressing fcc.matix')
+            self._compress(fcc_matrix_f)
 
         size = du(run_path)
-        ga_log.info(f'Run cleaned - current size: {size}')
+        ga_log.info(f'Cleaning finished - current size: {size}')
+
+    @staticmethod
+    def _compress(file_path):
+        """Compress a file in .gz."""
+        # Note: this will open the whole file in memory
+        #  this might not be the best idea
+        fp = open(file_path, 'rb')
+        data = fp.read()
+        bindata = bytearray(data)
+        with gzip.open(f'{file_path}.gz', 'wb') as f:
+            f.write(bindata)
+        os.remove(file_path)
+        fp.close()
 
     def validate_third_party(self):
         """Check if the third-party dependencies are ok in gdock.ini."""
