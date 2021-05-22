@@ -45,36 +45,36 @@ if __name__ == '__main__':
     run_params, ga_params = s.initialize()
 
     # 1. Load structure
-    ga_log.info('Loading structures')
+    ga_log.info('Loading Structures module')
     input_molecules = PDB()
     input_molecules.load(run_params['mol_a'])
     input_molecules.load(run_params['mol_b'])
 
     # 2. Load restraints
-    ga_log.info('Loading restraints')
+    ga_log.info('Loading Restraints module')
     restraints = Restraint(input_molecules.raw_pdb)
     restraints.load(run_params['restraints_a'], 'A')
     restraints.load(run_params['restraints_b'], 'B')
 
     # 3. Position
-    ga_log.info('Loading geometry')
+    ga_log.info('Loading Geometry module')
     geo = Geometry(input_molecules, restraints)
     geo.calc_initial_position()
     initial_complex = geo.apply_transformation()
 
     # 4. Run GA
-    ga_log.info('Loading Genetic Algorithm')
+    ga_log.info('Loading Genetic Algorithm module')
     ga = GeneticAlgorithm(initial_complex, run_params, ga_params)
     ga.setup()
     results = ga.run()
 
     # 5. Scoring
-    ga_log.info('Loading Scoring')
+    ga_log.info('Loading Scoring module')
     scoring = Scoring(results, run_params)
     results = scoring.score()
 
     # 6. Analysis
-    ga_log.info('Loading Analysis')
+    ga_log.info('Loading Analysis module')
     ana = Analysis(results, run_params)
     ana.cluster()
     ana.evaluate()

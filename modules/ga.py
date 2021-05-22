@@ -285,8 +285,8 @@ class GeneticAlgorithm:
                 individual_as_str = '_'.join(map(str, individual))
                 if individual_as_str not in done_dic:
                     pdb_name = (f"{self.structure_folder}/"
-                                f"{str(gen).rjust(3, '0')}"
-                                f"_{str(idx).rjust(3, '0')}.pdb")
+                                f"{str(gen).rjust(4, '0')}"
+                                f"_{str(idx).rjust(4, '0')}.pdb")
                     done_dic[individual_as_str] = pdb_name
                     self.generation_dic[gen][idx]['structure'] = pdb_name
                     self.generation_dic[gen][idx]['clone'] = None

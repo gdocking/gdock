@@ -1,5 +1,5 @@
 [general]
-population_size       = 100
+population_size       = 1000
 max_number_of_generations = 50
 
 crossover_probability = 0.4
