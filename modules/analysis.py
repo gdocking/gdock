@@ -149,8 +149,8 @@ class Analysis:
                     ranking = self.result_dic[gen][ind]['ranking']
                     energy = self.result_dic[gen][ind]['energy']
 
-                    generation_str = str(gen).rjust(3, '0')
-                    individual_str = str(ind).rjust(3, '0')
+                    generation_str = str(gen).rjust(4, '0')
+                    individual_str = str(ind).rjust(4, '0')
 
                     structure = self.result_dic[gen][ind]['structure']
                     if structure:
