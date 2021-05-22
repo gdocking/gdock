@@ -11,13 +11,15 @@ import shlex
 bm_log = logging.getLogger('bm_log')
 bm_log.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
-formatter = logging.Formatter(' %(asctime)s %(module)s:%(lineno)d %(levelname)s - %(message)s')
+formatter = logging.Formatter(' %(asctime)s %(module)s:%(lineno)d'
+                              ' %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 bm_log.addHandler(ch)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("gdockbm_path", help="Full path of the root directory of the prepared folders")
+    parser.add_argument("gdockbm_path", help=("Full path of the root directory"
+                                              " of the prepared folders"))
     args = parser.parse_args()
 
     benchmark_path = Path(args.gdockbm_path).resolve()
@@ -47,9 +49,12 @@ if __name__ == '__main__':
 
             cmd = (f'{python_exe} {gdock_exe} run.toml')
             bm_log.debug(f'cmd is: {cmd}')
-            result = subprocess.run(shlex.split(cmd), capture_output=True, shell=False)  # nosec
+            result = subprocess.run(shlex.split(cmd),
+                                    capture_output=True,
+                                    shell=False)  # nosec
 
-            # Make this explicit so eventually we can capture stuff from stderr/out
+            # Make this explicit so eventually we can capture
+            #  stuff from stderr/out
             stdout = result.stdout.decode('utf-8')
             stderr = result.stderr.decode('utf-8')
 

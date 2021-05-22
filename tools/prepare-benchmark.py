@@ -1,4 +1,3 @@
-# Prepare the benchmark
 import glob
 import os
 import shutil
@@ -9,7 +8,8 @@ import argparse
 bm_log = logging.getLogger('bm_log')
 bm_log.setLevel(logging.INFO)
 ch = logging.StreamHandler()
-formatter = logging.Formatter(' %(asctime)s %(module)s:%(lineno)d %(levelname)s - %(message)s')
+formatter = logging.Formatter(' %(asctime)s %(module)s:%(lineno)d'
+                              ' %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 bm_log.addHandler(ch)
 
@@ -42,16 +42,19 @@ def get_restraints(contact_f):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("bm5_path", help="Location of the Protein-Protein Docking Benchmark v5")
-    parser.add_argument("gdockbm_path", help="Location where the prepared folders will be")
-    parser.add_argument("--np", help="Number of processors to be used for each run", type=int, default=4)
+    parser.add_argument("bm5_path", help=("Location of the Protein-Protein"
+                                          " Docking Benchmark v5"))
+    parser.add_argument("gdockbm_path", help=("Location where the prepared"
+                                              " folders will be"))
+    parser.add_argument("--np", help=("Number of processors to be used for"
+                                      " each run"), type=int, default=4)
     args = parser.parse_args()
 
     folder_list = []
-
+    to_skip = ['.', 'ana_scripts', 'data', 'scripts']
     for folder in glob.glob(f'{args.bm5_path}/HADDOCK-ready/*'):
         folder_name = Path(folder).name
-        if not any([j in folder_name for j in ['.', 'ana_scripts', 'data', 'scripts']]):
+        if not any([j in folder_name for j in to_skip]):
             folder_list.append(folder)
 
     folder_list.sort()
@@ -70,12 +73,15 @@ if __name__ == '__main__':
         target_path = str(loc.parent)
         target_name = loc.name
 
-        contact_file = f'{target_path}/{target_name}/ana_scripts/target.contacts3.9'
+        contact_file = (f'{target_path}/{target_name}/ana_scripts/'
+                        'target.contacts3.9')
+        izone_file = f'{target_path}/{target_name}/ana_scripts/target.izone'
         receptor_unbound = f'{target_name}_r_u.pdb'
         ligand_unbound = f'{target_name}_l_u.pdb'
         native = 'ana_scripts/target.pdb'
 
         bm_log.debug(f'contact_file {contact_file}')
+        bm_log.debug(f'izone_file {izone_file}')
         bm_log.debug(f'receptor {receptor_unbound}')
         bm_log.debug(f'ligand {ligand_unbound}')
         bm_log.debug(f'native {native}')
@@ -90,27 +96,39 @@ if __name__ == '__main__':
         bm_log.info(f'Creating {args.gdockbm_path}/{target_name}')
         os.mkdir(f'{args.gdockbm_path}/{target_name}')
 
-        bm_log.info('Copying receptor, ligand and native files to the target folder')
-        shutil.copy(f'{target_path}/{target_name}/{receptor_unbound}', f'{args.gdockbm_path}/{target_name}')
-        shutil.copy(f'{target_path}/{target_name}/{ligand_unbound}', f'{args.gdockbm_path}/{target_name}')
-        shutil.copy(f'{target_path}/{target_name}/{native}', f'{args.gdockbm_path}/{target_name}/native.pdb')
+        bm_log.info('Copying needed files to the target folder')
+        # receptor
+        shutil.copy(f'{target_path}/{target_name}/{receptor_unbound}',
+                    f'{args.gdockbm_path}/{target_name}')
+        # ligand
+        shutil.copy(f'{target_path}/{target_name}/{ligand_unbound}',
+                    f'{args.gdockbm_path}/{target_name}')
+        # native
+        shutil.copy(f'{target_path}/{target_name}/{native}',
+                    (f'{args.gdockbm_path}/{target_name}/'
+                     f'{target_name}_complex_bound.pdb'))
+        # izone
+        shutil.copy(f'{target_path}/{target_name}/ana_scripts/target.izone',
+                    (f'{args.gdockbm_path}/{target_name}/'
+                     f'{target_name}_complex_bound.izone'))
 
         # Write run.toml
-        bm_log.info(f'Writing run parameters to {args.gdockbm_path}/{target_name}/run.toml')
-        run = "[main]\n"
-        run += "identifier = 'run'\n"
-        run += f"number_of_processors = {args.np}\n"
-        run += "\n"
-        run += "[restraints]\n"
-        run += f"A = {restraints['A']}\n"
-        run += f"B = {restraints['B']}\n"
-        run += "\n"
-        run += "[molecules]\n"
-        run += f"A = '{receptor_unbound}'\n"
-        run += f"B = '{ligand_unbound}'\n"
-        run += "native = 'native.pdb'"
+        run_toml_f = f'{args.gdockbm_path}/{target_name}/run.toml'
+        bm_log.info(f'Writing run parameters to {run_toml_f}')
+        run = "[main]" + os.linesep
+        run += "identifier = 'run'" + os.linesep
+        run += f"number_of_processors = {args.np}" + os.linesep
+        run += os.linesep
+        run += "[restraints]" + os.linesep
+        run += f"A = {restraints['A']}" + os.linesep
+        run += f"B = {restraints['B']}" + os.linesep
+        run += os.linesep
+        run += "[molecules]" + os.linesep
+        run += f"A = '{receptor_unbound}'" + os.linesep
+        run += f"B = '{ligand_unbound}'" + os.linesep
+        run += f"native = '{target_name}_complex_bound.pdb'" + os.linesep
 
-        with open(f'{args.gdockbm_path}/{target_name}/run.toml', 'w') as run_fh:
+        with open(run_toml_f, 'w') as run_fh:
             run_fh.write(run)
         run_fh.close()
 
