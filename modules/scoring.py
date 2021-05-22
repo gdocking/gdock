@@ -42,7 +42,7 @@ class Scoring:
                     self.scoring_dic[pdb_name] = [satisfaction]
 
         # return ordered_list_of_ranked_structures
-        energy_structure_dic = self._calculate_energy()
+        energy_structure_dic = self.calculate_energy()
         for pdb_name in energy_structure_dic:
             energy_v = energy_structure_dic[pdb_name]
             self.scoring_dic[pdb_name].append(energy_v)
@@ -93,7 +93,7 @@ class Scoring:
 
         return self.data_dic
 
-    def _calculate_energy(self):
+    def calculate_energy(self):
         """Obtain energies for the internal list of structures."""
         energy_dic = {}
         pool = multiprocessing.Pool(processes=self.nproc)
