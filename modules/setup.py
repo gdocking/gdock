@@ -3,7 +3,6 @@ import shutil
 import toml
 import logging
 import glob
-import gzip
 import sys
 import configparser
 import pathlib
@@ -11,6 +10,7 @@ import subprocess
 import tempfile
 import shlex
 import multiprocessing
+import mgzip
 from utils.files import get_full_path
 from utils.functions import du, check_if_py3
 from modules.error import (DependencyNotDefinedError, DependencyNotFoundError,
@@ -116,7 +116,7 @@ class Setup:
 
         ga_log.info('Compressing PDB structures')
         pdb_list = glob.glob(f'{structure_path}/*pdb')
-        pool.map_async(self._compress, pdb_list)
+        pool.map_async(self.compress, pdb_list)
 
         ga_log.info('Deleting .contacts files')
         contact_list = glob.glob(f'{structure_path}/*contacts')
@@ -126,24 +126,26 @@ class Setup:
         pool.join()
 
         if os.path.isfile(fcc_matrix_f):
-            ga_log.info('Compressing fcc.matix')
-            self._compress(fcc_matrix_f)
+            ga_log.info('Compressing fcc.matrix')
+            self.compress(fcc_matrix_f, np=self.nproc)
 
         size = du(run_path)
         ga_log.info(f'Cleaning done - current size: {size}')
 
     @staticmethod
-    def _compress(file_path):
+    def compress(file_path, np=1):
         """Compress a file in .gz."""
         # Note: this will open the whole file in memory
         #  this might not be the best idea
-        fp = open(file_path, 'rb')
-        data = fp.read()
-        bindata = bytearray(data)
-        with gzip.open(f'{file_path}.gz', 'wb') as f:
-            f.write(bindata)
+        with open(file_path, 'r') as fr:
+            file_string = ''.join(fr.readlines())
+        fr.close()
+
+        with mgzip.open(f'{file_path}.gz', "wt", thread=np) as fw:
+            fw.write(file_string)
+        fw.close()
+
         os.remove(file_path)
-        fp.close()
 
     def validate_third_party(self):
         """Check if the third-party dependencies are ok in gdock.ini."""
