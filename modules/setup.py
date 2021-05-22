@@ -101,8 +101,8 @@ class Setup:
         """Clean the run directory."""
         identifier_folder = self.input_params['main']['identifier']
         run_path = f'{os.getcwd()}/{identifier_folder}'
-        analysis_path = f'{os.getcwd()}/{identifier_folder}/analysis'
-        pdb_list = glob.glob(f'{analysis_path}/*pdb')
+        structure_path = f'{os.getcwd()}/{identifier_folder}/structures'
+        pdb_list = glob.glob(f'{structure_path}/*pdb')
         size = du(run_path)
         ga_log.info(f'Compressing PDB structures - current size: {size}')
         for pdb in pdb_list:
@@ -115,7 +115,7 @@ class Setup:
             fp.close()
 
         ga_log.info('Deleting .contacts files')
-        contact_list = glob.glob(f'{analysis_path}/*contacts')
+        contact_list = glob.glob(f'{structure_path}/*contacts')
         for contact in contact_list:
             os.remove(contact)
 
