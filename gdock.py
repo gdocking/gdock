@@ -1,5 +1,6 @@
 # gdock
 import argparse
+import datetime
 from modules.setup import Setup
 from modules.geometry import Geometry
 from modules.structure import PDB, Restraint
@@ -32,6 +33,9 @@ if __name__ == '__main__':
     print(f'#   -{author}')
     print('#')
     print('==================================================================')
+
+    start_time = datetime.datetime.now()
+    ga_log.info(f'Starting at {start_time.ctime()}')
     ga_log.info(f'Running {CURRENT_VERSION}')
 
     ga_log.info('Setting up simulation')
@@ -78,5 +82,10 @@ if __name__ == '__main__':
 
     s.clean()
 
-    ga_log.info('gdock finished.')
+    end_time = datetime.datetime.now()
+    ga_log.info(f'Finishing at {end_time.ctime()}')
+    duration = end_time - start_time
+    ga_log.info(f'Took {duration}')
+
+    ga_log.info('gdock complete.')
     # done (:

@@ -130,7 +130,7 @@ class Setup:
             self._compress(fcc_matrix_f)
 
         size = du(run_path)
-        ga_log.info(f'Cleaning finished - current size: {size}')
+        ga_log.info(f'Cleaning done - current size: {size}')
 
     @staticmethod
     def _compress(file_path):
