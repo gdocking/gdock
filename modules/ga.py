@@ -2,6 +2,7 @@ import os
 import sys
 import multiprocessing
 import random
+import copy
 import numpy as np
 from tempfile import NamedTemporaryFile
 from deap import base, creator, tools
@@ -84,10 +85,7 @@ class GeneticAlgorithm:
                          low=-5,
                          up=+5,
                          indpb=self.indpb)
-        # Deb, Kalyan & Agrawal, S. & Pratab, A. & Meyarivan, T.. (2000).
-        #  A fast elitist non-dominated sorting genetic algorithm for
-        #  multi-objective optimization: NSGA-II. 1917.
-        # toolbox.register("select", tools.selNSGA2)
+
         toolbox.register("select", tools.selTournament, tournsize=3)
 
         toolbox.register("evaluate",
@@ -221,7 +219,13 @@ class GeneticAlgorithm:
     def fitness_function(pdb_dic, individual):
         """Calculate the fitness of an individual."""
         # use the chromossome and create the structure!
-        c = np.array(pdb_dic['B']['coord'])
+
+        # fun fact: if you do not use deepcopy here,
+        #  the fitness will depend on the number of processors
+        #  since pdb_dic is a shared data structure
+        individual_dic = copy.deepcopy(pdb_dic)
+        individual_str = ' '.join([f'{j:.2f}' for j in individual])
+        c = np.array(individual_dic['B']['coord'])
 
         translation_center = individual[3:]
         rotation_angles = individual[:3]
@@ -229,14 +233,14 @@ class GeneticAlgorithm:
         translated_coords = Geometry.translate(c, translation_center)
         rotated_coords = Geometry.rotate(translated_coords, rotation_angles)
 
-        pdb_dic['B']['coord'] = list(rotated_coords)
+        individual_dic['B']['coord'] = list(rotated_coords)
 
         # use a temporary file to keep the execution simple with
         #  some I/O trade-off
         pdb = NamedTemporaryFile(delete=False, suffix='.pdb')
-        for chain in pdb_dic:
-            coord_l = pdb_dic[chain]['coord']
-            raw_l = pdb_dic[chain]['raw']
+        for chain in individual_dic:
+            coord_l = individual_dic[chain]['coord']
+            raw_l = individual_dic[chain]['raw']
             for coord, line in zip(coord_l, raw_l):
                 new_x, new_y, new_z = format_coords(coord)
                 new_line = (f'{line[:30]} {new_x} {new_y} {new_z} '
@@ -248,8 +252,8 @@ class GeneticAlgorithm:
         # ================================#
         # energy = run_dcomplex(pdb.name)
         satisfaction = calc_satisfaction(pdb.name,
-                                         pdb_dic['A']['restraints'],
-                                         pdb_dic['B']['restraints'])
+                                         individual_dic['A']['restraints'],
+                                         individual_dic['B']['restraints'])
         # ================================#
 
         # unlink the pdb so that it disappears
@@ -257,6 +261,7 @@ class GeneticAlgorithm:
 
         # this must (?) be a list: github.com/DEAP/deap/issues/256
         # return [satisfaction, energy]
+        ga_log.debug(f'{individual_str} {satisfaction:.2f} {pdb.name}')
         return [satisfaction]
 
     @staticmethod
