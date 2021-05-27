@@ -82,8 +82,8 @@ class GeneticAlgorithm:
         toolbox.register("mutate_trans",
                          tools.mutPolynomialBounded,
                          eta=self.eta,
-                         low=-2,
-                         up=+2,
+                         low=-5,
+                         up=+5,
                          indpb=self.indpb)
 
         toolbox.register("select", tools.selTournament, tournsize=3)
@@ -92,15 +92,16 @@ class GeneticAlgorithm:
                          self.fitness_function,
                          self.pioneer_dic)
 
-        ga_log.debug('Creating the multiprocessing pool')
-        pool = multiprocessing.Pool(processes=self.nproc)
-        toolbox.register("map", pool.map)
-
         self.toolbox = toolbox
 
     def run(self):
         """Run the genetic algorithm."""
         ga_log.info('Running the Genetic Algorithm!')
+
+        ga_log.debug('Creating the multiprocessing pool')
+        pool = multiprocessing.Pool(processes=self.nproc)
+        self.toolbox.register("map", pool.map)
+
         ga_log.info(f'Your random seed is: {self.random_seed}')
         random.seed(self.random_seed)
         variation_l = []
@@ -210,6 +211,9 @@ class GeneticAlgorithm:
 
             ngen += 1
 
+        pool.close()
+        pool.join()
+
         # ga complete, generate the epoch
         self._generate_epoch()
 
@@ -259,9 +263,9 @@ class GeneticAlgorithm:
         # unlink the pdb so that it disappears
         os.unlink(pdb.name)
 
-        # this must (?) be a list: github.com/DEAP/deap/issues/256
         # return [satisfaction, energy]
         ga_log.debug(f'{individual_str} {satisfaction:.2f} {pdb.name}')
+        # this must (?) be a list: github.com/DEAP/deap/issues/256
         return [satisfaction]
 
     @staticmethod
@@ -270,9 +274,9 @@ class GeneticAlgorithm:
         ind = [random.randint(0, 360),  # nosec
                random.randint(0, 360),
                random.randint(0, 360),
-               random.randint(-2, 2),
-               random.randint(-2, 2),
-               random.randint(-2, 2)]
+               random.randint(-5, 5),
+               random.randint(-5, 5),
+               random.randint(-5, 5)]
 
         return ind
 
@@ -314,7 +318,8 @@ class GeneticAlgorithm:
     @staticmethod
     def _recreate(input_structure_dic, individual, pdb_name):
         """Use the chromossome information and create the structure."""
-        c = np.array(input_structure_dic['B']['coord'])
+        input_dic = copy.deepcopy(input_structure_dic)
+        c = np.array(input_dic['B']['coord'])
 
         translation_center = individual[3:]
         rotation_angles = individual[:3]
@@ -322,12 +327,12 @@ class GeneticAlgorithm:
         translated_coords = Geometry.translate(c, translation_center)
         rotated_coords = Geometry.rotate(translated_coords, rotation_angles)
 
-        input_structure_dic['B']['coord'] = list(rotated_coords)
+        input_dic['B']['coord'] = list(rotated_coords)
 
         with open(pdb_name, 'w') as fh:
-            for chain in input_structure_dic:
-                coord_l = input_structure_dic[chain]['coord']
-                raw_l = input_structure_dic[chain]['raw']
+            for chain in input_dic:
+                coord_l = input_dic[chain]['coord']
+                raw_l = input_dic[chain]['raw']
                 for coord, line in zip(coord_l, raw_l):
                     new_x, new_y, new_z = format_coords(coord)
                     new_line = (f'{line[:30]} {new_x} {new_y} {new_z}'
