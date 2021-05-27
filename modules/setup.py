@@ -197,6 +197,32 @@ class Setup:
         else:
             raise Exception(f'{pdbtools_script} not found')
 
+        # check haddock-tools
+        try:
+            haddocktools_path = pathlib.Path(ga_ini.get('third_party',
+                                                        'haddocktools_path'))
+        except configparser.NoOptionError:
+            raise DependencyNotDefinedError('haddocktools_path')
+
+        if not haddocktools_path.exists():
+            raise DependencyNotFoundError(f'{haddocktools_path} not found')
+
+        haddocktools_script = pathlib.Path((f'{haddocktools_path}/'
+                                            'contact-chainID'))
+        if haddocktools_script.exists():
+            # check if executable
+            proc = subprocess.run(str(haddocktools_script),
+                                  stderr=subprocess.PIPE,
+                                  stdout=subprocess.PIPE)
+
+            err = proc.stderr.decode('utf-8')
+            out = proc.stdout.decode('utf-8')
+            if 'Too few arguments' not in err:
+                raise Exception(f'{haddocktools_script} execution failed', err)
+
+        else:
+            raise Exception(f'{haddocktools_script} not found')
+
         # Check dcomplex
         try:
             dcomplex_exe = pathlib.Path(ga_ini.get('third_party',

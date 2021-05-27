@@ -82,8 +82,8 @@ class GeneticAlgorithm:
         toolbox.register("mutate_trans",
                          tools.mutPolynomialBounded,
                          eta=self.eta,
-                         low=-5,
-                         up=+5,
+                         low=-2,
+                         up=+2,
                          indpb=self.indpb)
 
         toolbox.register("select", tools.selTournament, tournsize=3)
@@ -270,9 +270,9 @@ class GeneticAlgorithm:
         ind = [random.randint(0, 360),  # nosec
                random.randint(0, 360),
                random.randint(0, 360),
-               random.randint(-5, 5),
-               random.randint(-5, 5),
-               random.randint(-5, 5)]
+               random.randint(-2, 2),
+               random.randint(-2, 2),
+               random.randint(-2, 2)]
 
         return ind
 
