@@ -26,11 +26,17 @@ cd $GDOCK_PATH/src
 git clone https://github.com/haddocking/pdb-tools
 cd $GDOCK_PATH/src
 
+# haddock-tools
+git clone https://github.com/haddocking/haddock-tools
+g++ -O2 -o contact-chainID contact-chainID.cpp
+cd $GDOCK_PATH/src
+
 # profit
 wget http://www.bioinf.org.uk/software/profit/235216/profit.tar.gz
 tar zxvf profit.tar.gz
 cd ProFit_V3.3/src
 make
+cd $GDOCK_PATH/src
 
 # edit paths
 cd $GDOCK_PATH
