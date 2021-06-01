@@ -54,7 +54,10 @@ class Scoring:
             satisfaction = self.scoring_dic[pdb_id][0]
             energy = self.scoring_dic[pdb_id][1]
 
-            gdock_score = energy * satisfaction
+            # this weights were obtained via optimize_score.py (:
+            #  suposedly it maximized the correlation between
+            #  irmsd and score, which should increase the success rate
+            gdock_score = (energy * -0.38) / (satisfaction * -0.49)
 
             if gdock_score != .0:
                 ranked_list.append((pdb_id, gdock_score))
