@@ -76,7 +76,7 @@ if __name__ == '__main__':
     # 6. Analysis
     ga_log.info('Loading Analysis module')
     ana = Analysis(results, run_params)
-    # ana.cluster()
+    ana.cluster(cutoff=0.6)
     ana.evaluate()
     ana.output()
 

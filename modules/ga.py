@@ -145,25 +145,26 @@ class GeneticAlgorithm:
             # self.fitness_function(self.pioneer_dic, offspring[0])
             #
             # =====
+            # evaluate only the mutated and crossed
+            invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
             try:
-                fitnesses = self.toolbox.map(self.toolbox.evaluate, offspring)
+                fitnesses = self.toolbox.map(self.toolbox.evaluate,
+                                             invalid_ind)
             except Exception as e:
                 ga_log.error('Fitness function could not be executed', e)
                 sys.exit()
 
-            for ind, fit in zip(offspring, fitnesses):
+            for ind, fit in zip(invalid_ind, fitnesses):
                 ind.fitness.values = fit  # , fit
 
             # replace the old population by the offspring
             pop[:] = offspring
 
-            # energy_values = []
             satisfaction_values = []
             for idx, ind in enumerate(pop):
                 fitness_v = ind.fitness.values
                 self.generation_dic[ngen][idx] = {'individual': ind,
                                                   'fitness': fitness_v}
-
                 # energy = ind.fitness.values[1]
                 # energy_values.append(energy)
 
@@ -187,7 +188,8 @@ class GeneticAlgorithm:
             ga_log.info(f"Gen {ngen_str} {satisfaction_summary['mean']:.2f} "
                         f"+- {satisfaction_summary['std']:.2f} "
                         f"({satisfaction_summary['min']:.2f}, "
-                        f"{satisfaction_summary['max']:.2f})")
+                        f"{satisfaction_summary['max']:.2f}) "
+                        f"eval={len(invalid_ind)}")
 
             if ngen == self.max_ngen:
                 ga_log.info(f'Simulation reached maximum number of '
