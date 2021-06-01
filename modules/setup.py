@@ -25,6 +25,9 @@ class Setup:
         self.data = {}
         self.etc_folder = get_full_path('etc')
         self.nproc = self.input_params['main']['number_of_processors']
+        self.ga_ini = configparser.ConfigParser(os.environ)
+        self.ga_ini.read(os.path.join(self.etc_folder, 'gdock.ini'),
+                         encoding='utf-8')
 
     def initialize(self):
         """Load the parameters and create the folder structure."""
@@ -149,12 +152,9 @@ class Setup:
 
     def validate_third_party(self):
         """Check if the third-party dependencies are ok in gdock.ini."""
-        ga_ini = configparser.ConfigParser(os.environ)
-        ga_ini.read(os.path.join(self.etc_folder, 'gdock.ini'),
-                    encoding='utf-8')
 
         try:
-            ga_ini.get('third_party', '')
+            self.ga_ini.get('third_party', '')
         except configparser.NoSectionError:
             raise SectionNotDefinedError('third_party')
         except configparser.NoOptionError:
@@ -162,7 +162,7 @@ class Setup:
 
         # Check FCC
         try:
-            fcc_path = pathlib.Path(ga_ini.get('third_party', 'fcc_path'))
+            fcc_path = pathlib.Path(self.ga_ini.get('third_party', 'fcc_path'))
         except configparser.NoOptionError:
             raise DependencyNotDefinedError('fcc_path')
 
@@ -180,8 +180,8 @@ class Setup:
 
         # Check pdbtools
         try:
-            pdbtools_path = pathlib.Path(ga_ini.get('third_party',
-                                                    'pdbtools_path'))
+            pdbtools_path = pathlib.Path(self.ga_ini.get('third_party',
+                                                         'pdbtools_path'))
         except configparser.NoOptionError:
             raise DependencyNotDefinedError('pdbtools_path')
 
@@ -199,8 +199,9 @@ class Setup:
 
         # check haddock-tools
         try:
-            haddocktools_path = pathlib.Path(ga_ini.get('third_party',
-                                                        'haddocktools_path'))
+            haddocktools_path = pathlib.Path(self.ga_ini.get('third_party',
+                                                             ('haddocktool'
+                                                              's_path')))
         except configparser.NoOptionError:
             raise DependencyNotDefinedError('haddocktools_path')
 
@@ -225,8 +226,8 @@ class Setup:
 
         # Check dcomplex
         try:
-            dcomplex_exe = pathlib.Path(ga_ini.get('third_party',
-                                                   'dcomplex_exe'))
+            dcomplex_exe = pathlib.Path(self.ga_ini.get('third_party',
+                                                        'dcomplex_exe'))
         except configparser.NoOptionError:
             raise DependencyNotDefinedError('dcomplex_exe')
 
@@ -245,8 +246,8 @@ class Setup:
 
         # Check PROFIT
         try:
-            profit_exe = pathlib.Path(ga_ini.get('third_party',
-                                                 'profit_exe'))
+            profit_exe = pathlib.Path(self.ga_ini.get('third_party',
+                                                      'profit_exe'))
         except configparser.NoOptionError:
             raise DependencyNotDefinedError('profit_exe')
 
