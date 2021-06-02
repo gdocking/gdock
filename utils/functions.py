@@ -6,32 +6,39 @@ import logging
 import secrets
 import ast
 import numpy
+import sys
+import configparser
 from pathlib import Path
 from utils.files import get_full_path
 
 ga_log = logging.getLogger('ga_log')
 
+etc_folder = get_full_path('etc')
+ini = configparser.ConfigParser(os.environ)
+ini.read(os.path.join(etc_folder, 'gdock.ini'), encoding='utf-8')
+pdbtools_path = ini.get('third_party', 'pdbtools_path')
+python_exe = sys.executable
+
 
 def tidy(pdb_str):
-    """Save temporary file and retrieve it as string."""
-    tmp = tempfile.NamedTemporaryFile()
-    tmp_out = tempfile.NamedTemporaryFile()
-    with open(tmp.name, 'w') as f:
-        f.write(pdb_str)
-    cmd = f'pdb_tidy {tmp.name}'
+    """Tidy PDB using pdbtools pdb_tidy."""
+    input_pdb = tempfile.NamedTemporaryFile(delete=False, suffix='.pdb')
+    input_pdb.write(str.encode(pdb_str))
+    input_pdb.close()
+
+    cmd = f'{python_exe} {pdbtools_path}/pdbtools/pdb_tidy.py {input_pdb.name}'
     ga_log.debug(f'Tidying up with command {cmd}')
-    out = open(f'{tmp_out.name}', 'w')
-    p = subprocess.Popen(shlex.split(cmd),
-                         shell=False,
-                         stdout=out,
-                         stderr=subprocess.PIPE)  # nosec
-    p.communicate()
-    if not os.path.isfile(tmp.name):
+
+    output = subprocess.check_output(shlex.split(cmd))
+
+    os.unlink(input_pdb.name)
+
+    if not output:
         ga_log.error('Could not tidy the pdb!')
         exit()
     else:
-        tidy_pdb_str = tmp_out.read()
-        return tidy_pdb_str.decode()
+        tidy_pdb = output.decode('utf-8')
+        return tidy_pdb
 
 
 def format_coords(coord):
