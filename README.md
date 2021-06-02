@@ -1,6 +1,6 @@
 [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/rvhonorato/gdock?color=red)](https://github.com/rvhonorato/gdock/releases/tag/v1.0.0)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4467795.svg)](https://doi.org/10.5281/zenodo.4467795)
-[![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/) 
+[![License: CC0-1.0](https://img.shields.io/badge/License-CC0%201.0-lightgrey.svg)](http://creativecommons.org/publicdomain/zero/1.0/)
 [![Build Status](https://travis-ci.com/rvhonorato/gdock.svg?branch=master)](https://travis-ci.com/rvhonorato/gdock)
 [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/a794c83bedbc4e50b4bb6a0ed73ba3d0)](https://www.codacy.com/gh/rvhonorato/gdock/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=rvhonorato/gdock&amp;utm_campaign=Badge_Coverage)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/a794c83bedbc4e50b4bb6a0ed73ba3d0)](https://www.codacy.com/gh/rvhonorato/gdock/dashboard?utm_source=github.com&utm_medium=referral&utm_content=rvhonorato/gdock&utm_campaign=Badge_Grade) 
@@ -11,15 +11,12 @@ _Genetic Algorithm applied to Protein-Protein Docking_
 
 ## License
 
-This project license is the [Unlicense](https://unlicense.org) and by so:
+This project licensed is the Creative Commons 0 ([CC0](https://creativecommons.org/publicdomain/zero/1.0/legalcode)) - “No Rights Reserved”  <img src="https://creativecommons.nl/wp-content/uploads/2015/04/PDMCC01.png" width=35>
 
-> "_anyone is free to copy, modify, publish, use, compile, sell, or distribute this software, either in source code form or as a compiled binary, for any purpose, commercial or non-commercial, and by any means_" 
+> By marking the work with a CC0 public domain dedication, the creator is giving up their copyright and allowing reusers to distribute, remix, adapt, and build upon the material in any medium or format, even for commercial purposes. 
 
-(:
 
-### **The code is indented for the public domain**
-
-Be warned that the third-party dependencies used here have different licenses.
+_Be warned that the third-party dependencies used here have different licenses._
 
 ## Disclaimer
 
