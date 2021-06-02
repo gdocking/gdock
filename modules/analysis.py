@@ -1,6 +1,5 @@
 import configparser
 import os
-import sys
 import subprocess  # nosec
 import shlex
 import logging
@@ -75,12 +74,17 @@ class Analysis:
         fh.close()
 
         cmd = f'{calc_fcc_matrix} -f {contact_list} -o {fcc_matrix}'
-        subprocess.check_output(shlex.split(cmd),
-                                shell=False,
-                                stderr=subprocess.PIPE)  # nosec
+        try:
+            subprocess.check_output(shlex.split(cmd),
+                                    shell=False,
+                                    stderr=subprocess.PIPE)  # nosec
+        except subprocess.CalledProcessError as e:
+            ga_log.error(f'FCC failed with {e}')
+            return
+
         if not os.path.isfile(fcc_matrix):
             ga_log.error('FCC - calc_fcc_matrix.py failed')
-            sys.exit()
+            return
 
         ga_log.info(f'FCC - Clustering with cutoff={cutoff}')
         cluster_fcc = f'{fcc}/scripts/cluster_fcc.py'
