@@ -178,6 +178,19 @@ class Setup:
         else:
             raise Exception(f'{fcc_script} not found')
 
+        fcc_contact_executable = pathlib.Path(f'{fcc_path}/src/contact_fcc')
+        if fcc_contact_executable.exists():
+            # check if executable
+            proc = subprocess.run(str(fcc_contact_executable),
+                                  stderr=subprocess.PIPE,
+                                  stdout=subprocess.PIPE)
+
+            err = proc.stderr.decode('utf-8')
+            out = proc.stdout.decode('utf-8')
+            if 'Too few arguments' not in err:
+                raise Exception(f'{fcc_contact_executable} execution failed',
+                                err)
+
         # Check pdbtools
         try:
             pdbtools_path = pathlib.Path(self.ga_ini.get('third_party',
