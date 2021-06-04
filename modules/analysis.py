@@ -64,15 +64,15 @@ class Analysis:
 
         cmd = f'{make_contacts} -n {self.nproc}  -f {pdb_list}'
         ga_log.debug(f'cmd is: {cmd}')
-        try:
-            out = subprocess.check_output(shlex.split(cmd),
-                                          shell=False,
-                                          stderr=subprocess.PIPE)  # nosec
-        except subprocess.CalledProcessError as e:
-            ga_log.error(f'FCC failed with {e}')
-            return
-        if 'Finished' not in out.decode('utf-8'):
+        proc = subprocess.run(shlex.split(cmd),
+                              shell=False,
+                              stderr=subprocess.PIPE,
+                              stdout=subprocess.PIPE)  # nosec
+        out = proc.stdout.decode('utf-8')
+        err = proc.stderr.decode('utf-8')
+        if err or 'Finished' not in out:
             ga_log.error('FCC - make_contacts.py failed')
+            ga_log.error(err)
             return
 
         ga_log.info('FCC - Calculating contact matrix')
@@ -86,25 +86,32 @@ class Analysis:
         fh.close()
 
         cmd = f'{calc_fcc_matrix} -f {contact_list} -o {fcc_matrix}'
-        try:
-            subprocess.check_output(shlex.split(cmd),
-                                    shell=False,
-                                    stderr=subprocess.PIPE)  # nosec
-        except subprocess.CalledProcessError as e:
-            ga_log.error(f'FCC failed with {e}')
-            return
+        ga_log.debug(f'cmd is: {cmd}')
+        proc = subprocess.run(shlex.split(cmd),
+                              shell=False,
+                              stderr=subprocess.PIPE,
+                              stdout=subprocess.PIPE)  # nosec
+        out = proc.stdout.decode('utf-8')
+        err = proc.stderr.decode('utf-8')
 
         if not os.path.isfile(fcc_matrix):
             ga_log.error('FCC - calc_fcc_matrix.py failed')
+            ga_log.error(err)
             return
 
         ga_log.info(f'FCC - Clustering with cutoff={cutoff}')
         cluster_fcc = f'{sys.executable} {fcc}/scripts/cluster_fcc.py'
         cluster_out = f'{self.analysis_path}/cluster.out'
+
         cmd = f'{cluster_fcc} {fcc_matrix} {cutoff} -o {cluster_out}'
-        subprocess.check_output(shlex.split(cmd),
-                                shell=False,
-                                stderr=subprocess.PIPE)  # nosec
+        ga_log.debug(f'cmd is: {cmd}')
+        proc = subprocess.run(shlex.split(cmd),
+                              shell=False,
+                              stderr=subprocess.PIPE,
+                              stdout=subprocess.PIPE)  # nosec
+        out = proc.stdout.decode('utf-8')
+        err = proc.stderr.decode('utf-8')
+
         if os.stat(cluster_out).st_size == 0:
             ga_log.warning('No clusters were found')
             return
