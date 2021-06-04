@@ -4,14 +4,15 @@ import logging
 import math
 import pathlib
 import multiprocessing
+import sys
 from utils.files import get_full_path
 from modules.profit import Profit
-
-ga_log = logging.getLogger('ga_log')
 etc_folder = get_full_path('etc')
 ini = configparser.ConfigParser(os.environ)
 ini.read(os.path.join(etc_folder, 'gdock.ini'), encoding='utf-8')
 fcc_path = ini.get('third_party', 'fcc_path')
+sys.path.append(f"{fcc_path}/scripts")
+ga_log = logging.getLogger('ga_log')
 
 
 class Analysis:
@@ -53,7 +54,7 @@ class Analysis:
     @staticmethod
     def calc_contact(executable, pdb_f, cutoff=5.0):
         # fcc-wrapper
-        from src.fcc.scripts import make_contacts
+        import make_contacts
         contact_f = pdb_f.replace('.pdb', '.contacts')
         make_contacts._calculate_contacts(executable, pdb_f, str(cutoff))
         if os.path.isfile(contact_f):
@@ -83,7 +84,7 @@ class Analysis:
 
         # Calculate matrix
         ga_log.info('FCC - Calculating matrix')
-        from src.fcc.scripts import calc_fcc_matrix
+        import calc_fcc_matrix
         parsed_contacts = calc_fcc_matrix.parse_contact_file(contact_file_l,
                                                              False)
         matrix = calc_fcc_matrix.calculate_pairwise_matrix(parsed_contacts,
@@ -101,7 +102,7 @@ class Analysis:
 
         # cluster
         ga_log.info('FCC - Clustering')
-        from src.fcc.scripts import cluster_fcc
+        import cluster_fcc
         pool = cluster_fcc.read_matrix(fcc_matrix_f, cutoff, strictness=0.75)
         element_pool, clusters = cluster_fcc.cluster_elements(pool, 4)
 
