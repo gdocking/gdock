@@ -91,7 +91,9 @@ def du(path):
 def check_if_py3(code_f):
     """Test if the code is python3 compatible."""
     try:
-        ast.parse(open(code_f, 'rb').read())
+        with open(code_f, 'rb') as code_fh:
+            ast.parse(code_fh.read())
+        code_fh.close()
     except SyntaxError as e:
         ga_log.debug(e)
         return False
