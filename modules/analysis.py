@@ -5,6 +5,7 @@ import shlex
 import logging
 import math
 import pathlib
+import sys
 from utils.files import get_full_path
 from modules.profit import Profit
 
@@ -37,11 +38,13 @@ class Analysis:
             for ind in data_dic[gen]:
                 struct = data_dic[gen][ind]['structure']
                 if struct:
-                    if not 'score' in data_dic[gen][ind]:
-                        raise Exception('Structure does not contain score, cannot proceed.')
+                    if 'score' not in data_dic[gen][ind]:
+                        raise Exception('Structure does not contain score,'
+                                        ' cannot proceed.')
                     score = data_dic[gen][ind]['score']
                     structure_score_l.append((struct, score))
-        sorted_structure_score_l = sorted(structure_score_l, key = lambda x: x[1])
+        sorted_structure_score_l = sorted(structure_score_l,
+                                          key=lambda x: x[1])
 
         # get only the structures
         structure_l = [e[0] for e in sorted_structure_score_l]
@@ -50,7 +53,7 @@ class Analysis:
     def cluster(self, cutoff=0.75, top=1000):
         """Use FCC to cluster structures."""
         ga_log.info('FCC - Calculating contacts')
-        make_contacts = f'{fcc}/scripts/make_contacts.py'
+        make_contacts = f'{sys.executable} {fcc}/scripts/make_contacts.py'
         pdb_list = f'{self.analysis_path}/pdb.list'
         ga_log.info(f'FCC - Using top {top} structures')
         # Note: this expected self.structure_list to be sorted
@@ -73,7 +76,7 @@ class Analysis:
             return
 
         ga_log.info('FCC - Calculating contact matrix')
-        calc_fcc_matrix = f'{fcc}/scripts/calc_fcc_matrix.py'
+        calc_fcc_matrix = f'{sys.executable} {fcc}/scripts/calc_fcc_matrix.py'
         contact_list = f'{self.analysis_path}/contact.list'
         fcc_matrix = f'{self.analysis_path}/fcc.matrix'
         with open(contact_list, 'w') as fh:
@@ -96,7 +99,7 @@ class Analysis:
             return
 
         ga_log.info(f'FCC - Clustering with cutoff={cutoff}')
-        cluster_fcc = f'{fcc}/scripts/cluster_fcc.py'
+        cluster_fcc = f'{sys.executable} {fcc}/scripts/cluster_fcc.py'
         cluster_out = f'{self.analysis_path}/cluster.out'
         cmd = f'{cluster_fcc} {fcc_matrix} {cutoff} -o {cluster_out}'
         subprocess.check_output(shlex.split(cmd),
