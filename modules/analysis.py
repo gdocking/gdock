@@ -32,21 +32,30 @@ class Analysis:
 
     @staticmethod
     def get_structures(data_dic):
-        structure_l = []
+        structure_score_l = []
         for gen in data_dic:
             for ind in data_dic[gen]:
                 struct = data_dic[gen][ind]['structure']
                 if struct:
-                    structure_l.append(struct)
+                    if not 'score' in data_dic[gen][ind]:
+                        raise Exception('Structure does not contain score, cannot proceed.')
+                    score = data_dic[gen][ind]['score']
+                    structure_score_l.append((struct, score))
+        sorted_structure_score_l = sorted(structure_score_l, key = lambda x: x[1])
+
+        # get only the structures
+        structure_l = [e[0] for e in sorted_structure_score_l]
         return structure_l
 
-    def cluster(self, cutoff=0.75):
+    def cluster(self, cutoff=0.75, top=1000):
         """Use FCC to cluster structures."""
         ga_log.info('FCC - Calculating contacts')
         make_contacts = f'{fcc}/scripts/make_contacts.py'
         pdb_list = f'{self.analysis_path}/pdb.list'
+        ga_log.info(f'FCC - Using top {top} structures')
+        # Note: this expected self.structure_list to be sorted
         with open(pdb_list, 'w') as fh:
-            for pdb in self.structure_list:
+            for pdb in self.structure_list[:top]:
                 fh.write(f'{pdb}' + os.linesep)
         fh.close()
 
