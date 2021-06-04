@@ -121,7 +121,7 @@ class Analysis:
         element_pool, clusters = cluster_fcc.cluster_elements(pool, 4)
 
         if clusters:
-            ga_log.info(f'FCC - {len(self.cluster_dic)} clusters identified')
+            ga_log.info(f'FCC - {len(clusters)} clusters identified')
             # use fcc's output
             cluster_out = f'{self.analysis_path}/cluster.out'
             with open(cluster_out, 'w') as fh:
