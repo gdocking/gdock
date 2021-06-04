@@ -100,12 +100,10 @@ class Analysis:
         ga_log.info('FCC - Calculating matrix')
         parsed_contacts = calc_fcc_matrix.parse_contact_file(contact_file_l,
                                                              False)
+
+        # matrix is a generator object, be careful with it
         matrix = calc_fcc_matrix.calculate_pairwise_matrix(parsed_contacts,
                                                            False)
-
-        if len(parsed_contacts) > 1 and not list(matrix):
-            ga_log.warning('FCC matrix could not be calculated')
-            raise
 
         # write it to a file, so we can read it afterwards and don't
         #  need to reinvent the wheel

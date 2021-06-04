@@ -30,6 +30,8 @@ before_script:
   - git clone https://github.com/haddocking/fcc.git
   - cd fcc
   - git checkout python3
+  - cd src
+  - make
   - cd $HOME/src
   - git clone https://github.com/haddocking/pdb-tools
   - cd $HOME/src
