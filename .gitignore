@@ -10,4 +10,5 @@ benchmark/*/
 examples/dev
 tests/test_data/setup.toml
 .coverage
-.vscode/.ropeproject/config.py
+.vscode/*
+tests/dummy_f
