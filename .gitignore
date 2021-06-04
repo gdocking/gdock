@@ -12,3 +12,4 @@ tests/test_data/setup.toml
 .coverage
 .vscode/*
 tests/dummy_f
+tests/test_data/clustering/*.contacts
