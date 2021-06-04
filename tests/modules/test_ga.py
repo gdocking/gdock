@@ -118,4 +118,6 @@ class TestGeneticAlgorithm(unittest.TestCase):
             observed_file_str = ''.join(fh.readlines())
         fh.close()
 
+        os.unlink(name)
+
         self.assertEqual(observed_file_str, expected_file_str)
