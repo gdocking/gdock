@@ -1,18 +1,20 @@
 import configparser
 import os
-import logging
 import math
 import pathlib
 import multiprocessing
 import sys
 from utils.files import get_full_path
 from modules.profit import Profit
+import logging
+ga_log = logging.getLogger('ga_log')
+
 etc_folder = get_full_path('etc')
 ini = configparser.ConfigParser(os.environ)
 ini.read(os.path.join(etc_folder, 'gdock.ini'), encoding='utf-8')
 fcc_path = ini.get('third_party', 'fcc_path')
+
 sys.path.append(f"{fcc_path}/scripts")
-ga_log = logging.getLogger('ga_log')
 
 try:
     import calc_fcc_matrix
@@ -90,12 +92,20 @@ class Analysis:
             if os.path.isfile(contact_f):
                 contact_file_l.append(contact_f)
 
+        if not contact_file_l:
+            ga_log.warning('No contacts were calculated')
+            raise
+
         # Calculate matrix
         ga_log.info('FCC - Calculating matrix')
         parsed_contacts = calc_fcc_matrix.parse_contact_file(contact_file_l,
                                                              False)
         matrix = calc_fcc_matrix.calculate_pairwise_matrix(parsed_contacts,
                                                            False)
+
+        if len(parsed_contacts) > 1 and not list(matrix):
+            ga_log.warning('FCC matrix could not be calculated')
+            raise
 
         # write it to a file, so we can read it afterwards and don't
         #  need to reinvent the wheel
