@@ -1,7 +1,6 @@
 import unittest
 import shutil
 import pathlib
-import os
 from utils.files import get_full_path
 from modules.analysis import Analysis
 
@@ -53,14 +52,10 @@ class TestAnalysis(unittest.TestCase):
             contact_f.unlink(missing_ok=True)
 
         cluster_out = self.analysis_folder / 'cluster.out'
-        contact_list = self.analysis_folder / 'contact.list'
         fcc_matrix = self.analysis_folder / 'fcc.matrix'
-        pdb_list = self.analysis_folder / 'pdb.list'
 
         self.assertTrue(cluster_out.exists())
-        self.assertTrue(contact_list.exists())
         self.assertTrue(fcc_matrix.exists())
-        self.assertTrue(pdb_list.exists())
 
         with cluster_out.open() as fh:
             observed_cluster_l = fh.readlines()

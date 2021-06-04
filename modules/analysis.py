@@ -1,10 +1,9 @@
 import configparser
 import os
-import subprocess  # nosec
-import shlex
 import logging
 import math
 import pathlib
+import multiprocessing
 from utils.files import get_full_path
 from modules.profit import Profit
 
@@ -12,7 +11,7 @@ ga_log = logging.getLogger('ga_log')
 etc_folder = get_full_path('etc')
 ini = configparser.ConfigParser(os.environ)
 ini.read(os.path.join(etc_folder, 'gdock.ini'), encoding='utf-8')
-fcc = ini.get('third_party', 'fcc_path')
+fcc_path = ini.get('third_party', 'fcc_path')
 
 
 class Analysis:
@@ -29,6 +28,8 @@ class Analysis:
         self.structure_list = self.get_structures(result_dic)
         self.cluster_dic = {}
         self.irmsd_dic = {}
+        #: FCC things
+        self.contact_executable = f"{fcc_path}/src/contact_fcc"
 
     @staticmethod
     def get_structures(data_dic):
@@ -49,72 +50,70 @@ class Analysis:
         structure_l = [e[0] for e in sorted_structure_score_l]
         return structure_l
 
+    @staticmethod
+    def calc_contact(executable, pdb_f, cutoff=5.0):
+        # fcc-wrapper
+        from src.fcc.scripts import make_contacts
+        contact_f = pdb_f.replace('.pdb', '.contacts')
+        make_contacts._calculate_contacts(executable, pdb_f, str(cutoff))
+        if os.path.isfile(contact_f):
+            return contact_f
+        else:
+            return ''
+
     def cluster(self, cutoff=0.75, top=1000):
         """Use FCC to cluster structures."""
+
+        # Calculate contacts
         ga_log.info('FCC - Calculating contacts')
-        make_contacts = f'{fcc}/scripts/make_contacts.py'
-        pdb_list = f'{self.analysis_path}/pdb.list'
-        ga_log.info(f'FCC - Using top {top} structures')
-        # Note: this expected self.structure_list to be sorted
-        with open(pdb_list, 'w') as fh:
-            for pdb in self.structure_list[:top]:
-                fh.write(f'{pdb}' + os.linesep)
+        pool = multiprocessing.Pool(processes=self.nproc)
+        input_structure_l = self.structure_list[:top]
+        for pdb in input_structure_l:
+            pool.apply_async(self.calc_contact, args=(self.contact_executable,
+                                                      pdb))
+
+        pool.close()
+        pool.join()
+
+        contact_file_l = []
+        for pdb in input_structure_l:
+            contact_f = pdb.replace('.pdb', '.contacts')
+            if os.path.isfile(contact_f):
+                contact_file_l.append(contact_f)
+
+        # Calculate matrix
+        ga_log.info('FCC - Calculating matrix')
+        from src.fcc.scripts import calc_fcc_matrix
+        parsed_contacts = calc_fcc_matrix.parse_contact_file(contact_file_l,
+                                                             False)
+        matrix = calc_fcc_matrix.calculate_pairwise_matrix(parsed_contacts,
+                                                           False)
+
+        # write it to a file, so we can read it afterwards and don't
+        #  need to reinvent the wheel
+        fcc_matrix_f = f'{self.analysis_path}/fcc.matrix'
+        with open(fcc_matrix_f, 'w') as fh:
+            for data in list(matrix):
+                data_str = f"{data[0]} {data[1]} {data[2]:.2f} {data[3]:.3f}"
+                data_str += os.linesep
+                fh.write(data_str)
         fh.close()
 
-        cmd = f'{make_contacts} -n {self.nproc}  -f {pdb_list}'
-        ga_log.debug(f'cmd is: {cmd}')
-        proc = subprocess.run(shlex.split(cmd),
-                              shell=False,
-                              stderr=subprocess.PIPE,
-                              stdout=subprocess.PIPE)  # nosec
-        out = proc.stdout.decode('utf-8')
-        err = proc.stderr.decode('utf-8')
-        if err or 'Finished' not in out:
-            ga_log.error('FCC - make_contacts.py failed')
-            ga_log.error(err)
-            return
+        # cluster
+        ga_log.info('FCC - Clustering')
+        from src.fcc.scripts import cluster_fcc
+        pool = cluster_fcc.read_matrix(fcc_matrix_f, cutoff, strictness=0.75)
+        element_pool, clusters = cluster_fcc.cluster_elements(pool, 4)
 
-        ga_log.info('FCC - Calculating contact matrix')
-        calc_fcc_matrix = f'{fcc}/scripts/calc_fcc_matrix.py'
-        contact_list = f'{self.analysis_path}/contact.list'
-        fcc_matrix = f'{self.analysis_path}/fcc.matrix'
-        with open(contact_list, 'w') as fh:
-            for pdb in self.structure_list:
-                contact_fname = pdb.replace('.pdb', '.contacts')
-                fh.write(f'{contact_fname}' + os.linesep)
-        fh.close()
+        if clusters:
+            ga_log.info(f'FCC - {len(self.cluster_dic)} clusters identified')
+            # use fcc's output
+            cluster_out = f'{self.analysis_path}/cluster.out'
+            with open(cluster_out, 'w') as fh:
+                cluster_fcc.output_clusters(fh, clusters)
+            fh.close()
 
-        cmd = f'{calc_fcc_matrix} -f {contact_list} -o {fcc_matrix}'
-        ga_log.debug(f'cmd is: {cmd}')
-        proc = subprocess.run(shlex.split(cmd),
-                              shell=False,
-                              stderr=subprocess.PIPE,
-                              stdout=subprocess.PIPE)  # nosec
-        out = proc.stdout.decode('utf-8')
-        err = proc.stderr.decode('utf-8')
-
-        if not os.path.isfile(fcc_matrix):
-            ga_log.error('FCC - calc_fcc_matrix.py failed')
-            ga_log.error(err)
-            return
-
-        ga_log.info(f'FCC - Clustering with cutoff={cutoff}')
-        cluster_fcc = f'{fcc}/scripts/cluster_fcc.py'
-        cluster_out = f'{self.analysis_path}/cluster.out'
-
-        cmd = f'{cluster_fcc} {fcc_matrix} {cutoff} -o {cluster_out}'
-        ga_log.debug(f'cmd is: {cmd}')
-        proc = subprocess.run(shlex.split(cmd),
-                              shell=False,
-                              stderr=subprocess.PIPE,
-                              stdout=subprocess.PIPE)  # nosec
-        out = proc.stdout.decode('utf-8')
-        err = proc.stderr.decode('utf-8')
-
-        if os.stat(cluster_out).st_size == 0:
-            ga_log.warning('No clusters were found')
-            return
-        else:
+            # read it again!
             with open(cluster_out, 'r') as fh:
                 for line in fh.readlines():
                     data = line.split()
@@ -125,7 +124,8 @@ class Analysis:
                         structure_name = self.structure_list[element - 1]
                         element_name = pathlib.Path(structure_name).stem
                         self.cluster_dic[cluster_id].append(element_name)
-            ga_log.info(f'FCC - {len(self.cluster_dic)} clusters identified')
+        else:
+            ga_log.info('FCC - No clusters identified')
 
         return self.cluster_dic
 
