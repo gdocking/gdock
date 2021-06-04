@@ -48,6 +48,7 @@ class TestGeometry(unittest.TestCase):
 
         with open(f'{data_folder}/tidy_transformed.pdb', 'r') as test_tidy_fh:
             expected_tidy_complex = ''.join(test_tidy_fh.readlines())
+        test_tidy_fh.close()
 
         expected_tidy_complex = expected_tidy_complex.split(os.linesep)
         self.assertEqual(len(observed_tidy_complex),
