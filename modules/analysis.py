@@ -14,6 +14,15 @@ fcc_path = ini.get('third_party', 'fcc_path')
 sys.path.append(f"{fcc_path}/scripts")
 ga_log = logging.getLogger('ga_log')
 
+try:
+    import calc_fcc_matrix
+    import make_contacts
+    import cluster_fcc
+except Exception as e:
+    ga_log.error('FCC could not be imported')
+    ga_log.error(e)
+    sys.exit()
+
 
 class Analysis:
 
@@ -54,7 +63,6 @@ class Analysis:
     @staticmethod
     def calc_contact(executable, pdb_f, cutoff=5.0):
         # fcc-wrapper
-        import make_contacts
         contact_f = pdb_f.replace('.pdb', '.contacts')
         make_contacts._calculate_contacts(executable, pdb_f, str(cutoff))
         if os.path.isfile(contact_f):
@@ -84,7 +92,6 @@ class Analysis:
 
         # Calculate matrix
         ga_log.info('FCC - Calculating matrix')
-        import calc_fcc_matrix
         parsed_contacts = calc_fcc_matrix.parse_contact_file(contact_file_l,
                                                              False)
         matrix = calc_fcc_matrix.calculate_pairwise_matrix(parsed_contacts,
@@ -102,7 +109,6 @@ class Analysis:
 
         # cluster
         ga_log.info('FCC - Clustering')
-        import cluster_fcc
         pool = cluster_fcc.read_matrix(fcc_matrix_f, cutoff, strictness=0.75)
         element_pool, clusters = cluster_fcc.cluster_elements(pool, 4)
 
