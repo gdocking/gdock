@@ -26,6 +26,7 @@ class TestAnalysis(unittest.TestCase):
         structures_path = pathlib.Path(data_folder) / 'clustering'
         structure_list = structures_path.glob('*pdb')
         self.structure_list = [str(structure) for structure in structure_list]
+        self.structure_list.sort()
         self.native = f'{data_folder}/1a2k_complex_bound.pdb'
         self.nproc = 1
 
@@ -48,8 +49,8 @@ class TestAnalysis(unittest.TestCase):
         self.Analysis.cluster(cutoff=0.4)
 
         for structure in self.structure_list:
-            contact_f = structure.replace('.pdb', '.contacts')
-            os.unlink(contact_f)
+            contact_f = pathlib.Path(structure.replace('.pdb', '.contacts'))
+            contact_f.unlink(missing_ok=True)
 
         cluster_out = self.analysis_folder / 'cluster.out'
         contact_list = self.analysis_folder / 'contact.list'
@@ -69,18 +70,18 @@ class TestAnalysis(unittest.TestCase):
         observed_cluster_line_2 = ' '.join(observed_cluster_l[1].split())
 
         self.assertEqual(observed_cluster_line_1,
-                         'Cluster 1 -> 32 1 5 14 22 26')
+                         'Cluster 1 -> 30 9 15 21 27 34')
         self.assertEqual(observed_cluster_line_2,
-                         'Cluster 2 -> 20 2 3 23 34')
+                         'Cluster 2 -> 10 28 29 32 33')
 
     def test_evaluate(self):
         self.Analysis.structure_list = self.structure_list[:3]
         self.Analysis.evaluate()
 
         observed_irmsd_dic = self.Analysis.irmsd_dic
-        expected_irmsd_dic = {'0002_0018': 15.676,
-                              '0002_0019': 11.8,
-                              '0003_0009': 8.695}
+        expected_irmsd_dic = {'0001_0000': 14.196,
+                              '0001_0001': 17.489,
+                              '0001_0002': 15.42}
         self.assertDictEqual(observed_irmsd_dic, expected_irmsd_dic)
 
     def test_output(self):
