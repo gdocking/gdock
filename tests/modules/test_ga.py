@@ -13,7 +13,9 @@ data_folder = get_full_path('tests', 'test_data')
 class TestGeneticAlgorithm(unittest.TestCase):
     def setUp(self):
         pioneer_pdb = f'{data_folder}/tidy_transformed.pdb'
-        test_pioneer = ''.join(open(pioneer_pdb).readlines())
+        with open(pioneer_pdb) as fh:
+            test_pioneer = ''.join(fh.readlines())
+        fh.close()
         test_ga_params = toml.load(f'{data_folder}/ga_test_params.toml')
         random.seed(test_ga_params['parameters']['random_seed'])
 
@@ -112,5 +114,8 @@ class TestGeneticAlgorithm(unittest.TestCase):
                               '  12.644  1.00 15.49      A   '
                               '19  ' + os.linesep)
 
-        observed_file_str = ''.join(open(name).readlines())
+        with open(name) as fh:
+            observed_file_str = ''.join(fh.readlines())
+        fh.close()
+
         self.assertEqual(observed_file_str, expected_file_str)

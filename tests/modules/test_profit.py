@@ -2,6 +2,7 @@ import unittest
 import os
 import configparser
 import math
+import tempfile
 from utils.files import get_full_path
 from modules.profit import Profit
 
@@ -47,6 +48,24 @@ class TestProfit(unittest.TestCase):
         self.assertEqual(observed_script_str, expected_script_str)
 
     def test_execute(self):
-        script_f = ''
-        value = self.Profit.execute(profit_exe, script_f)
+        mobi_pdb = f"{data_folder}/0001_0000.pdb"
+        ref_pdb = f"{data_folder}/1a2k_complex_bound.pdb"
+
+        script_f = f'ref {ref_pdb}' + os.linesep
+        script_f += f'mobi {mobi_pdb}' + os.linesep
+        script_f += 'atoms C,CA,N,O' + os.linesep
+        script_f += self.Profit.izone
+        script_f += 'fit' + os.linesep
+        script_f += 'quit'
+
+        temp_script = tempfile.NamedTemporaryFile(delete=False, suffix='.txt')
+        temp_script.write(str.encode(script_f))
+        temp_script.close()
+
+        value = self.Profit.execute(profit_exe, temp_script.name)
+        self.assertEqual(value, 6.138)
+
+        os.unlink(temp_script.name)
+
+        value = self.Profit.execute(profit_exe, '')
         self.assertTrue(math.isnan(value))
