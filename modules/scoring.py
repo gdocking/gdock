@@ -54,11 +54,12 @@ class Scoring:
             satisfaction = self.scoring_dic[pdb_id][0]
             energy = self.scoring_dic[pdb_id][1]
 
-            # this weights were obtained via optimize_score.py (:
-            #  suposedly it maximized the correlation between
-            #  irmsd and score, which should increase the success rate
             try:
-                gdock_score = (energy * -0.38) / (satisfaction * -0.49)
+                # this weights were obtained via optimize_score.py,
+                #  but did not improve the success rate, keep it here anyway
+                # gdock_score = (energy * -0.38) / (satisfaction * -0.49)
+                gdock_score = energy / satisfaction
+
             except ZeroDivisionError:
                 gdock_score = .0
 
