@@ -172,10 +172,11 @@ class OptimizationGA:
 
 
 if __name__ == '__main__':
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("data_f")
-    # args = parser.parse_args()
-    data_f = '/Users/rodrigo/repos/gdock/benchmark/benchmark_v1.1.0_nocluster.dat'
-    ga = OptimizationGA(data_f, max_gen=1000, pop=300, nproc=4)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("data_f")
+    args = parser.parse_args()
+    # data_f = ('/Users/rodrigo/repos/gdock/benchmark/'
+    #           'benchmark_v1.1.0_nocluster.dat')
+    ga = OptimizationGA(args.data_f, max_gen=1000, pop=300, nproc=4)
     ga.setup()
     ga.run()
