@@ -93,7 +93,7 @@ class Geometry:
         self.receptor_coord = r_c
 
     def apply_transformation(self):
-        """Apply transformations to put the binding partners in the appropriate places."""
+        """Apply transformations and place partners facing each other."""
         ga_log.info('Applying transformations for initial position')
 
         ga_log.debug('Applying transformation to the receptor')
