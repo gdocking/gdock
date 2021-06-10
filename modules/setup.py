@@ -181,9 +181,9 @@ class Setup:
         fcc_contact_executable = pathlib.Path(f'{fcc_path}/src/contact_fcc')
         if fcc_contact_executable.exists():
             # check if executable
-            proc = subprocess.run(str(fcc_contact_executable),
+            proc = subprocess.run(str(fcc_contact_executable),  # nosec
                                   stderr=subprocess.PIPE,
-                                  stdout=subprocess.PIPE)  # nosec
+                                  stdout=subprocess.PIPE)
 
             err = proc.stderr.decode('utf-8')
             out = proc.stdout.decode('utf-8')
@@ -225,9 +225,9 @@ class Setup:
                                             'contact-chainID'))
         if haddocktools_script.exists():
             # check if executable
-            proc = subprocess.run(str(haddocktools_script),
+            proc = subprocess.run(str(haddocktools_script),  # nosec
                                   stderr=subprocess.PIPE,
-                                  stdout=subprocess.PIPE)  # nosec
+                                  stdout=subprocess.PIPE)
 
             err = proc.stderr.decode('utf-8')
             out = proc.stdout.decode('utf-8')
@@ -246,9 +246,9 @@ class Setup:
 
         if dcomplex_exe.exists():
             # check if executable
-            proc = subprocess.run(str(dcomplex_exe),
+            proc = subprocess.run(str(dcomplex_exe),  # nosec
                                   stderr=subprocess.PIPE,
-                                  stdout=subprocess.PIPE)  # nosec
+                                  stdout=subprocess.PIPE)
 
             err = proc.stderr.decode('utf-8')
             out = proc.stdout.decode('utf-8')
@@ -269,8 +269,8 @@ class Setup:
             dummy_script = tempfile.NamedTemporaryFile(delete=False,
                                                        suffix='.txt')
             cmd = f'{profit_exe} -f {dummy_script.name}'
-            out = subprocess.check_output(shlex.split(cmd),
-                                          shell=False)  # nosec
+            out = subprocess.check_output(shlex.split(cmd),  # nosec
+                                          shell=False)
             out = out.decode('utf-8')
             os.unlink(dummy_script.name)
 

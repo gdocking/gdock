@@ -29,7 +29,7 @@ def tidy(pdb_str):
     cmd = f'{python_exe} {pdbtools_path}/pdbtools/pdb_tidy.py {input_pdb.name}'
     ga_log.debug(f'Tidying up with command {cmd}')
 
-    output = subprocess.check_output(shlex.split(cmd))
+    output = subprocess.check_output(shlex.split(cmd))  # nosec
 
     os.unlink(input_pdb.name)
 

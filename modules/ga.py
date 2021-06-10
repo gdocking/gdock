@@ -151,7 +151,8 @@ class GeneticAlgorithm:
                 fitnesses = self.toolbox.map(self.toolbox.evaluate,
                                              invalid_ind)
             except Exception as e:
-                ga_log.error('Fitness function could not be executed', e)
+                ga_log.warning(e)
+                ga_log.error('Fitness function could not be executed')
                 sys.exit()
 
             for ind, fit in zip(invalid_ind, fitnesses):
