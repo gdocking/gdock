@@ -26,7 +26,8 @@ class TestGeometry(unittest.TestCase):
                                           [5.38935079, 4.86187319, 6.26942201],
                                           [3.13271966, 7.23145808, 8.22975065],
                                           [-0.11367046, 5.48686873, 9.2551331],
-                                          [-3.37010188, 7.31580583, 9.73693127]])
+                                          [-3.37010188, 7.31580583, 9.73693127]
+                                          ])
         expected_receptor_coord = np.array([[-5.0052, 0.9464, 0.611],
                                             [-1.9152, 2.3144, 2.455],
                                             [0.3288, -0.6806, 1.717],
@@ -36,17 +37,45 @@ class TestGeometry(unittest.TestCase):
         observed_ligand_coord = self.Geometry.ligand_coord
         observed_receptor_coord = self.Geometry.receptor_coord
 
-        self.assertTrue(np.allclose(observed_ligand_coord, expected_ligand_coord))
-        self.assertTrue(np.allclose(observed_receptor_coord, expected_receptor_coord))
+        self.assertTrue(np.allclose(observed_ligand_coord,
+                                    expected_ligand_coord))
+        self.assertTrue(np.allclose(observed_receptor_coord,
+                                    expected_receptor_coord))
 
     def test_apply_transformation(self):
-        observed_tidy_complex = self.Geometry.apply_transformation().split(os.linesep)
+        observed_tidy_complex = self.Geometry.apply_transformation()
+        observed_tidy_complex = observed_tidy_complex.split(os.linesep)
 
         with open(f'{data_folder}/tidy_transformed.pdb', 'r') as test_tidy_fh:
             expected_tidy_complex = ''.join(test_tidy_fh.readlines())
+        test_tidy_fh.close()
 
         expected_tidy_complex = expected_tidy_complex.split(os.linesep)
-        self.assertEqual(len(observed_tidy_complex), len(expected_tidy_complex),
-                         'number of lines in transformed complex do not match expected')
-        for observed_line, expected_line in zip(observed_tidy_complex, expected_tidy_complex):
+        self.assertEqual(len(observed_tidy_complex),
+                         len(expected_tidy_complex))
+        for observed_line, expected_line in zip(observed_tidy_complex,
+                                                expected_tidy_complex):
             self.assertEqual(observed_line, expected_line)
+
+    def test_translate(self):
+        coords = np.array([[34.082, -15.413, 35.895],
+                           [34.912, -15.074, 34.747]])
+        point = [-1, +2, -3]
+        observed_trans_coords = self.Geometry.translate(coords, point)
+        expected_trans_coords = np.array([[33.082, -13.413, 32.895],
+                                          [33.912, -13.074, 31.747]])
+        self.assertTrue(np.allclose(observed_trans_coords,
+                                    expected_trans_coords))
+
+    def test_rotate(self):
+        coords = np.array([[34.082, -15.413, 35.895],
+                           [34.912, -15.074, 34.747]])
+        rotation = [327, 57, 12]
+        observed_rot_coords = self.Geometry.rotate(coords, rotation)
+        expected_rot_coords = np.array([[34.42920652, -15.11616826,
+                                         36.03487809],
+                                        [34.56479348, -15.37083174,
+                                         34.60712191]])
+
+        self.assertTrue(np.allclose(observed_rot_coords,
+                                    expected_rot_coords))
