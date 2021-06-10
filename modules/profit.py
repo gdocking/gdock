@@ -1,6 +1,6 @@
 import configparser
 import os
-import subprocess
+import subprocess  # nosec
 import shlex
 import multiprocessing
 import pathlib
@@ -90,7 +90,8 @@ class Profit:
         """Execute PROFIT."""
         cmd = f'{profit_exe} -f {script_f}'
         try:
-            out = subprocess.check_output(shlex.split(cmd), shell=False)
+            out = subprocess.check_output(shlex.split(cmd),
+                                          shell=False)  # nosec
             result = out.decode('utf-8')
             irmsd = float(result.split()[-1])
         except Exception as e:

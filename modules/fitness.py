@@ -1,8 +1,7 @@
 import os
 import logging
 import configparser
-# import scipy.spatial
-import subprocess
+import subprocess  # nosec
 import shlex
 # from utils.functions import timer
 from utils.files import get_full_path
@@ -22,12 +21,12 @@ def calc_satisfaction(pdb_f, restraints_a, restraints_b, cutoff=4.9):
     """Calculate the restraints satisfaction ratio."""
     # this is 4x faster!
     cmd = f'{haddocktools_path}/contact-chainID {pdb_f} {cutoff}'
-    out = subprocess.check_output(shlex.split(cmd))
+    out = subprocess.check_output(shlex.split(cmd))  # nosec
     contacts = {'A': [], 'B': []}
     for line in out.decode('utf-8').split(os.linesep):
         data = line.split()
         if data:
-            res_a, chain_a, atom_a, res_b, chain_b, atom_b, distance = data
+            res_a, chain_a, _, res_b, chain_b, _, _ = data
             res_a = int(res_a)
             res_b = int(res_b)
             if chain_a == 'A' and res_a in restraints_a:

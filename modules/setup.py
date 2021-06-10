@@ -6,7 +6,7 @@ import glob
 import sys
 import configparser
 import pathlib
-import subprocess
+import subprocess  # nosec
 import tempfile
 import shlex
 import multiprocessing
@@ -183,7 +183,7 @@ class Setup:
             # check if executable
             proc = subprocess.run(str(fcc_contact_executable),
                                   stderr=subprocess.PIPE,
-                                  stdout=subprocess.PIPE)
+                                  stdout=subprocess.PIPE)  # nosec
 
             err = proc.stderr.decode('utf-8')
             out = proc.stdout.decode('utf-8')
@@ -227,7 +227,7 @@ class Setup:
             # check if executable
             proc = subprocess.run(str(haddocktools_script),
                                   stderr=subprocess.PIPE,
-                                  stdout=subprocess.PIPE)
+                                  stdout=subprocess.PIPE)  # nosec
 
             err = proc.stderr.decode('utf-8')
             out = proc.stdout.decode('utf-8')
@@ -248,7 +248,7 @@ class Setup:
             # check if executable
             proc = subprocess.run(str(dcomplex_exe),
                                   stderr=subprocess.PIPE,
-                                  stdout=subprocess.PIPE)
+                                  stdout=subprocess.PIPE)  # nosec
 
             err = proc.stderr.decode('utf-8')
             out = proc.stdout.decode('utf-8')
@@ -269,7 +269,8 @@ class Setup:
             dummy_script = tempfile.NamedTemporaryFile(delete=False,
                                                        suffix='.txt')
             cmd = f'{profit_exe} -f {dummy_script.name}'
-            out = subprocess.check_output(shlex.split(cmd), shell=False)
+            out = subprocess.check_output(shlex.split(cmd),
+                                          shell=False)  # nosec
             out = out.decode('utf-8')
             os.unlink(dummy_script.name)
 

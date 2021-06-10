@@ -94,7 +94,6 @@ class Analysis:
 
         if not contact_file_l:
             ga_log.warning('No contacts were calculated')
-            raise
 
         # Calculate matrix
         ga_log.info('FCC - Calculating matrix')
@@ -118,7 +117,7 @@ class Analysis:
         # cluster
         ga_log.info('FCC - Clustering')
         pool = cluster_fcc.read_matrix(fcc_matrix_f, cutoff, strictness=0.75)
-        element_pool, clusters = cluster_fcc.cluster_elements(pool, 4)
+        _, clusters = cluster_fcc.cluster_elements(pool, 4)
 
         if clusters:
             ga_log.info(f'FCC - {len(clusters)} clusters identified')
