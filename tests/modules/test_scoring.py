@@ -36,7 +36,7 @@ class TestScoring(unittest.TestCase):
         observed_energy = observed_scored_dic[1][0]['energy']
 
         self.assertEqual(observed_ranking, 1)
-        self.assertEqual(round(observed_score, 2), 25.32)
+        self.assertEqual(round(observed_score, 2), 32.64)
         self.assertEqual(round(observed_energy, 2), 10.77)
 
     # def test_calculate_energy(self):
