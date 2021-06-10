@@ -1,4 +1,4 @@
-[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/rvhonorato/gdock?color=red)](https://github.com/rvhonorato/gdock/releases/tag/v1.1.0)
+[![Version](https://img.shields.io/badge/version-v1.1.0-red)](https://github.com/rvhonorato/gdock/releases/tag/v1.1.0)
 [![License: 0BSD](https://img.shields.io/badge/license-0BSD-informational)](https://opensource.org/licenses/0BSD)
 [![Build Status](https://travis-ci.com/rvhonorato/gdock.svg?branch=development)](https://travis-ci.com/rvhonorato/gdock)
 [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/a794c83bedbc4e50b4bb6a0ed73ba3d0)](https://www.codacy.com/gh/rvhonorato/gdock/dashboard?utm_source=github.com&utm_medium=referral&utm_content=rvhonorato/gdock&utm_campaign=Badge_Coverage)
@@ -74,7 +74,7 @@ As a better scientists said before me:
 
 > Scoring is the holy grail of docking!
 
-All relevant benchmarking data are kept in a [different repository](http://github.com/rvhonorato/gdock-benchmark)
+_Note: All relevant benchmarking data are kept in a [different repository](http://github.com/rvhonorato/gdock-benchmark)._
 
 ## Collaboration / Development
 
