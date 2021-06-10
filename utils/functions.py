@@ -4,29 +4,41 @@ import subprocess  # nosec
 import os
 import logging
 import secrets
+import ast
+import numpy
+import sys
+import configparser
 from pathlib import Path
 from utils.files import get_full_path
 
 ga_log = logging.getLogger('ga_log')
 
+etc_folder = get_full_path('etc')
+ini = configparser.ConfigParser(os.environ)
+ini.read(os.path.join(etc_folder, 'gdock.ini'), encoding='utf-8')
+pdbtools_path = ini.get('third_party', 'pdbtools_path')
+python_exe = sys.executable
+
 
 def tidy(pdb_str):
-    """Save temporary file and retrieve it as string."""
-    tmp = tempfile.NamedTemporaryFile()
-    tmp_out = tempfile.NamedTemporaryFile()
-    with open(tmp.name, 'w') as f:
-        f.write(pdb_str)
-    cmd = f'pdb_tidy {tmp.name}'
+    """Tidy PDB using pdbtools pdb_tidy."""
+    input_pdb = tempfile.NamedTemporaryFile(delete=False, suffix='.pdb')
+    input_pdb.write(str.encode(pdb_str))
+    input_pdb.close()
+
+    cmd = f'{python_exe} {pdbtools_path}/pdbtools/pdb_tidy.py {input_pdb.name}'
     ga_log.debug(f'Tidying up with command {cmd}')
-    out = open(f'{tmp_out.name}', 'w')
-    p = subprocess.Popen(shlex.split(cmd), shell=False, stdout=out, stderr=subprocess.PIPE)  # nosec
-    p.communicate()
-    if not os.path.isfile(tmp.name):
+
+    output = subprocess.check_output(shlex.split(cmd))  # nosec
+
+    os.unlink(input_pdb.name)
+
+    if not output:
         ga_log.error('Could not tidy the pdb!')
         exit()
     else:
-        tidy_pdb_str = tmp_out.read()
-        return tidy_pdb_str.decode()
+        tidy_pdb = output.decode('utf-8')
+        return tidy_pdb
 
 
 def format_coords(coord):
@@ -55,14 +67,47 @@ def random_quote():
                         auth = ''
                         quote = ''
 
-        random_author, random_quote = quote_list[secrets.choice(range(0, len(quote_list)))]
+        pick = secrets.choice(range(0, len(quote_list)))
+        random_author, random_quote = quote_list[pick]
         return random_author, random_quote
 
 
 def du(path):
     """Disk Usage."""
-    return sum(file.stat().st_size for file in Path(path).rglob('*'))
+    size_in_bytes = sum(file.stat().st_size for file in Path(path).rglob('*'))
+    size_in_kb = size_in_bytes / 1024
+    size_in_mb = size_in_bytes / (1024 * 1024)
+    size_in_gb = size_in_bytes / (1024 * 1024 * 1024)
+    if int(size_in_gb) > 0:
+        return f'{size_in_gb:.2f} GB'
+    elif int(size_in_mb) > 0:
+        return f'{size_in_mb:.2f} MB'
+    elif int(size_in_kb) > 0:
+        return f'{size_in_kb:.2f} KB'
+    else:
+        return f'{size_in_bytes} B'
 
+
+def check_if_py3(code_f):
+    """Test if the code is python3 compatible."""
+    try:
+        with open(code_f, 'rb') as code_fh:
+            ast.parse(code_fh.read())
+        code_fh.close()
+    except SyntaxError as e:
+        ga_log.debug(e)
+        return False
+
+    return True
+
+
+def summary(value_list):
+    """Calculate the summary statistics of a value list."""
+    mean = numpy.mean(value_list)
+    std = numpy.std(value_list)
+    max_v = max(value_list)
+    min_v = min(value_list)
+    return {'mean': mean, 'std': std, 'max': max_v, 'min': min_v}
 
 # ======
 #  Helper functions to assist in geometric stuff, dev only
@@ -82,7 +127,8 @@ def du(path):
 #         dum_x = f'{dummy_coord[0]:.3f}'.rjust(7, ' ')
 #         dum_y = f'{dummy_coord[1]:.3f}'.rjust(7, ' ')
 #         dum_z = f'{dummy_coord[2]:.3f}'.rjust(7, ' ')
-#         dummy_line = f'ATOM    999  H   DUM X   1     {dum_x} {dum_y} {dum_z}  1.00  1.00           H  \n'
+#        dummy_line = (f'ATOM    999  H   DUM X   1     {dum_x} {dum_y}'
+#                      f' {dum_z}  1.00  1.00           H  \n')
 #         new_pdb.append(dummy_line)
 #     with open(output_f, 'w') as out_fh:
 #         for line in new_pdb:
@@ -100,7 +146,8 @@ def du(path):
 #                     new_x = f'{coords[c][0]:.3f}'.rjust(7, ' ')
 #                     new_y = f'{coords[c][1]:.3f}'.rjust(7, ' ')
 #                     new_z = f'{coords[c][2]:.3f}'.rjust(7, ' ')
-#                     new_line = f'{line[:30]} {new_x} {new_y} {new_z} {line[55:]}'
+#                    new_line = (f'{line[:30]} {new_x} {new_y} {new_z}'
+#                                f' {line[55:]}')
 #                     out_fh.write(new_line)
 #                     c += 1
 #         ref_fh.close()
@@ -113,6 +160,7 @@ def du(path):
 #         dum_x = f'{dummy_coord[0]:.3f}'.rjust(7, ' ')
 #         dum_y = f'{dummy_coord[1]:.3f}'.rjust(7, ' ')
 #         dum_z = f'{dummy_coord[2]:.3f}'.rjust(7, ' ')
-#         dummy_line = f'ATOM    999  H   DUM X   1     {dum_x} {dum_y} {dum_z}     1.00  1.00           H  \n'
+#        dummy_line = (f'ATOM    999  H   DUM X   1     {dum_x} {dum_y} '
+#                      f'{dum_z}     1.00  1.00           H  \n')
 #         out_fh.write(dummy_line)
 #     out_fh.close()

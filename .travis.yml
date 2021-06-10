@@ -1,7 +1,11 @@
 language: python
 
 python:
+  - "3.6"
+  - "3.7"
   - "3.8"
+  - "3.9"
+
 install:
   - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
   - bash miniconda.sh -b -p $HOME/miniconda
@@ -29,9 +33,18 @@ before_script:
   - git clone https://github.com/haddocking/fcc.git
   - cd fcc
   - git checkout python3
+  - cd src
+  - make
   - cd $HOME/src
-  - git clone https://github.com/bjornwallner/DockQ/
-  - cd DockQ
+  - git clone https://github.com/haddocking/pdb-tools
+  - cd $HOME/src
+  - git clone https://github.com/haddocking/haddock-tools
+  - cd haddock-tools
+  - g++ -O2 -o contact-chainID contact-chainID.cpp
+  - cd $HOME/src
+  - wget http://www.bioinf.org.uk/software/profit/235216/profit.tar.gz
+  - tar zxvf profit.tar.gz
+  - cd ProFit_V3.3/src
   - make
   - cd $TRAVIS_BUILD_DIR
   - sed -i s"|/Users/rodrigo/repos/gdock|$HOME|g" etc/gdock.ini
