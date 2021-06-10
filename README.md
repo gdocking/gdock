@@ -80,7 +80,7 @@ _Note: All relevant benchmarking data are kept in a [different repository](http:
 
 If you would like to help or improve your python coding skills, `gdock` might be a good project to work on!
 
-The code is licensed under a 0-clause license ([0BSD](LICENSE)), which pretty means you can do whatever you want with it, copy, edit, deploy, distribute or even sell.
+The code is licensed under a 0-clause license ([0BSD](LICENSE)), which pretty much means you can do whatever you want with it; copy, edit, deploy, distribute or even sell. :nerd_face:
 
 As for my vision to the project, there's a small [TODO list](CONTRIBUTING).
 
