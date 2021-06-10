@@ -166,7 +166,7 @@ class OptimizationGA:
 
         x = data['irmsd']
         y = pd.array(score_l)
-        corr, p = scipy.stats.pearsonr(x, y)
+        corr, _ = scipy.stats.pearsonr(x, y)
 
         return corr,
 
