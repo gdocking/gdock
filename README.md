@@ -60,7 +60,7 @@ According to the [_Critical Assessment of PRediction of Interactions_](https://w
 
 The results for `v1.1.0` are as follows, the % shows the increase/decrease in relation the previous version.
 
-<img src="imgs/v1-1-0_bm5 .png" width="475">
+<img src="imgs/v1-1-0_bm5.png" width="475">
 
 _Note: Some conformations were excluded since dcomplex could not be executed on them._
 
