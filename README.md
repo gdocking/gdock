@@ -10,8 +10,8 @@ _Genetic Algorithm applied to Protein-Protein Docking_
 
 ## tl:dr
 
--   [Installation](INSTALLATION)
--   [How-to-use](example/README)
+-   [Installation](INSTALLATION.md)
+-   [How-to-use](example/README.md)
 
 ## Disclaimer
 
@@ -82,7 +82,7 @@ If you would like to help or improve your python coding skills, `gdock` might be
 
 The code is licensed under a 0-clause license ([0BSD](LICENSE)), which pretty much means you can do whatever you want with it; copy, edit, deploy, distribute or even sell. :nerd_face:
 
-As for my vision to the project, there's a small [TODO list](CONTRIBUTING).
+As for my vision to the project, there's a small [TODO list](CONTRIBUTING.md).
 
 ## Installation
 
@@ -90,7 +90,7 @@ Check [INSTALLATION.md](INSTALLATION.md)
 
 ## How-to-use
 
-Check the provided [example](example/README)
+Check the provided [example](example/README.md)
 
 * * *
 
