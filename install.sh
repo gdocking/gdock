@@ -1,4 +1,5 @@
-export GDOCK_PATH=/home/rodrigo/repos/gdock
+#!/bin/bash
+export GDOCK_PATH=$1
 
 cd $GDOCK_PATH
 mkdir $GDOCK_PATH/src
