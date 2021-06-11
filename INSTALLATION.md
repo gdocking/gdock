@@ -14,7 +14,7 @@ $ conda activate gdock
 
 ### Third-party Dependencies
 
-`gdock` uses [DComplex](https://sparks-lab.org/Publications_files/zhou061.pdf) as the scoring function, [FCC](https://github.com/haddocking/FCC) as the clustering engine and [PROFIT](http://www.bioinf.org.uk/software/profit) to calculate CAPRI metrics.
+`gdock` uses [DComplex](https://sparks-lab.org/Publications_files/zhou061.pdf) as the scoring function, [FCC](https://github.com/haddocking/FCC) as the clustering engine, some script from [haddock-tools](https://github.com/haddocking/haddock-tools) to calculate the fitness and [PROFIT](http://www.bioinf.org.uk/software/profit) to calculate CAPRI metrics.
 
 
 **After cloning the repository and setting up the python environment with anaconda**, you can use the very rough install script provided to install the third-party dependencies and configure `gdock.ini`:
