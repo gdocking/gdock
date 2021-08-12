@@ -1,6 +1,7 @@
 # gdock
 import argparse
 import datetime
+import sys
 from modules.setup import Setup
 from modules.geometry import Geometry
 from modules.structure import PDB, Restraint
@@ -24,6 +25,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("input_file")
+    parser.add_argument('--dry', dest='dry', action='store_true', default=False)
     args = parser.parse_args()
     author, quote = random_quote()
     print('==================================================================')
@@ -67,6 +69,10 @@ if __name__ == '__main__':
     ga = GeneticAlgorithm(initial_complex, run_params, ga_params)
     ga.setup()
     results = ga.run()
+
+    if args.dry:
+        ga_log.info('This is a dry run, stopping after models are generated')
+        sys.exit()
 
     # 5. Scoring
     ga_log.info('Loading Scoring module')
