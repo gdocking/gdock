@@ -7,7 +7,7 @@ __pycache__
 .vscode/settings.json
 src/*/
 benchmark/*/
-examples/dev
+example/dev
 tests/test_data/setup.toml
 .coverage
 .vscode/*
