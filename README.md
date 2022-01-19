@@ -2,8 +2,9 @@
 [![License: 0BSD](https://img.shields.io/badge/license-0BSD-informational)](https://opensource.org/licenses/0BSD)
 [![Build Status](https://travis-ci.com/rvhonorato/gdock.svg?branch=development)](https://travis-ci.com/rvhonorato/gdock)
 [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/a794c83bedbc4e50b4bb6a0ed73ba3d0)](https://www.codacy.com/gh/rvhonorato/gdock/dashboard?utm_source=github.com&utm_medium=referral&utm_content=rvhonorato/gdock&utm_campaign=Badge_Coverage)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4467795.svg)](https://doi.org/10.5281/zenodo.4467795)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/a794c83bedbc4e50b4bb6a0ed73ba3d0)](https://www.codacy.com/gh/rvhonorato/gdock/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=rvhonorato/gdock&amp;utm_campaign=Badge_Grade)
 [![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8B%20%20%E2%97%8F%20%20%E2%97%8B-orange)](https://fair-software.eu)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4467795.svg)](https://doi.org/10.5281/zenodo.4467795)
 
 <img src="imgs/gdock_logo.png" width="500">
 
