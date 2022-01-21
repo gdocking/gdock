@@ -1,10 +1,9 @@
 import logging
 
-ga_log = logging.getLogger('ga_log')
+ga_log = logging.getLogger("ga_log")
 
 
 class PDB:
-
     def __init__(self):
         """Initialize PDB class."""
         self.coords = {}
@@ -12,10 +11,10 @@ class PDB:
 
     def load(self, pdb_f):
         """Load a PDB file into a dictionary."""
-        ga_log.debug(f'Loading {pdb_f}')
-        with open(pdb_f, 'r') as fh:
+        ga_log.debug(f"Loading {pdb_f}")
+        with open(pdb_f, "r") as fh:
             for line in fh.readlines():
-                if line.startswith('ATOM'):
+                if line.startswith("ATOM"):
                     chain = line[21]
                     if chain not in self.coords:
                         self.coords[chain] = []
@@ -37,7 +36,7 @@ class Restraint:
 
     def load(self, restraint, identifier):
         """Identity the coordinates of the restraints residue numbers."""
-        ga_log.debug(f'Loading restraints {identifier}, {restraint}')
+        ga_log.debug(f"Loading restraints {identifier}, {restraint}")
         if identifier not in self.coords:
             self.coords[identifier] = []
 

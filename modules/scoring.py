@@ -1,38 +1,39 @@
-import os
-import logging
 import configparser
-import subprocess  # nosec
-import shlex
-import pathlib
+import logging
 import multiprocessing
-from utils.files import get_full_path
-ga_log = logging.getLogger('ga_log')
+import os
+import pathlib
+import shlex
+import subprocess  # nosec
 
-etc_folder = get_full_path('etc')
+from utils.files import get_full_path
+
+ga_log = logging.getLogger("ga_log")
+
+etc_folder = get_full_path("etc")
 ini = configparser.ConfigParser(os.environ)
-ini.read(os.path.join(etc_folder, 'gdock.ini'), encoding='utf-8')
-dcomplex_exe = ini.get('third_party', 'dcomplex_exe')
+ini.read(os.path.join(etc_folder, "gdock.ini"), encoding="utf-8")
+dcomplex_exe = ini.get("third_party", "dcomplex_exe")
 
 
 class Scoring:
-
     def __init__(self, data_dic, run_params):
         self.dcomplex_exec = dcomplex_exe
         self.data_dic = data_dic
-        self.nproc = run_params['np']
+        self.nproc = run_params["np"]
         self.structure_list = []
         self.scoring_dic = {}
         self.ranked = {}
 
     def score(self):
         """Score the structures."""
-        ga_log.info('Scoring structures')
+        ga_log.info("Scoring structures")
         self.scoring_dic = {}
         for gen in self.data_dic:
             for ind in self.data_dic[gen]:
-                pdb_f = self.data_dic[gen][ind]['structure']
+                pdb_f = self.data_dic[gen][ind]["structure"]
                 if pdb_f:
-                    fitness = self.data_dic[gen][ind]['fitness']
+                    fitness = self.data_dic[gen][ind]["fitness"]
                     self.structure_list.append(pdb_f)
 
                     pdb_name = pathlib.Path(pdb_f).stem
@@ -61,23 +62,23 @@ class Scoring:
                 gdock_score = energy / satisfaction
 
             except ZeroDivisionError:
-                gdock_score = .0
+                gdock_score = 0.0
 
-            if gdock_score != .0:
+            if gdock_score != 0.0:
                 ranked_list.append((pdb_id, gdock_score))
 
         counter = 1
         for pdb_id, score in sorted(ranked_list, key=lambda tup: tup[1]):
-            self.ranked[pdb_id] = {'rank': counter, 'score': score}
+            self.ranked[pdb_id] = {"rank": counter, "score": score}
             counter += 1
 
         # add the ranking to the data structure
         for gen in self.data_dic:
             for ind in self.data_dic[gen]:
-                pdb_f = self.data_dic[gen][ind]['structure']
-                ranking = float('nan')
-                score = float('nan')
-                energy = float('nan')
+                pdb_f = self.data_dic[gen][ind]["structure"]
+                ranking = float("nan")
+                score = float("nan")
+                energy = float("nan")
 
                 if pdb_f:
 
@@ -85,8 +86,8 @@ class Scoring:
                     energy = self.scoring_dic[pdb_id][1]
 
                     try:
-                        ranking = self.ranked[pdb_id]['rank']
-                        score = self.ranked[pdb_id]['score']
+                        ranking = self.ranked[pdb_id]["rank"]
+                        score = self.ranked[pdb_id]["score"]
                     except KeyError:
                         # no ranking/score for these, check above what is the
                         #  criteria for it to be included in self.ranked; it
@@ -94,9 +95,9 @@ class Scoring:
                         #  its satisfaction is 0
                         pass
 
-                self.data_dic[gen][ind]['ranking'] = ranking
-                self.data_dic[gen][ind]['score'] = score
-                self.data_dic[gen][ind]['energy'] = energy
+                self.data_dic[gen][ind]["ranking"] = ranking
+                self.data_dic[gen][ind]["score"] = score
+                self.data_dic[gen][ind]["energy"] = energy
 
         return self.data_dic
 
@@ -106,12 +107,14 @@ class Scoring:
         pool = multiprocessing.Pool(processes=self.nproc)
         results = []
         for structure in self.structure_list:
-            results.append((structure,
-                            pool.apply_async(self.run_dcomplex,
-                                             args=(self.dcomplex_exec,
-                                                   structure)
-                                             )
-                            ))
+            results.append(
+                (
+                    structure,
+                    pool.apply_async(
+                        self.run_dcomplex, args=(self.dcomplex_exec, structure)
+                    ),
+                )
+            )
 
         for p in results:
             pdb, irmsd = p[0], p[1].get()
@@ -126,9 +129,9 @@ class Scoring:
     @staticmethod
     def run_dcomplex(dcomplex_exe, pdb_f):
         """Use DCOMPLEX to calculate the PDB's energy."""
-        cmd = (f'{dcomplex_exe} {pdb_f} A B')
-        ga_log.debug(f'cmd is: {cmd}')
+        cmd = f"{dcomplex_exe} {pdb_f} A B"
+        ga_log.debug(f"cmd is: {cmd}")
         out = subprocess.check_output(shlex.split(cmd), shell=False)  # nosec
-        result = out.decode('utf-8').split('\n')
+        result = out.decode("utf-8").split("\n")
         energy = float(result[-2].split()[1])
         return energy
