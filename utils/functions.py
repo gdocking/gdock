@@ -1,51 +1,53 @@
-import shlex
-import tempfile
-import subprocess  # nosec
-import os
-import logging
-import secrets
 import ast
-import numpy
-import sys
 import configparser
+import logging
+import os
+import secrets
+import shlex
+import subprocess  # nosec
+import sys
+import tempfile
 from pathlib import Path
+
+import numpy
+
 from utils.files import get_full_path
 
-ga_log = logging.getLogger('ga_log')
+ga_log = logging.getLogger("ga_log")
 
-etc_folder = get_full_path('etc')
+etc_folder = get_full_path("etc")
 ini = configparser.ConfigParser(os.environ)
-ini.read(os.path.join(etc_folder, 'gdock.ini'), encoding='utf-8')
-pdbtools_path = ini.get('third_party', 'pdbtools_path')
+ini.read(os.path.join(etc_folder, "gdock.ini"), encoding="utf-8")
+pdbtools_path = ini.get("third_party", "pdbtools_path")
 python_exe = sys.executable
 
 
 def tidy(pdb_str):
     """Tidy PDB using pdbtools pdb_tidy."""
-    input_pdb = tempfile.NamedTemporaryFile(delete=False, suffix='.pdb')
+    input_pdb = tempfile.NamedTemporaryFile(delete=False, suffix=".pdb")
     input_pdb.write(str.encode(pdb_str))
     input_pdb.close()
 
-    cmd = f'{python_exe} {pdbtools_path}/pdbtools/pdb_tidy.py {input_pdb.name}'
-    ga_log.debug(f'Tidying up with command {cmd}')
+    cmd = f"{python_exe} {pdbtools_path}/pdbtools/pdb_tidy.py {input_pdb.name}"
+    ga_log.debug(f"Tidying up with command {cmd}")
 
     output = subprocess.check_output(shlex.split(cmd))  # nosec
 
     os.unlink(input_pdb.name)
 
     if not output:
-        ga_log.error('Could not tidy the pdb!')
+        ga_log.error("Could not tidy the pdb!")
         exit()
     else:
-        tidy_pdb = output.decode('utf-8')
+        tidy_pdb = output.decode("utf-8")
         return tidy_pdb
 
 
 def format_coords(coord):
     """Make a set of coordinated PDB-format ready."""
-    new_x = f'{coord[0]:.3f}'.rjust(7, ' ')
-    new_y = f'{coord[1]:.3f}'.rjust(7, ' ')
-    new_z = f'{coord[2]:.3f}'.rjust(7, ' ')
+    new_x = f"{coord[0]:.3f}".rjust(7, " ")
+    new_y = f"{coord[1]:.3f}".rjust(7, " ")
+    new_z = f"{coord[2]:.3f}".rjust(7, " ")
     return new_x, new_y, new_z
 
 
@@ -54,18 +56,18 @@ def random_quote():
     quote_file = f"{get_full_path('etc')}/quotes"
     quote_list = []
     if not os.path.isfile(quote_file):
-        return '', ''
+        return "", ""
     else:
-        with open(quote_file, 'r') as quote_h:
+        with open(quote_file, "r") as quote_h:
             for line in quote_h.readlines():
-                if not line.startswith('#'):
+                if not line.startswith("#"):
                     try:
-                        auth, quote = line.split('__')
+                        auth, quote = line.split("__")
                         quote = quote[:-1]
                         quote_list.append((auth, quote))
                     except ValueError:
-                        auth = ''
-                        quote = ''
+                        auth = ""
+                        quote = ""
 
         pick = secrets.choice(range(0, len(quote_list)))
         random_author, random_quote = quote_list[pick]
@@ -74,24 +76,24 @@ def random_quote():
 
 def du(path):
     """Disk Usage."""
-    size_in_bytes = sum(file.stat().st_size for file in Path(path).rglob('*'))
+    size_in_bytes = sum(file.stat().st_size for file in Path(path).rglob("*"))
     size_in_kb = size_in_bytes / 1024
     size_in_mb = size_in_bytes / (1024 * 1024)
     size_in_gb = size_in_bytes / (1024 * 1024 * 1024)
     if int(size_in_gb) > 0:
-        return f'{size_in_gb:.2f} GB'
+        return f"{size_in_gb:.2f} GB"
     elif int(size_in_mb) > 0:
-        return f'{size_in_mb:.2f} MB'
+        return f"{size_in_mb:.2f} MB"
     elif int(size_in_kb) > 0:
-        return f'{size_in_kb:.2f} KB'
+        return f"{size_in_kb:.2f} KB"
     else:
-        return f'{size_in_bytes} B'
+        return f"{size_in_bytes} B"
 
 
 def check_if_py3(code_f):
     """Test if the code is python3 compatible."""
     try:
-        with open(code_f, 'rb') as code_fh:
+        with open(code_f, "rb") as code_fh:
             ast.parse(code_fh.read())
         code_fh.close()
     except SyntaxError as e:
@@ -107,7 +109,8 @@ def summary(value_list):
     std = numpy.std(value_list)
     max_v = max(value_list)
     min_v = min(value_list)
-    return {'mean': mean, 'std': std, 'max': max_v, 'min': min_v}
+    return {"mean": mean, "std": std, "max": max_v, "min": min_v}
+
 
 # ======
 #  Helper functions to assist in geometric stuff, dev only
