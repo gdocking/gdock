@@ -27,7 +27,7 @@ jobs:
 
     - name: Install gdock
       env:
-        GDOCK_PATH: `pwd`
+        GDOCK_PATH: ./
       run: |
 
         mkdir src
