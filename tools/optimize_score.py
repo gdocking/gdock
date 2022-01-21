@@ -1,17 +1,16 @@
-import random
 import argparse
 import logging
 import multiprocessing
-from deap import base, creator, tools
-import scipy.stats
+import random
+
 import pandas as pd
+import scipy.stats
+from deap import base, creator, tools
 
-
-opt_log = logging.getLogger('opt_log')
+opt_log = logging.getLogger("opt_log")
 opt_log.setLevel(logging.INFO)
 ch = logging.StreamHandler()
-formatter = logging.Formatter(' %(asctime)s L%(lineno)d '
-                              '%(levelname)s > %(message)s')
+formatter = logging.Formatter(" %(asctime)s L%(lineno)d " "%(levelname)s > %(message)s")
 ch.setFormatter(formatter)
 opt_log.addHandler(ch)
 
@@ -21,7 +20,6 @@ creator.create("Individual", list, fitness=creator.FitnessMax)
 
 
 class OptimizationGA:
-
     def __init__(self, data_f, max_gen, pop, nproc=1, cxpb=0.5, mutpb=0.2):
         self.data = pd.read_table(data_f)
         self.max_gen = max_gen
@@ -32,33 +30,24 @@ class OptimizationGA:
 
     def setup(self):
         """Setup the optimization GA."""
-        opt_log.info('Setting up GA')
+        opt_log.info("Setting up GA")
         toolbox = base.Toolbox()
-        toolbox.register('attr', self.generate_individual)
+        toolbox.register("attr", self.generate_individual)
 
         # Register the toolbox #
-        toolbox.register("individual",
-                         tools.initIterate,
-                         creator.Individual,
-                         toolbox.attr)
+        toolbox.register(
+            "individual", tools.initIterate, creator.Individual, toolbox.attr
+        )
 
-        toolbox.register("population",
-                         tools.initRepeat,
-                         list,
-                         toolbox.individual)
+        toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
-        toolbox.register("evaluate",
-                         self.calc_correlation,
-                         self.data)
+        toolbox.register("evaluate", self.calc_correlation, self.data)
 
         toolbox.register("mate", tools.cxTwoPoint)
 
-        toolbox.register("mutate",
-                         tools.mutPolynomialBounded,
-                         eta=0.1,
-                         low=-1,
-                         up=+1,
-                         indpb=0.4)
+        toolbox.register(
+            "mutate", tools.mutPolynomialBounded, eta=0.1, low=-1, up=+1, indpb=0.4
+        )
 
         toolbox.register("select", tools.selTournament, tournsize=3)
 
@@ -72,18 +61,18 @@ class OptimizationGA:
         random.seed(42)
         pop = self.toolbox.population(n=self.pop)
 
-        opt_log.info('Starting optimization')
+        opt_log.info("Starting optimization")
 
         # fitnesses = self.toolbox.map(self.toolbox.evaluate, pop)
         # for ind, fit in zip(pop, fitnesses):
         #     ind.fitness.values = fit
 
         # fits = [ind.fitness.values[0] for ind in pop]
-        fits = [.0]
+        fits = [0.0]
 
         # Begin the evolution
-        opt_log.info('Starting the evolution')
-        opt_log.info(f'Max generations={self.max_gen} Pop={len(pop)}')
+        opt_log.info("Starting the evolution")
+        opt_log.info(f"Max generations={self.max_gen} Pop={len(pop)}")
         gen = 0
         while max(fits) < 1 and gen < self.max_gen:
             # A new generation
@@ -132,10 +121,12 @@ class OptimizationGA:
             length = len(pop)
             mean = sum(fits) / length
             sum2 = sum(x * x for x in fits)
-            std = abs(sum2 / length - mean**2)**0.5
+            std = abs(sum2 / length - mean ** 2) ** 0.5
 
-            opt_log.info(f"Gen {gen} {mean:.2f} +- {std:.2f} ({min(fits):.2f},"
-                         f"{max(fits):.2f})")
+            opt_log.info(
+                f"Gen {gen} {mean:.2f} +- {std:.2f} ({min(fits):.2f},"
+                f"{max(fits):.2f})"
+            )
 
         pool.close()
         pool.join()
@@ -143,35 +134,38 @@ class OptimizationGA:
         opt_log.info("Optimization complete")
 
         best_ind = tools.selBest(pop, 1)[0]
-        opt_log.info(f"Optimal scoring function is: (energy * "
-                     f"{best_ind[0]:.2f}) / (satisfaction *"
-                     f" {best_ind[1]:.2f})")
-        opt_log.info(f"This function will give a correlation of"
-                     f" {best_ind.fitness.values[0]:.2f}")
+        opt_log.info(
+            f"Optimal scoring function is: (energy * "
+            f"{best_ind[0]:.2f}) / (satisfaction *"
+            f" {best_ind[1]:.2f})"
+        )
+        opt_log.info(
+            f"This function will give a correlation of"
+            f" {best_ind.fitness.values[0]:.2f}"
+        )
 
     @staticmethod
     def generate_individual():
         """Generate random weights."""
-        return [random.uniform(-1, +1),
-                random.uniform(-1, +1)]
+        return [random.uniform(-1, +1), random.uniform(-1, +1)]
 
     @staticmethod
     def calc_correlation(data, individual):
         """Calculate the correlation between score and irmsd."""
         w_0, w_1 = individual
         score_l = []
-        for e, s in zip(data['energy'], data['fitness']):
+        for e, s in zip(data["energy"], data["fitness"]):
             gdock_score = (float(e) * w_0) / (float(s) * w_1)
             score_l.append(gdock_score)
 
-        x = data['irmsd']
+        x = data["irmsd"]
         y = pd.array(score_l)
         corr, _ = scipy.stats.pearsonr(x, y)
 
-        return corr,
+        return (corr,)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("data_f")
     args = parser.parse_args()

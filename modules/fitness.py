@@ -1,16 +1,18 @@
-import os
-import logging
 import configparser
-import subprocess  # nosec
+import logging
+import os
 import shlex
+import subprocess  # nosec
+
 # from utils.functions import timer
 from utils.files import get_full_path
-ga_log = logging.getLogger('ga_log')
 
-etc_folder = get_full_path('etc')
+ga_log = logging.getLogger("ga_log")
+
+etc_folder = get_full_path("etc")
 ini = configparser.ConfigParser(os.environ)
-ini.read(os.path.join(etc_folder, 'gdock.ini'), encoding='utf-8')
-haddocktools_path = ini.get('third_party', 'haddocktools_path')
+ini.read(os.path.join(etc_folder, "gdock.ini"), encoding="utf-8")
+haddocktools_path = ini.get("third_party", "haddocktools_path")
 
 # ============================================= #
 # Keep the fitness functions self-contained!    #
@@ -20,29 +22,30 @@ haddocktools_path = ini.get('third_party', 'haddocktools_path')
 def calc_satisfaction(pdb_f, restraints_a, restraints_b, cutoff=4.9):
     """Calculate the restraints satisfaction ratio."""
     # this is 4x faster!
-    cmd = f'{haddocktools_path}/contact-chainID {pdb_f} {cutoff}'
+    cmd = f"{haddocktools_path}/contact-chainID {pdb_f} {cutoff}"
     out = subprocess.check_output(shlex.split(cmd))  # nosec
-    contacts = {'A': [], 'B': []}
-    for line in out.decode('utf-8').split(os.linesep):
+    contacts = {"A": [], "B": []}
+    for line in out.decode("utf-8").split(os.linesep):
         data = line.split()
         if data:
             res_a, chain_a, _, res_b, chain_b, _, _ = data
             res_a = int(res_a)
             res_b = int(res_b)
-            if chain_a == 'A' and res_a in restraints_a:
-                contacts['A'].append(res_a)
-            if chain_b == 'B' and res_b in restraints_b:
-                contacts['A'].append(res_a)
+            if chain_a == "A" and res_a in restraints_a:
+                contacts["A"].append(res_a)
+            if chain_b == "B" and res_b in restraints_b:
+                contacts["A"].append(res_a)
 
     # check how many are satisfied
-    satisfied_a = len(set(contacts['A']).intersection(restraints_a))
-    satisfied_b = len(set(contacts['B']).intersection(restraints_b))
+    satisfied_a = len(set(contacts["A"]).intersection(restraints_a))
+    satisfied_b = len(set(contacts["B"]).intersection(restraints_b))
 
     total_restraints = len(restraints_a) + len(restraints_b)
 
     satisfied_ratio = (satisfied_a + satisfied_b) / total_restraints
 
     return satisfied_ratio
+
 
 # TODO: Do a low-level implementation of this
 # def calc_satisfaction(pdb_f, restraints_a, restraints_b, cutoff=4.9):
