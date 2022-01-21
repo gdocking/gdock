@@ -1,31 +1,33 @@
-import numpy as np
-from scipy.spatial.transform import Rotation
-from utils.functions import tidy  # , write_coords, add_dummy
 import logging
 import warnings
-warnings.filterwarnings('ignore', '.*Optimal rotation is not unique.*')
 
-ga_log = logging.getLogger('ga_log')
+import numpy as np
+from scipy.spatial.transform import Rotation
+
+from utils.functions import tidy  # , write_coords, add_dummy
+
+warnings.filterwarnings("ignore", ".*Optimal rotation is not unique.*")
+
+ga_log = logging.getLogger("ga_log")
 
 
 class Geometry:
-
     def __init__(self, input_data, restraint):
         """Initialize the geometry class."""
-        self.receptor_coord = input_data.coords['A']
-        self.receptor_pdb = input_data.raw_pdb['A']
-        self.receptor_rest_coord = restraint.coords['A']
-        self.begin_receptor = ''
-        self.ligand_coord = input_data.coords['B']
-        self.ligand_pdb = input_data.raw_pdb['B']
-        self.ligand_rest_coord = restraint.coords['B']
-        self.begin_ligand = ''
+        self.receptor_coord = input_data.coords["A"]
+        self.receptor_pdb = input_data.raw_pdb["A"]
+        self.receptor_rest_coord = restraint.coords["A"]
+        self.begin_receptor = ""
+        self.ligand_coord = input_data.coords["B"]
+        self.ligand_pdb = input_data.raw_pdb["B"]
+        self.ligand_rest_coord = restraint.coords["B"]
+        self.begin_ligand = ""
 
     def calc_initial_position(self):
         """Position the molecules in the initial position."""
         # calculate the geometric center of the molecule and of the restraints
 
-        ga_log.info('Positioning molecules in starting conformation')
+        ga_log.info("Positioning molecules in starting conformation")
         r_c = np.array(self.receptor_coord)
         l_c = np.array(self.ligand_coord)
 
@@ -94,24 +96,24 @@ class Geometry:
 
     def apply_transformation(self):
         """Apply transformations and place partners facing each other."""
-        ga_log.info('Applying transformations for initial position')
+        ga_log.info("Applying transformations for initial position")
 
-        ga_log.debug('Applying transformation to the receptor')
+        ga_log.debug("Applying transformation to the receptor")
         for coord, line in zip(self.receptor_coord, self.receptor_pdb):
-            if line.startswith('ATOM'):
-                new_x = f'{coord[0]:.3f}'.rjust(7, ' ')
-                new_y = f'{coord[1]:.3f}'.rjust(7, ' ')
-                new_z = f'{coord[2]:.3f}'.rjust(7, ' ')
-                new_line = f'{line[:30]} {new_x} {new_y} {new_z} {line[55:]}'
+            if line.startswith("ATOM"):
+                new_x = f"{coord[0]:.3f}".rjust(7, " ")
+                new_y = f"{coord[1]:.3f}".rjust(7, " ")
+                new_z = f"{coord[2]:.3f}".rjust(7, " ")
+                new_line = f"{line[:30]} {new_x} {new_y} {new_z} {line[55:]}"
                 self.begin_receptor += new_line
 
-        ga_log.debug('Applying transformation to the ligand')
+        ga_log.debug("Applying transformation to the ligand")
         for coord, line in zip(self.ligand_coord, self.ligand_pdb):
-            if line.startswith('ATOM'):
-                new_x = f'{coord[0]:.3f}'.rjust(7, ' ')
-                new_y = f'{coord[1]:.3f}'.rjust(7, ' ')
-                new_z = f'{coord[2]:.3f}'.rjust(7, ' ')
-                new_line = f'{line[:30]} {new_x} {new_y} {new_z} {line[55:]}'
+            if line.startswith("ATOM"):
+                new_x = f"{coord[0]:.3f}".rjust(7, " ")
+                new_y = f"{coord[1]:.3f}".rjust(7, " ")
+                new_z = f"{coord[2]:.3f}".rjust(7, " ")
+                new_line = f"{line[:30]} {new_x} {new_y} {new_z} {line[55:]}"
                 self.begin_ligand += new_line
 
         tidy_complex = tidy(self.begin_receptor + self.begin_ligand)
@@ -129,7 +131,7 @@ class Geometry:
         """Rotation function."""
         center = coords.mean(axis=0)
         coords -= center
-        rot = Rotation.from_euler('zyx', rotation)
+        rot = Rotation.from_euler("zyx", rotation)
         r = np.array([rot.apply(e) for e in coords])
         r += center
         rotated_coords = r
