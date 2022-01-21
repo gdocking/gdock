@@ -1,6 +1,6 @@
 [![Version](https://img.shields.io/badge/version-v1.1.0-red)](https://github.com/rvhonorato/gdock/releases/tag/v1.1.0)
 [![License: 0BSD](https://img.shields.io/badge/license-0BSD-informational)](https://opensource.org/licenses/0BSD)
-[![Build Status](https://travis-ci.com/rvhonorato/gdock.svg?branch=development)](https://travis-ci.com/rvhonorato/gdock)
+[![Tests](https://github.com/rvhonorato/gdock/actions/workflows/main.yml/badge.svg)](https://github.com/rvhonorato/gdock/actions/workflows/main.yml)
 [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/a794c83bedbc4e50b4bb6a0ed73ba3d0)](https://www.codacy.com/gh/rvhonorato/gdock/dashboard?utm_source=github.com&utm_medium=referral&utm_content=rvhonorato/gdock&utm_campaign=Badge_Coverage)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/a794c83bedbc4e50b4bb6a0ed73ba3d0)](https://www.codacy.com/gh/rvhonorato/gdock/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=rvhonorato/gdock&amp;utm_campaign=Badge_Grade)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
