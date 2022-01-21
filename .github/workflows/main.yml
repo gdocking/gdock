@@ -37,9 +37,12 @@ jobs:
         tar zxfv dcomplex2.tar.gz
         rm dcomplex2.tar.gz
         cd dcomplex_single_file
-        sed -i "s|5400|54000|g" dcomplex.c
-        sed -i "s|charge_inp.dat|$GDOCK_PATH/src/dcomplex_single_file/charge_inp.dat|g" dcomplex.c
-        sed -i "s|\"fort.21_alla\"|\"$GDOCK_PATH/src/dcomplex_single_file/fort.21_alla\"|g" dcomplex.c
+        sed "s|5400|54000|g" dcomplex.c > oo
+        mv oo dcomplex.c
+        sed "s|charge_inp.dat|$GDOCK_PATH/src/dcomplex_single_file/charge_inp.dat|g" dcomplex.c > oo
+        mv oo dcomplex.c
+        sed "s|\"fort.21_alla\"|\"$GDOCK_PATH/src/dcomplex_single_file/fort.21_alla\"|g" dcomplex.c > oo
+        mv oo dcomplex.c
         g++ -o dcomplex dcomplex.c
         cd ../
 
@@ -77,12 +80,12 @@ jobs:
 
     - name: Test
       if: always()
-      run: python -m unittest discover -v
+      run: coverage run -m unittest discover
 
-    # # from https://github.com/codecov/codecov-action
-    # - name: Upload coverage to Codecov
-    #   uses: codecov/codecov-action@v2
-    #   with:
-    #     files: ./coverage.xml
-    #     fail_ci_if_error: true
-    #     verbose: true
+    # from https://github.com/codecov/codecov-action
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v2
+      with:
+        files: ./coverage.xml
+        fail_ci_if_error: true
+        verbose: true
