@@ -83,6 +83,11 @@ jobs:
       run: coverage run -m unittest discover
 
     # from https://github.com/codecov/codecov-action
+     - name: Generate coverage report
+        if: ${{ success() }}
+        run: |
+          coverage xml
+
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2
       with:
