@@ -1,8 +1,10 @@
-import unittest
-import numpy as np
 import os
-from modules.structure import PDB, Restraint
+import unittest
+
+import numpy as np
+
 from modules.geometry import Geometry
+from modules.structure import PDB, Restraint
 from utils.files import get_full_path
 
 data_folder = get_full_path("tests", "test_data")
@@ -49,14 +51,13 @@ class TestGeometry(unittest.TestCase):
                 observed_ligand_coord, expected_ligand_coord, rtol=0.5
             )
         )
-        # self.assertTrue(np.allclose(observed_ligand_coord,
-        #                             expected_ligand_coord))
+
         self.assertIsNone(
             np.testing.assert_allclose(
                 observed_receptor_coord, expected_receptor_coord, rtol=0.5
             )
         )
-        # self.assertTrue(np.allclose(observed_receptor_coord, expected_receptor_coord))
+
 
     def test_apply_transformation(self):
         observed_tidy_complex = self.Geometry.apply_transformation()
