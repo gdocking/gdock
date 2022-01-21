@@ -1,4 +1,4 @@
-name: unittests py39
+name: unittests
 
 on:
   ['push','pull_request']
