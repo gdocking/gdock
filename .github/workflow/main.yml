@@ -1,0 +1,88 @@
+name: unittests py39
+
+on:
+  ['push','pull_request']
+
+jobs:
+  build:
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      matrix:
+        platform: [ubuntu-latest, macos-latest]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2.2.2
+      with:
+        python-version: 3.9
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        pip install -r requirements.txt coverage[toml] tox
+
+    - name: Install gdock
+      env:
+        GDOCK_PATH: `pwd`
+      run: |
+
+        mkdir src
+        cd src
+
+        wget http://servers.sparks-lab.org/downloads/dcomplex2.tar.gz
+        tar zxfv dcomplex2.tar.gz
+        rm dcomplex2.tar.gz
+        cd dcomplex_single_file
+        sed -i "s|5400|54000|g" dcomplex.c
+        sed -i "s|charge_inp.dat|$GDOCK_PATH/src/dcomplex_single_file/charge_inp.dat|g" dcomplex.c
+        sed -i "s|\"fort.21_alla\"|\"$GDOCK_PATH/src/dcomplex_single_file/fort.21_alla\"|g" dcomplex.c
+        g++ -o dcomplex dcomplex.c
+        cd ../
+
+        # fcc
+        git clone https://github.com/haddocking/fcc.git
+        cd fcc
+        git checkout python3
+        cd src
+        make
+        cd ../../
+
+        # pdb-tools
+        git clone https://github.com/haddocking/pdb-tools
+
+        # haddock-tools
+        git clone https://github.com/haddocking/haddock-tools
+        cd haddock-tools
+        g++ -O2 -o contact-chainID contact-chainID.cpp
+        cd ../
+
+        # profit
+        wget http://www.bioinf.org.uk/software/profit/235216/profit.tar.gz
+        tar zxvf profit.tar.gz
+        rm profit.tar.gz
+        cd ProFit_V3.3/src || exit
+        make
+        cd ../../
+
+        # edit paths
+        cd ../
+        sed s"|/Users/rodrigo/repos/gdock|$GDOCK_PATH|g" etc/gdock.ini > oo
+        mv oo etc/gdock.ini
+      shell: bash
+
+
+    - name: Test
+      if: always()
+      run: python -m unittest discover -v
+
+    # # from https://github.com/codecov/codecov-action
+    # - name: Upload coverage to Codecov
+    #   uses: codecov/codecov-action@v2
+    #   with:
+    #     files: ./coverage.xml
+    #     fail_ci_if_error: true
+    #     verbose: true
