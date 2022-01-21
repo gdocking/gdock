@@ -52,9 +52,9 @@ if __name__ == "__main__":
 
             cmd = f"{python_exe} {gdock_exe} run.toml"
             bm_log.debug(f"cmd is: {cmd}")
-            result = subprocess.run(
+            result = subprocess.run(  # nosec
                 shlex.split(cmd), capture_output=True, shell=False
-            )  # nosec
+            )
 
             # Make this explicit so eventually we can capture
             #  stuff from stderr/out

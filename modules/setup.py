@@ -13,8 +13,11 @@ import tempfile
 import mgzip
 import toml
 
-from modules.error import (DependencyNotDefinedError, DependencyNotFoundError,
-                           SectionNotDefinedError)
+from modules.error import (
+    DependencyNotDefinedError,
+    DependencyNotFoundError,
+    SectionNotDefinedError,
+)
 from utils.files import get_full_path
 from utils.functions import check_if_py3, du
 
@@ -183,8 +186,8 @@ class Setup:
         fcc_contact_executable = pathlib.Path(f"{fcc_path}/src/contact_fcc")
         if fcc_contact_executable.exists():
             # check if executable
-            proc = subprocess.run(
-                str(fcc_contact_executable),  # nosec
+            proc = subprocess.run(  # nosec
+                str(fcc_contact_executable),
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
             )
@@ -230,8 +233,8 @@ class Setup:
         haddocktools_script = pathlib.Path((f"{haddocktools_path}/" "contact-chainID"))
         if haddocktools_script.exists():
             # check if executable
-            proc = subprocess.run(
-                str(haddocktools_script),  # nosec
+            proc = subprocess.run(  # nosec
+                str(haddocktools_script),
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
             )
@@ -252,8 +255,8 @@ class Setup:
 
         if dcomplex_exe.exists():
             # check if executable
-            proc = subprocess.run(
-                str(dcomplex_exe),  # nosec
+            proc = subprocess.run(  # nosec
+                str(dcomplex_exe),
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
             )
