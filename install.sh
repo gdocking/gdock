@@ -20,11 +20,7 @@ g++ -o dcomplex dcomplex.c
 cd "$GDOCK_PATH"/src || exit
 
 # fcc
-git clone https://github.com/haddocking/fcc.git
-cd fcc || exit
-git checkout python3
-cd src || exit
-make
+pip install git+https://github.com/joaorodrigues/fcc@fcc2
 cd "$GDOCK_PATH"/src || exit
 
 # haddock-tools

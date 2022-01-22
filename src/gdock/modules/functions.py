@@ -1,4 +1,3 @@
-import ast
 import logging
 import os
 import secrets
@@ -78,19 +77,6 @@ def du(path):
         return f"{size_in_kb:.2f} KB"
     else:
         return f"{size_in_bytes} B"
-
-
-def check_if_py3(code_f):
-    """Test if the code is python3 compatible."""
-    try:
-        with open(code_f, "rb") as code_fh:
-            ast.parse(code_fh.read())
-        code_fh.close()
-    except SyntaxError as e:
-        ga_log.debug(e)
-        return False
-
-    return True
 
 
 def summary(value_list):

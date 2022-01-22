@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         platform: [ubuntu-latest, macos-latest]
-        python-version: [3.8, 3.9]
+        python-version: [3.9]
 
     steps:
     - uses: actions/checkout@v2
@@ -46,13 +46,8 @@ jobs:
         g++ -o dcomplex dcomplex.c
         cd ../
 
-        # fcc
-        git clone https://github.com/haddocking/fcc.git
-        cd fcc
-        git checkout python3
-        cd src
-        make
-        cd ../../
+        # fcc2
+        pip install git+https://github.com/joaorodrigues/fcc@fcc2
 
         # haddock-tools
         git clone https://github.com/haddocking/haddock-tools

@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name="gdock",
     license="BSD Zero Clause (0BSD)",
-    version="1.1.0",
+    version="1.1.3",
     author="Rodrigo V. Honorato",
     description="Genetic Algorithm applied to Protein-Protein Docking",
     author_email="rvhonorato@protonmail.com",
@@ -17,11 +17,10 @@ setup(
         "Natural Language :: English",
         "Operating System :: POSIX :: Linux",
         "Operating System :: MacOS",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Topic :: Scientific/Engineering :: Bio-Informatics",
     ],
-    python_requires=">=3.8, <4",
+    python_requires=">=3.9, <4",
     install_requires=[
         "toml",
         "biopython",
