@@ -17,11 +17,10 @@ setup(
         "Natural Language :: English",
         "Operating System :: POSIX :: Linux",
         "Operating System :: MacOS",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Topic :: Scientific/Engineering :: Bio-Informatics",
     ],
-    python_requires=">=3.8, <4",
+    python_requires=">=3.9, <4",
     install_requires=[
         "toml",
         "biopython",
