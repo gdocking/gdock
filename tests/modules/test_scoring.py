@@ -2,8 +2,8 @@ import configparser
 import os
 import unittest
 
-from modules.scoring import Scoring
-from utils.files import get_full_path
+from gdock.modules.scoring import Scoring
+from gdock.modules.files import get_full_path
 
 etc_folder = get_full_path("etc")
 ini = configparser.ConfigParser(os.environ)

@@ -4,7 +4,7 @@ import warnings
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from utils.functions import tidy  # , write_coords, add_dummy
+from gdock.modules.functions import tidy  # , write_coords, add_dummy
 
 warnings.filterwarnings("ignore", ".*Optimal rotation is not unique.*")
 

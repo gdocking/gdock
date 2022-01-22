@@ -1,8 +1,8 @@
 import os
 import unittest
 
-from modules.structure import PDB, Restraint
-from utils.files import get_full_path
+from gdock.modules.structure import PDB, Restraint
+from gdock.modules.files import get_full_path
 
 data_folder = get_full_path("tests", "test_data")
 

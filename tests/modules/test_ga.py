@@ -5,9 +5,9 @@ from tempfile import NamedTemporaryFile
 
 import toml
 
-from modules.ga import GeneticAlgorithm
-from modules.setup import Setup
-from utils.files import get_full_path
+from gdock.modules.ga import GeneticAlgorithm
+from gdock.modules.initialize import Setup
+from gdock.modules.files import get_full_path
 
 data_folder = get_full_path("tests", "test_data")
 

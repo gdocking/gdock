@@ -4,7 +4,7 @@ After installing `gdock` simply:
 
 ```
 $ cd examples/
-$ pyton ../gdock.py run.toml
+$ gdock run.toml
 ```
 
 ## How-to-use

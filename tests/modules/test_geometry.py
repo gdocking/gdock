@@ -3,9 +3,9 @@ import unittest
 
 import numpy as np
 
-from modules.geometry import Geometry
-from modules.structure import PDB, Restraint
-from utils.files import get_full_path
+from gdock.modules.geometry import Geometry
+from gdock.modules.structure import PDB, Restraint
+from gdock.modules.files import get_full_path
 
 data_folder = get_full_path("tests", "test_data")
 
@@ -57,7 +57,6 @@ class TestGeometry(unittest.TestCase):
                 observed_receptor_coord, expected_receptor_coord, rtol=0.5
             )
         )
-
 
     def test_apply_transformation(self):
         observed_tidy_complex = self.Geometry.apply_transformation()

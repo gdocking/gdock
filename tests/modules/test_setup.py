@@ -6,10 +6,13 @@ import shutil
 import tempfile
 import unittest
 
-from modules.error import (DependencyNotDefinedError, DependencyNotFoundError,
-                           SectionNotDefinedError)
-from modules.setup import Setup
-from utils.files import get_full_path
+from gdock.modules.error import (
+    DependencyNotDefinedError,
+    DependencyNotFoundError,
+    SectionNotDefinedError,
+)
+from gdock.modules.initialize import Setup
+from gdock.modules.files import get_full_path
 
 data_folder = get_full_path("tests", "test_data")
 
