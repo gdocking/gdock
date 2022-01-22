@@ -197,28 +197,6 @@ class Setup:
             if "Too few arguments" not in err:
                 raise Exception(f"{fcc_contact_executable} execution failed", err)
 
-        # Check pdbtools
-        try:
-            pdbtools_path = pathlib.Path(
-                self.ga_ini.get("third_party", "pdbtools_path")
-            )
-        except configparser.NoOptionError:
-            raise DependencyNotDefinedError("pdbtools_path")
-
-        if not pdbtools_path.exists():
-            raise DependencyNotFoundError(f"{pdbtools_path} not found")
-
-        pdbtools_script = pathlib.Path(f"{pdbtools_path}/pdbtools/pdb_tidy.py")
-        if pdbtools_script.exists():
-            pdbtools_check = check_if_py3(str(pdbtools_script))
-            if not pdbtools_check:
-                raise Exception(
-                    "pdb-tools branch is not Python3 compatible,"
-                    " check install instructions"
-                )
-        else:
-            raise Exception(f"{pdbtools_script} not found")
-
         # check haddock-tools
         try:
             haddocktools_path = pathlib.Path(
