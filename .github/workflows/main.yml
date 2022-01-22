@@ -54,9 +54,6 @@ jobs:
         make
         cd ../../
 
-        # pdb-tools
-        git clone https://github.com/haddocking/pdb-tools
-
         # haddock-tools
         git clone https://github.com/haddocking/haddock-tools
         cd haddock-tools

@@ -1,25 +1,16 @@
 import ast
-import configparser
 import logging
 import os
 import secrets
-import shlex
-import subprocess  # nosec
-import sys
 import tempfile
 from pathlib import Path
 
 import numpy
+from pdbtools.pdb_tidy import tidy_pdbfile
 
 from gdock.modules.files import get_full_path
 
 ga_log = logging.getLogger("ga_log")
-
-etc_folder = get_full_path("etc")
-ini = configparser.ConfigParser(os.environ)
-ini.read(os.path.join(etc_folder, "gdock.ini"), encoding="utf-8")
-pdbtools_path = ini.get("third_party", "pdbtools_path")
-python_exe = sys.executable
 
 
 def tidy(pdb_str):
@@ -28,19 +19,18 @@ def tidy(pdb_str):
     input_pdb.write(str.encode(pdb_str))
     input_pdb.close()
 
-    cmd = f"{python_exe} {pdbtools_path}/pdbtools/pdb_tidy.py {input_pdb.name}"
-    ga_log.debug(f"Tidying up with command {cmd}")
-
-    output = subprocess.check_output(shlex.split(cmd))  # nosec
+    tidy_pdb_l = []
+    with open(input_pdb.name) as inp_fh:
+        for line in tidy_pdbfile(inp_fh):
+            tidy_pdb_l.append(line)
 
     os.unlink(input_pdb.name)
 
-    if not output:
+    if not tidy_pdb_l:
         ga_log.error("Could not tidy the pdb!")
         exit()
-    else:
-        tidy_pdb = output.decode("utf-8")
-        return tidy_pdb
+
+    return "".join(tidy_pdb_l)
 
 
 def format_coords(coord):

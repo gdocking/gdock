@@ -27,10 +27,6 @@ cd src || exit
 make
 cd "$GDOCK_PATH"/src || exit
 
-# pdb-tools
-git clone https://github.com/haddocking/pdb-tools
-cd "$GDOCK_PATH"/src || exit
-
 # haddock-tools
 git clone https://github.com/haddocking/haddock-tools
 cd haddock-tools
