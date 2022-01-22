@@ -57,7 +57,7 @@ class TestAnalysis(unittest.TestCase):
 
         self.Analysis.structure_list = self.structure_list
 
-        self.Analysis.cluster(cutoff=0.4)
+        self.Analysis.cluster(cutoff=0.4, min_size=4)
 
         for structure in self.structure_list:
             contact_f = pathlib.Path(structure.replace(".pdb", ".contacts"))
@@ -76,8 +76,8 @@ class TestAnalysis(unittest.TestCase):
         observed_cluster_line_1 = " ".join(observed_cluster_l[0].split())
         observed_cluster_line_2 = " ".join(observed_cluster_l[1].split())
 
-        self.assertEqual(observed_cluster_line_1, "Cluster 1 -> 30 9 15 21 27 34")
-        self.assertEqual(observed_cluster_line_2, "Cluster 2 -> 10 28 29 32 33")
+        self.assertEqual(observed_cluster_line_1, "Cluster 1 -> 9 27 28 31 32")
+        self.assertEqual(observed_cluster_line_2, "Cluster 2 -> 8 14 25 26 29")
 
     def test_evaluate(self):
         self.Analysis.structure_list = self.structure_list[:3]
