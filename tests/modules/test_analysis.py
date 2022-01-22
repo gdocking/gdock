@@ -1,9 +1,13 @@
 import pathlib
 import shutil
 import unittest
+import sys
+from pathlib import Path
 
-from modules.analysis import Analysis
-from utils.files import get_full_path
+sys.path.append(str(Path(Path(__file__).parent.parent.parent, "src")))
+
+from gdock.modules.analysis import Analysis
+from gdock.modules.files import get_full_path
 
 data_folder = get_full_path("tests", "test_data")
 

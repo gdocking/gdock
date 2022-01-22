@@ -6,8 +6,8 @@ import os
 import pathlib
 import sys
 
-from modules.profit import Profit
-from utils.files import get_full_path
+from gdock.modules.profit import Profit
+from gdock.modules.files import get_full_path
 
 ga_log = logging.getLogger("ga_log")
 

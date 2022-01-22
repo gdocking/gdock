@@ -3,8 +3,8 @@ import shutil
 import tempfile
 import unittest
 
-from utils.files import get_full_path
-from utils.functions import du, format_coords, summary, tidy
+from gdock.modules.files import get_full_path
+from gdock.modules.functions import du, format_coords, summary, tidy
 
 data_folder = get_full_path("tests", "test_data")
 

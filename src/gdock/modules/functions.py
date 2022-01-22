@@ -11,7 +11,7 @@ from pathlib import Path
 
 import numpy
 
-from utils.files import get_full_path
+from gdock.modules.files import get_full_path
 
 ga_log = logging.getLogger("ga_log")
 

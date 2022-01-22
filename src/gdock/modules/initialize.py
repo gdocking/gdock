@@ -13,13 +13,13 @@ import tempfile
 import mgzip
 import toml
 
-from modules.error import (
+from gdock.modules.error import (
     DependencyNotDefinedError,
     DependencyNotFoundError,
     SectionNotDefinedError,
 )
-from utils.files import get_full_path
-from utils.functions import check_if_py3, du
+from gdock.modules.files import get_full_path
+from gdock.modules.functions import check_if_py3, du
 
 ga_log = logging.getLogger("ga_log")
 

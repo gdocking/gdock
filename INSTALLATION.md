@@ -1,27 +1,36 @@
-### gdock
+### `gdock` Install instructions
 
-Download the latest relase or clone a stable branch of the repository.
-
-### Python environment
-
-An `environment.yml` file is provided and Anaconda is recomended.
 
 ```bash
-$ conda env create -f environment.yml
-$ conda activate gdock
-(gdock) $
+$ git clone https://github.com/rvhonorato/gdock.git
+$ cd gdock
+$ python setup.py develop
+$ bash install.sh `pwd`
+$ gdock -h
 ```
+
+To run the example, [follow this instructions](example/README.md)
+
+* * *
 
 ### Third-party Dependencies
 
-`gdock` uses [DComplex](https://sparks-lab.org/Publications_files/zhou061.pdf) as the scoring function, [FCC](https://github.com/haddocking/FCC) as the clustering engine, some script from [haddock-tools](https://github.com/haddocking/haddock-tools) to calculate the fitness and [PROFIT](http://www.bioinf.org.uk/software/profit) to calculate CAPRI metrics.
+**These have DIFFERENT LICENSES, handle them accordingly.**
 
+* [DComplex](https://sparks-lab.org/Publications_files/zhou061.pdf) as the scoring function,
+* [FCC](https://github.com/haddocking/FCC) as the clustering engine,
+* some script from [haddock-tools](https://github.com/haddocking/haddock-tools) to calculate the fitness and
+* [ProFit](http://www.bioinf.org.uk/software/profit) to calculate CAPRI metrics.
 
-**After cloning the repository and setting up the python environment with anaconda**, you can use the very rough install script provided to install the third-party dependencies and configure `gdock.ini`:
-
-Example:
-```bash
-$ bash install.sh /home/rodrigo/software/gdock
+The paths for these are defined in `/etc/gdock.ini`
+```toml
+[third_party]
+profit_exe        = /Users/rodrigo/repos/gdock/src/ProFit_V3.3/src/profit
+fcc_path          = /Users/rodrigo/repos/gdock/src/fcc
+pdbtools_path     = /Users/rodrigo/repos/gdock/src/pdb-tools
+haddocktools_path = /Users/rodrigo/repos/gdock/src/haddock-tools
+; dcomplex this needs to be "specially compiled", change the fort21 path and the charges
+dcomplex_exe = /Users/rodrigo/repos/gdock/src/dcomplex_single_file/dcomplex
 ```
 
 * * *
