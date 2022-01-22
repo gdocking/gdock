@@ -19,7 +19,7 @@ from gdock.modules.error import (
     SectionNotDefinedError,
 )
 from gdock.modules.files import get_full_path
-from gdock.modules.functions import check_if_py3, du
+from gdock.modules.functions import du
 
 ga_log = logging.getLogger("ga_log")
 
