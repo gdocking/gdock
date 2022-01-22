@@ -48,7 +48,6 @@ jobs:
 
         # fcc2
         pip install git+https://github.com/joaorodrigues/fcc@fcc2
-        cd ../../
 
         # haddock-tools
         git clone https://github.com/haddocking/haddock-tools
