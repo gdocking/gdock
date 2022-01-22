@@ -73,10 +73,6 @@ class TestFunctions(unittest.TestCase):
         expected_du = "567 B"
         self.assertAlmostEqual(observed_du, expected_du)
 
-    # # How to test this one?
-    # def test_check_if_py3(self):
-    #     pass
-
     def test_summary(self):
         value_list = [1, 2, 3, 4, 5, 100]
         observed_dic = summary(value_list)

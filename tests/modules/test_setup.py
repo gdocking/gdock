@@ -122,7 +122,7 @@ class TestSetup(unittest.TestCase):
         self.assertRaises(SectionNotDefinedError, self.Setup.validate_third_party)
         self.Setup.ga_ini = copy.deepcopy(valid_ini)
 
-        self.Setup.ga_ini.set("third_party", "fcc_path", "not_valid")
+        self.Setup.ga_ini.set("third_party", "dcomplex_exe", "not_valid")
         self.assertRaises(DependencyNotFoundError, self.Setup.validate_third_party)
         self.Setup.ga_ini = copy.deepcopy(valid_ini)
 
