@@ -22,7 +22,15 @@ setup(
         "Topic :: Scientific/Engineering :: Bio-Informatics",
     ],
     python_requires=">=3.8, <4",
-    install_requires=["toml", "biopython", "scipy", "pandas", "deap==1.3.1", "mgzip"],
+    install_requires=[
+        "toml",
+        "biopython",
+        "scipy",
+        "pandas",
+        "deap==1.3.1",
+        "mgzip",
+        "pdb-tools>=2.4.1",
+    ],
     entry_points={
         "console_scripts": [
             "gdock=gdock.cli:main",
