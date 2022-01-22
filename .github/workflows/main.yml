@@ -46,12 +46,8 @@ jobs:
         g++ -o dcomplex dcomplex.c
         cd ../
 
-        # fcc
-        git clone https://github.com/haddocking/fcc.git
-        cd fcc
-        git checkout python3
-        cd src
-        make
+        # fcc2
+        pip install git+https://github.com/joaorodrigues/fcc@fcc2
         cd ../../
 
         # haddock-tools
