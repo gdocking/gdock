@@ -126,7 +126,7 @@ class TestSetup(unittest.TestCase):
         self.assertRaises(DependencyNotFoundError, self.Setup.validate_third_party)
         self.Setup.ga_ini = copy.deepcopy(valid_ini)
 
-        self.Setup.ga_ini.remove_option("third_party", "pdbtools_path")
+        self.Setup.ga_ini.remove_option("third_party", "dcomplex_exe")
         self.assertRaises(DependencyNotDefinedError, self.Setup.validate_third_party)
         self.Setup.ga_ini = valid_ini
 
