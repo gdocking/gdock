@@ -31,7 +31,6 @@ jobs:
         GDOCK_PATH: ./
       run: |
 
-        mkdir src
         cd src
 
         wget http://servers.sparks-lab.org/downloads/dcomplex2.tar.gz
