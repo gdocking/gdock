@@ -163,40 +163,6 @@ class Setup:
         except configparser.NoOptionError:
             pass
 
-        # Check FCC
-        try:
-            fcc_path = pathlib.Path(self.ga_ini.get("third_party", "fcc_path"))
-        except configparser.NoOptionError:
-            raise DependencyNotDefinedError("fcc_path")
-
-        if not fcc_path.exists():
-            raise DependencyNotFoundError(f"{fcc_path} not found")
-
-        fcc_script = pathlib.Path(f"{fcc_path}/scripts/make_contacts.py")
-        if fcc_script.exists():
-            fcc_check = check_if_py3(str(fcc_script))
-            if not fcc_check:
-                raise Exception(
-                    "FCC branch is not Python3 compatible,"
-                    " check install instructions"
-                )
-        else:
-            raise Exception(f"{fcc_script} not found")
-
-        fcc_contact_executable = pathlib.Path(f"{fcc_path}/src/contact_fcc")
-        if fcc_contact_executable.exists():
-            # check if executable
-            proc = subprocess.run(  # nosec
-                str(fcc_contact_executable),
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-            )
-
-            err = proc.stderr.decode("utf-8")
-            out = proc.stdout.decode("utf-8")
-            if "Too few arguments" not in err:
-                raise Exception(f"{fcc_contact_executable} execution failed", err)
-
         # check haddock-tools
         try:
             haddocktools_path = pathlib.Path(
