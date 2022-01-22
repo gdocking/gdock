@@ -9,7 +9,7 @@ from tempfile import NamedTemporaryFile
 
 import numpy as np
 
-from utils.files import get_full_path
+from gdock.modules.files import get_full_path
 
 ga_log = logging.getLogger("ga_log")
 etc_folder = get_full_path("etc")
