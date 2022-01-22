@@ -4,14 +4,14 @@ import datetime
 import logging
 import sys
 
-from modules.analysis import Analysis
-from modules.ga import GeneticAlgorithm
-from modules.geometry import Geometry
-from modules.scoring import Scoring
-from modules.setup import Setup
-from modules.structure import PDB, Restraint
-from modules.version import CURRENT_VERSION
-from utils.functions import random_quote
+from gdock.modules.analysis import Analysis
+from gdock.modules.ga import GeneticAlgorithm
+from gdock.modules.geometry import Geometry
+from gdock.modules.scoring import Scoring
+from gdock.modules.initialize import Setup
+from gdock.modules.structure import PDB, Restraint
+from gdock.version import CURRENT_VERSION
+from gdock.modules.functions import random_quote
 
 ga_log = logging.getLogger("ga_log")
 ga_log.setLevel(logging.INFO)
@@ -23,7 +23,7 @@ ch.setFormatter(formatter)
 ga_log.addHandler(ch)
 
 
-if __name__ == "__main__":
+def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("input_file")
@@ -97,3 +97,7 @@ if __name__ == "__main__":
 
     ga_log.info("gdock complete.")
     # done (:
+
+
+if __name__ == "__main__":
+    main()

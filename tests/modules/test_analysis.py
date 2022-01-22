@@ -2,8 +2,8 @@ import pathlib
 import shutil
 import unittest
 
-from modules.analysis import Analysis
-from utils.files import get_full_path
+from gdock.modules.analysis import Analysis
+from gdock.modules.files import get_full_path
 
 data_folder = get_full_path("tests", "test_data")
 
