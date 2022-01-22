@@ -1,31 +1,25 @@
-import configparser
+import collections
 import logging
 import math
-import multiprocessing
 import os
 import pathlib
-import sys
+from pathlib import Path
+
+from fccpy import read_pdb
+from fccpy.clustering import disjoint_taylor_butina as DTB_ALGO
+from fccpy.contacts import (
+    BY_RESIDUE,
+    get_intermolecular_contacts,
+    hash_many,
+    read_contacts,
+    write_contacts,
+)
+from fccpy.similarity import build_matrix, write_matrix
+from fccpy.similarity import fcc as FCC_METRIC
 
 from gdock.modules.profit import Profit
-from gdock.modules.files import get_full_path
 
 ga_log = logging.getLogger("ga_log")
-
-etc_folder = get_full_path("etc")
-ini = configparser.ConfigParser(os.environ)
-ini.read(os.path.join(etc_folder, "gdock.ini"), encoding="utf-8")
-fcc_path = ini.get("third_party", "fcc_path")
-
-sys.path.append(f"{fcc_path}/scripts")
-
-try:
-    import calc_fcc_matrix
-    import cluster_fcc
-    import make_contacts
-except Exception as e:
-    ga_log.error("FCC could not be imported")
-    ga_log.error(e)
-    sys.exit()
 
 
 class Analysis:
@@ -41,8 +35,6 @@ class Analysis:
         self.structure_list = self.get_structures(result_dic)
         self.cluster_dic = {}
         self.irmsd_dic = {}
-        #: FCC things
-        self.contact_executable = f"{fcc_path}/src/contact_fcc"
 
     @staticmethod
     def get_structures(data_dic):
@@ -64,32 +56,28 @@ class Analysis:
         return structure_l
 
     @staticmethod
-    def calc_contact(executable, pdb_f, cutoff=5.0):
-        # fcc-wrapper
-        contact_f = pdb_f.replace(".pdb", ".contacts")
-        make_contacts._calculate_contacts(executable, pdb_f, str(cutoff))
+    def calc_contact(pdb_f, cutoff=5.0):
+        """Calculate the intra-molecular contacts."""
+        contact_f = Path(pdb_f.replace(".pdb", ".contacts"))
+        s = read_pdb(pdb_f)
+        clist = get_intermolecular_contacts(s, cutoff)
+        write_contacts(clist, contact_f)
         if os.path.isfile(contact_f):
             return contact_f
         else:
             return ""
 
-    def cluster(self, cutoff=0.75, top=1000):
+    def cluster(self, cutoff=0.75, min_size=4, top=1000):
         """Use FCC to cluster structures."""
-
-        # Calculate contacts
         ga_log.info("FCC - Calculating contacts")
-        pool = multiprocessing.Pool(processes=self.nproc)
         input_structure_l = self.structure_list[:top]
         for pdb in input_structure_l:
-            pool.apply_async(self.calc_contact, args=(self.contact_executable, pdb))
-
-        pool.close()
-        pool.join()
+            self.calc_contact(pdb)
 
         contact_file_l = []
         for pdb in input_structure_l:
-            contact_f = pdb.replace(".pdb", ".contacts")
-            if os.path.isfile(contact_f):
+            contact_f = Path(pdb.replace(".pdb", ".contacts"))
+            if contact_f.exists():
                 contact_file_l.append(contact_f)
 
         if not contact_file_l:
@@ -97,33 +85,44 @@ class Analysis:
 
         # Calculate matrix
         ga_log.info("FCC - Calculating matrix")
-        parsed_contacts = calc_fcc_matrix.parse_contact_file(contact_file_l, False)
 
-        # matrix is a generator object, be careful with it
-        matrix = calc_fcc_matrix.calculate_pairwise_matrix(parsed_contacts, False)
+        clist = [list(read_contacts(f)) for f in contact_file_l]
+        selector1 = selector2 = BY_RESIDUE
+        unique = True
+        clist_hashed = [
+            hash_many(c, unique=unique, selector1=selector1, selector2=selector2)
+            for c in clist
+        ]
 
-        # write it to a file, so we can read it afterwards and don't
-        #  need to reinvent the wheel
-        fcc_matrix_f = f"{self.analysis_path}/fcc.matrix"
-        with open(fcc_matrix_f, "w") as fh:
-            for data in list(matrix):
-                data_str = f"{data[0]} {data[1]} {data[2]:.2f} {data[3]:.3f}"
-                data_str += os.linesep
-                fh.write(data_str)
-        fh.close()
+        idxs, sims = build_matrix(clist_hashed, metric=FCC_METRIC)
+
+        # TODO: Implement a way to re-read the matrix in case its already there
+        # idxs, sims = read_matrix(fcc_matrix_f)
+
+        fcc_matrix_f = Path(f"{self.analysis_path}/fcc.matrix")
+        write_matrix(idxs, sims, fcc_matrix_f)
 
         # cluster
         ga_log.info("FCC - Clustering")
-        pool = cluster_fcc.read_matrix(fcc_matrix_f, cutoff, strictness=0.75)
-        _, clusters = cluster_fcc.cluster_elements(pool, 4)
+        labels = DTB_ALGO(idxs, sims, eps=cutoff, minsize=min_size)
 
-        if clusters:
-            ga_log.info(f"FCC - {len(clusters)} clusters identified")
-            # use fcc's output
+        if labels:
+            ga_log.info(f"FCC - {len(labels)} clusters identified")
             cluster_out = f"{self.analysis_path}/cluster.out"
             with open(cluster_out, "w") as fh:
-                cluster_fcc.output_clusters(fh, clusters)
-            fh.close()
+                clusters = collections.defaultdict(list)
+                for k, v in labels.items():
+                    clusters[v].append(k)
+
+                # Sort clusters by size
+                sorted_keys = sorted(
+                    clusters, key=lambda k: len(clusters.get(k)), reverse=True
+                )
+
+                for i, k in enumerate(sorted_keys, start=1):
+                    elements = map(str, sorted(clusters[k]))
+                    c_str = f'Cluster {i} -> {" ".join(elements)}{os.linesep}'
+                    fh.write(c_str)
 
             # read it again!
             with open(cluster_out, "r") as fh:
