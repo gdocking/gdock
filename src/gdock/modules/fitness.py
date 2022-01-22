@@ -5,7 +5,7 @@ import shlex
 import subprocess  # nosec
 
 # from utils.functions import timer
-from utils.files import get_full_path
+from gdock.modules.files import get_full_path
 
 ga_log = logging.getLogger("ga_log")
 

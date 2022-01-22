@@ -1,3 +1,0 @@
-[submodule "benchmark_data"]
-	path = benchmark_data
-	url = https://github.com/rvhonorato/gdock-benchmark.git

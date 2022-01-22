@@ -4,8 +4,8 @@ import os
 import tempfile
 import unittest
 
-from modules.profit import Profit
-from utils.files import get_full_path
+from gdock.modules.profit import Profit
+from gdock.modules.files import get_full_path
 
 etc_folder = get_full_path("etc")
 ini = configparser.ConfigParser(os.environ)

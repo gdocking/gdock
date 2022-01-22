@@ -9,9 +9,9 @@ from tempfile import NamedTemporaryFile
 import numpy as np
 from deap import base, creator, tools
 
-from modules.fitness import calc_satisfaction
-from modules.geometry import Geometry
-from utils.functions import format_coords, summary
+from gdock.modules.fitness import calc_satisfaction
+from gdock.modules.geometry import Geometry
+from gdock.modules.functions import format_coords, summary
 
 ga_log = logging.getLogger("ga_log")
 

@@ -6,7 +6,7 @@ import pathlib
 import shlex
 import subprocess  # nosec
 
-from utils.files import get_full_path
+from gdock.modules.files import get_full_path
 
 ga_log = logging.getLogger("ga_log")
 
