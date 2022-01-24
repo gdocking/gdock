@@ -2,6 +2,10 @@
 identifier = 'dev'
 number_of_processors = 4
 
+[ga]
+population_size = 10
+max_number_of_generations = 10
+
 [restraints]
 A = [69, 242, 259, 260, 292, 294, 295, 321, 323, 324]
 B = [76, 71, 67, 39, 41, 42, 44, 69]
