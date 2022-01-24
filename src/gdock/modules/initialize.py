@@ -147,11 +147,15 @@ class Setup:
     @staticmethod
     def compress(file_path, np=1):
         """Compress a file in .gz."""
-        # Note: this will open the whole file in memory
-        #  this might not be the best idea
-        with open(file_path, "r") as fr:
-            file_string = "".join(fr.readlines())
-        fr.close()
+        try:
+            # Note: this will open the whole file in memory
+            #  this might not be the best idea
+            with open(file_path, "r") as fr:
+                file_string = "".join(fr.readlines())
+            fr.close()
+        except UnicodeDecodeError:
+            ga_log.warning(f"Could not compress {file_path}")
+            return
 
         with mgzip.open(f"{file_path}.gz", "wt", thread=np) as fw:
             fw.write(file_string)
