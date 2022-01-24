@@ -9,10 +9,10 @@ import shutil
 import subprocess  # nosec
 import sys
 import tempfile
+from pathlib import Path
 
 import mgzip
 import toml
-
 from gdock.modules.error import (
     DependencyNotDefinedError,
     DependencyNotFoundError,
@@ -33,10 +33,16 @@ class Setup:
         self.nproc = self.input_params["main"]["number_of_processors"]
         self.ga_ini = configparser.ConfigParser(os.environ)
         self.ga_ini.read(os.path.join(self.etc_folder, "gdock.ini"), encoding="utf-8")
+        self.default_ga_params_f = Path(self.etc_folder, "ga_params.toml")
 
     def initialize(self):
         """Load the parameters and create the folder structure."""
-        ga_params = toml.load(f"{self.etc_folder}/" "genetic_algorithm_params.toml")
+        ga_params = toml.load(self.default_ga_params_f)
+
+        # update with parameters from the user .toml
+        if "ga" in self.input_params:
+            ga_params["general"].update(self.input_params["ga"])
+
         run_params = {}
         identifier_folder = self.input_params["main"]["identifier"]
         run_path = f"{os.getcwd()}/{identifier_folder}"
