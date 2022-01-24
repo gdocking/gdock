@@ -1,7 +1,4 @@
 """This is the software version."""
 
-MAJOR = "1"
-MINOR = "1"
-PATCH = "3"
-
-CURRENT_VERSION = f"v{MAJOR}.{MINOR}.{PATCH}"
+CURRENT_VERSION = "1.1.3"
+v_major, v_minor, v_patch = CURRENT_VERSION.split(".")
