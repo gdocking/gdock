@@ -10,7 +10,7 @@ from gdock.modules.geometry import Geometry
 from gdock.modules.scoring import Scoring
 from gdock.modules.initialize import Setup
 from gdock.modules.structure import PDB, Restraint
-from gdock.version import CURRENT_VERSION
+from gdock.version import version
 from gdock.modules.functions import random_quote
 
 ga_log = logging.getLogger("ga_log")
@@ -40,7 +40,7 @@ def main():
 
     start_time = datetime.datetime.now()
     ga_log.info(f"Starting at {start_time.ctime()}")
-    ga_log.info(f"Running {CURRENT_VERSION}")
+    ga_log.info(f"Running {version}")
 
     ga_log.info("Setting up simulation")
     s = Setup(args.input_file)
