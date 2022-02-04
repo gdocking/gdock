@@ -1,16 +1,16 @@
 [main]
-identifier = '2oob_example'
+identifier = '2oob_ensemble'
 number_of_processors = 4
 
 [ga]
-population_size = 1000
-max_number_of_generations = 50
+population_size = 25
+max_number_of_generations = 10
 
 [restraints]
 A = [933, 934, 937, 938, 946, 950]
 B = [6, 8, 44, 45, 46, 47, 48, 49, 68, 70]
 
 [molecules]
-A = 'data/2oob_r_u.pdb'
-B = 'data/2oob_l_u.pdb'
+A = 'data/2oob_r_u_clustenm5.pdb'
+B = 'data/2oob_l_u_clustenm5.pdb'
 native = 'data/2oob_complex_bound.pdb'

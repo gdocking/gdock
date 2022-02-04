@@ -11,28 +11,58 @@ warnings.filterwarnings("ignore", ".*Optimal rotation is not unique.*")
 ga_log = logging.getLogger("ga_log")
 
 
-class Geometry:
-    def __init__(self, input_data, restraint):
-        """Initialize the geometry class."""
-        self.receptor_coord = input_data.coords["A"]
-        self.receptor_pdb = input_data.raw_pdb["A"]
-        self.receptor_rest_coord = restraint.coords["A"]
-        self.begin_receptor = ""
-        self.ligand_coord = input_data.coords["B"]
-        self.ligand_pdb = input_data.raw_pdb["B"]
-        self.ligand_rest_coord = restraint.coords["B"]
-        self.begin_ligand = ""
+def translate(coords, point):
+    """Translation function."""
+    trans_coords = coords + point
+    return trans_coords
 
-    def calc_initial_position(self):
+
+def rotate(coords, rotation):
+    """Rotation function."""
+    center = coords.mean(axis=0)
+    coords -= center
+    rot = Rotation.from_euler("zyx", rotation)
+    r = np.array([rot.apply(e) for e in coords])
+    r += center
+    rotated_coords = r
+    return rotated_coords
+
+
+class Complex:
+    def __init__(
+        self,
+        identifier,
+        coords_i,
+        coords_j,
+        restraint_i,
+        restraint_j,
+        pdb_i,
+        pdb_j,
+        restraint_i_resnums,
+        restraint_j_resnums,
+    ):
+        self.id = identifier
+        self.coords_i = coords_i
+        self.coords_j = coords_j
+        self.restraint_i = restraint_i
+        self.restraint_j = restraint_j
+        self.pdb_i = pdb_i
+        self.pdb_j = pdb_j
+        self.restraint_i_resnums = restraint_i_resnums
+        self.restraint_j_resnums = restraint_j_resnums
+        # self.receptor = ""
+        # self.ligand = ""
+        self.structure = None
+
+    def position(self):
         """Position the molecules in the initial position."""
-        # calculate the geometric center of the molecule and of the restraints
+        # ga_log.info("Positioning molecules in starting conformation")
 
-        ga_log.info("Positioning molecules in starting conformation")
-        r_c = np.array(self.receptor_coord)
-        l_c = np.array(self.ligand_coord)
+        r_c = np.array(self.coords_i)
+        l_c = np.array(self.coords_j)
 
-        r_rest_c = np.array(self.receptor_rest_coord)
-        l_rest_c = np.array(self.ligand_rest_coord)
+        r_rest_c = np.array(self.restraint_i)
+        l_rest_c = np.array(self.restraint_j)
 
         r_center = r_c.mean(axis=0)
         l_center = l_c.mean(axis=0)
@@ -91,48 +121,68 @@ class Geometry:
         l_c += c
         l_rest_c += c
 
-        self.ligand_coord = l_c
-        self.receptor_coord = r_c
+        self.coords_j = l_c
+        self.coords_i = r_c
 
-    def apply_transformation(self):
-        """Apply transformations and place partners facing each other."""
-        ga_log.info("Applying transformations for initial position")
+        # ga_log.info("Applying transformations for initial position")
 
-        ga_log.debug("Applying transformation to the receptor")
-        for coord, line in zip(self.receptor_coord, self.receptor_pdb):
+        # ga_log.debug("Applying transformation to the receptor")
+        receptor = ""
+        for coord, line in zip(self.coords_i, self.pdb_i):
             if line.startswith("ATOM"):
                 new_x = f"{coord[0]:.3f}".rjust(7, " ")
                 new_y = f"{coord[1]:.3f}".rjust(7, " ")
                 new_z = f"{coord[2]:.3f}".rjust(7, " ")
                 new_line = f"{line[:30]} {new_x} {new_y} {new_z} {line[55:]}"
-                self.begin_receptor += new_line
+                receptor += new_line
 
-        ga_log.debug("Applying transformation to the ligand")
-        for coord, line in zip(self.ligand_coord, self.ligand_pdb):
+        # ga_log.debug("Applying transformation to the ligand")
+        ligand = ""
+        for coord, line in zip(self.coords_j, self.pdb_j):
             if line.startswith("ATOM"):
                 new_x = f"{coord[0]:.3f}".rjust(7, " ")
                 new_y = f"{coord[1]:.3f}".rjust(7, " ")
                 new_z = f"{coord[2]:.3f}".rjust(7, " ")
                 new_line = f"{line[:30]} {new_x} {new_y} {new_z} {line[55:]}"
-                self.begin_ligand += new_line
+                ligand += new_line
 
-        tidy_complex = tidy(self.begin_receptor + self.begin_ligand)
+        tidy_complex = tidy(receptor + ligand)
 
-        return tidy_complex
+        self.structure = tidy_complex
 
-    @staticmethod
-    def translate(coords, point):
-        """Translation function."""
-        trans_coords = coords + point
-        return trans_coords
+    def __repr__(self):
+        return f"Complex {self.id}"
 
-    @staticmethod
-    def rotate(coords, rotation):
-        """Rotation function."""
-        center = coords.mean(axis=0)
-        coords -= center
-        rot = Rotation.from_euler("zyx", rotation)
-        r = np.array([rot.apply(e) for e in coords])
-        r += center
-        rotated_coords = r
-        return rotated_coords
+
+class Geometry:
+    def __init__(self, input_data, restraints):
+        """Initialize the geometry class."""
+        self.input = input_data
+        self.restraints = restraints
+        self.complex_dic = {}
+
+    def prepare_initial_complexes(self):
+        """Put the complexes in their initial positions."""
+        # input_data.coord might have has multiple models, combine them all
+        complex_l = []
+        complex_counter = 1
+        for model_a in self.input.coords["A"]:
+            for model_b in self.input.coords["B"]:
+                complex = Complex(
+                    complex_counter,
+                    self.input.coords["A"][model_a],
+                    self.input.coords["B"][model_b],
+                    self.restraints.coords["A"][model_a],
+                    self.restraints.coords["B"][model_b],
+                    self.input.raw_pdb["A"][model_a],
+                    self.input.raw_pdb["B"][model_b],
+                    self.restraints.resnums["A"],
+                    self.restraints.resnums["B"],
+                )
+                complex.position()
+
+                complex_l.append(complex)
+
+                complex_counter += 1
+
+        return complex_l

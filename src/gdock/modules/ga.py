@@ -5,13 +5,15 @@ import os
 import random
 import sys
 from tempfile import NamedTemporaryFile
+from operator import attrgetter
 
 import numpy as np
 from deap import base, creator, tools
 
 from gdock.modules.fitness import calc_satisfaction
-from gdock.modules.geometry import Geometry
+from gdock.modules.geometry import rotate, translate
 from gdock.modules.functions import format_coords, summary
+from gdock.modules.error import GAError
 
 ga_log = logging.getLogger("ga_log")
 
@@ -23,8 +25,68 @@ creator.create("FitnessSingle", base.Fitness, weights=(+1.0,))
 creator.create("Individual", list, fitness=creator.FitnessSingle)
 
 
+# Custom GA functions
+# selTournament
+
+
+def select(individuals, k, tournsize):
+    """Select the best individual"""
+    # :param individuals: A list of individuals to select from.
+    # :param k: The number of individuals to select.
+    # :param tournsize: The number of individuals participating in each tournament.
+    # :param fit_attr: The attribute of individuals to use as selection criterion
+    # :returns: A list of selected individuals.
+
+    # This is based on DEAP's selTournament but we account for
+    #  the individuals being tuples
+    chosen = []
+    for i in range(k):
+        # randomly pick 3
+        aspirants = tools.selRandom(individuals, tournsize)
+        # select the best of these 3
+        sub_l = [(e, e[1].fitness) for e in aspirants]
+        sub_l.sort(key=lambda x: x[1])
+        best = sub_l[0][0]
+        chosen.append(best)
+    return chosen
+
+
+def generate_individual():
+    """Generates the individual."""
+    ind = [
+        random.randint(0, 360),  # nosec
+        random.randint(0, 360),
+        random.randint(0, 360),
+        random.randint(-5, 5),
+        random.randint(-5, 5),
+        random.randint(-5, 5),
+    ]
+
+    return ind
+
+
+def generate_population(func, structure_dictionary, pop_size):
+    """Generate the population."""
+    population = []
+
+    total_complexes = len(structure_dictionary)
+    if pop_size < total_complexes:
+        raise GAError(
+            f"Population size={pop_size} which is smaller then the number of pioneers={total_complexes}"
+        )
+
+    # each complex will be sampled a few times depending on the pop_size
+    factor = int(pop_size / total_complexes)
+
+    for pioneer in structure_dictionary:
+        for _ in range(factor):
+            population.append((pioneer, func()))
+
+    return population
+
+
 class GeneticAlgorithm:
-    def __init__(self, pioneer, run_params, ga_params):
+    def __init__(self, pioneers, run_params, ga_params):
         """Initialize GeneticAlgorithm class."""
         self.random_seed = ga_params["parameters"]["random_seed"]
         self.run_params = run_params
@@ -39,20 +101,27 @@ class GeneticAlgorithm:
         self.conv_counter = ga_params["parameters"]["convergence_cutoff"]
         self.toolbox = None
         self.generation_dic = {}
-        self.pioneer_dic = {}
-        for line in pioneer.split("\n"):
-            if line.startswith("ATOM"):
-                chain = line[21]
-                x = float(line[31:38])
-                y = float(line[39:46])
-                z = float(line[47:54])
-                if chain not in self.pioneer_dic:
-                    self.pioneer_dic[chain] = {"coord": [], "raw": []}
-                self.pioneer_dic[chain]["coord"].append((x, y, z))
-                self.pioneer_dic[chain]["raw"].append(line)
-        # TODO: find a better way of assigning chains here
-        self.pioneer_dic["A"]["restraints"] = run_params["restraints_a"]
-        self.pioneer_dic["B"]["restraints"] = run_params["restraints_b"]
+
+        if self.popsize < len(pioneers):
+            raise GAError(
+                f"Population size={self.popsize} is smaller than the number of pioneers={len(pioneers)}"
+            )
+        factor = int(self.popsize / len(pioneers))
+        self.pioneers = pioneers * factor
+        # self.pioneer_dic = {}
+        # for line in pioneer.split("\n"):
+        #     if line.startswith("ATOM"):
+        #         chain = line[21]
+        #         x = float(line[31:38])
+        #         y = float(line[39:46])
+        #         z = float(line[47:54])
+        #         if chain not in self.pioneer_dic:
+        #             self.pioneer_dic[chain] = {"coord": [], "raw": []}
+        #         self.pioneer_dic[chain]["coord"].append((x, y, z))
+        #         self.pioneer_dic[chain]["raw"].append(line)
+        # # TODO: find a better way of assigning chains here
+        # self.pioneer_dic["A"]["restraints"] = run_params["restraints_a"]
+        # self.pioneer_dic["B"]["restraints"] = run_params["restraints_b"]
 
     def setup(self):
         """Setup the genetic algorithm."""
@@ -63,7 +132,7 @@ class GeneticAlgorithm:
         # Individual and population functions
         ga_log.debug("Creating the individual and population functions")
         toolbox = base.Toolbox()
-        toolbox.register("attr", self.generate_individual)
+        toolbox.register("attr", generate_individual)
         toolbox.register(
             "individual", tools.initIterate, creator.Individual, toolbox.attr
         )
@@ -89,7 +158,8 @@ class GeneticAlgorithm:
 
         toolbox.register("select", tools.selTournament, tournsize=3)
 
-        toolbox.register("evaluate", self.fitness_function, self.pioneer_dic)
+        # toolbox.register("evaluate", self.fitness_function, self.pioneer_dic)
+        toolbox.register("evaluate", self.fitness_function, self.pioneers)
 
         self.toolbox = toolbox
 
@@ -140,11 +210,14 @@ class GeneticAlgorithm:
             #
             # uncoment below to debug the fitness function
             #
-            # self.fitness_function(self.pioneer_dic, offspring[0])
+            # self.fitness_function(self.pioneers, (0, offspring[0]))
             #
             # =====
             # evaluate only the mutated and crossed
-            invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+            # invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+            invalid_ind = [
+                (id, ind) for id, ind in enumerate(offspring) if not ind.fitness.valid
+            ]
             try:
                 fitnesses = self.toolbox.map(self.toolbox.evaluate, invalid_ind)
             except Exception as e:
@@ -153,7 +226,7 @@ class GeneticAlgorithm:
                 sys.exit()
 
             for ind, fit in zip(invalid_ind, fitnesses):
-                ind.fitness.values = fit  # , fit
+                ind[1].fitness.values = fit  # , fit
 
             # replace the old population by the offspring
             pop[:] = offspring
@@ -228,22 +301,33 @@ class GeneticAlgorithm:
         return self.generation_dic
 
     @staticmethod
-    def fitness_function(pdb_dic, individual):
+    def fitness_function(pioneers, element):
         """Calculate the fitness of an individual."""
-        # use the chromossome and create the structure!
+        # fun fact: if you do not use deepcopy here, the fitness will depend on the number of processors
+        #  since we are using a shared data structure
+        ident, individual = element
+        _pioneers = copy.deepcopy(pioneers)
+        pioneer = _pioneers[ident - 1]
+        individual_dic = {}
+        for line in pioneer.structure.split("\n"):
+            if line.startswith("ATOM"):
+                chain = line[21]
+                x = float(line[31:38])
+                y = float(line[39:46])
+                z = float(line[47:54])
+                if chain not in individual_dic:
+                    individual_dic[chain] = {"coord": [], "raw": []}
+                individual_dic[chain]["coord"].append((x, y, z))
+                individual_dic[chain]["raw"].append(line)
 
-        # fun fact: if you do not use deepcopy here,
-        #  the fitness will depend on the number of processors
-        #  since pdb_dic is a shared data structure
-        individual_dic = copy.deepcopy(pdb_dic)
         individual_str = " ".join([f"{j:.2f}" for j in individual])
         c = np.array(individual_dic["B"]["coord"])
 
         translation_center = individual[3:]
         rotation_angles = individual[:3]
 
-        translated_coords = Geometry.translate(c, translation_center)
-        rotated_coords = Geometry.rotate(translated_coords, rotation_angles)
+        translated_coords = translate(c, translation_center)
+        rotated_coords = rotate(translated_coords, rotation_angles)
 
         individual_dic["B"]["coord"] = list(rotated_coords)
 
@@ -266,8 +350,10 @@ class GeneticAlgorithm:
         # energy = run_dcomplex(pdb.name)
         satisfaction = calc_satisfaction(
             pdb.name,
-            individual_dic["A"]["restraints"],
-            individual_dic["B"]["restraints"],
+            pioneer.restraint_i_resnums,
+            pioneer.restraint_j_resnums,
+            # individual_dic["A"]["restraints"],
+            # individual_dic["B"]["restraints"],
         )
         # ================================#
 
@@ -278,20 +364,6 @@ class GeneticAlgorithm:
         ga_log.debug(f"{individual_str} {satisfaction:.2f} {pdb.name}")
         # this must (?) be a list: github.com/DEAP/deap/issues/256
         return [satisfaction]
-
-    @staticmethod
-    def generate_individual():
-        """Generates the individual."""
-        ind = [
-            random.randint(0, 360),  # nosec
-            random.randint(0, 360),
-            random.randint(0, 360),
-            random.randint(-5, 5),
-            random.randint(-5, 5),
-            random.randint(-5, 5),
-        ]
-
-        return ind
 
     def _generate_epoch(self):
         """Read information from simulation and generate structures."""
@@ -316,7 +388,7 @@ class GeneticAlgorithm:
                     self.generation_dic[gen][idx]["clone"] = None
 
                     pool.apply_async(
-                        self._recreate, args=(self.pioneer_dic, individual, pdb_name)
+                        self._recreate, args=(self.pioneers[idx], individual, pdb_name)
                     )
                 else:
                     # this is a clone, discard it
@@ -331,28 +403,32 @@ class GeneticAlgorithm:
         ga_log.debug(f"{clone_counter} clones were found")
 
     @staticmethod
-    def _recreate(input_structure_dic, individual, pdb_name):
+    def _recreate(complex, individual, pdb_name):
         """Use the chromossome information and create the structure."""
-        input_dic = copy.deepcopy(input_structure_dic)
-        c = np.array(input_dic["B"]["coord"])
+        # input_dic = copy.deepcopy(complex)
+        _complex = copy.deepcopy(complex)
+        # c = np.array(input_dic["B"]["coord"])
+        c = _complex.coords_j
 
         translation_center = individual[3:]
         rotation_angles = individual[:3]
 
-        translated_coords = Geometry.translate(c, translation_center)
-        rotated_coords = Geometry.rotate(translated_coords, rotation_angles)
+        translated_coords = translate(c, translation_center)
+        rotated_coords = rotate(translated_coords, rotation_angles)
 
-        input_dic["B"]["coord"] = list(rotated_coords)
+        # input_dic["B"]["coord"] = list(rotated_coords)
+        _complex.coords_j = list(rotated_coords)
 
         with open(pdb_name, "w") as fh:
-            for chain in input_dic:
-                coord_l = input_dic[chain]["coord"]
-                raw_l = input_dic[chain]["raw"]
-                for coord, line in zip(coord_l, raw_l):
-                    new_x, new_y, new_z = format_coords(coord)
-                    new_line = (
-                        f"{line[:30]} {new_x} {new_y} {new_z}"
-                        f" {line[55:]}" + os.linesep
-                    )
-                    fh.write(new_line)
-        fh.close()
+            for coord, line in zip(_complex.coords_i, _complex.pdb_i):
+                new_x, new_y, new_z = format_coords(coord)
+                new_line = (
+                    f"{line[:30]} {new_x} {new_y} {new_z}" f" {line[55:]}" + os.linesep
+                )
+                fh.write(new_line)
+            for coord, line in zip(_complex.coords_j, _complex.pdb_j):
+                new_x, new_y, new_z = format_coords(coord)
+                new_line = (
+                    f"{line[:30]} {new_x} {new_y} {new_z}" f" {line[55:]}" + os.linesep
+                )
+                fh.write(new_line)

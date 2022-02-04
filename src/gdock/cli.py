@@ -30,13 +30,13 @@ def main():
     parser.add_argument("--dry", dest="dry", action="store_true", default=False)
     args = parser.parse_args()
     author, quote = random_quote()
-    print("==================================================================")
-    print("#                      Welcome to gdock!                          ")
-    print("#")
-    print(f'# "{quote}"')
-    print(f"#   -{author}")
-    print("#")
-    print("==================================================================")
+    ga_log.info("==================================================================")
+    ga_log.info("#                      Welcome to gdock!                          ")
+    ga_log.info("#")
+    ga_log.info(f'# "{quote}"')
+    ga_log.info(f"#   -{author}")
+    ga_log.info("#")
+    ga_log.info("==================================================================")
 
     start_time = datetime.datetime.now()
     ga_log.info(f"Starting at {start_time.ctime()}")
@@ -63,12 +63,11 @@ def main():
     # 3. Position
     ga_log.info("Loading Geometry module")
     geo = Geometry(input_molecules, restraints)
-    geo.calc_initial_position()
-    initial_complex = geo.apply_transformation()
+    initial_complexes = geo.prepare_initial_complexes()
 
     # 4. Run GA
     ga_log.info("Loading Genetic Algorithm module")
-    ga = GeneticAlgorithm(initial_complex, run_params, ga_params)
+    ga = GeneticAlgorithm(initial_complexes, run_params, ga_params)
     ga.setup()
     results = ga.run()
 

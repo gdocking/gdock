@@ -40,3 +40,25 @@ class SectionNotDefinedError(Error):
 
     def __str__(self):
         return f"{self.message} {self.section_name}"
+
+
+class PDBError(Error):
+    """Raised when there is something wrong with the PDB."""
+
+    def __init__(self, message=""):
+        self.message = message
+        super().__init__(self.message)
+
+    def __str__(self):
+        return f"Something is wrong with your PDB: {self.message}"
+
+
+class GAError(Error):
+    """Raised when there is something wrong with the GA execution."""
+
+    def __init__(self, message=""):
+        self.message = message
+        super().__init__(self.message)
+
+    def __str__(self):
+        return f"Error during GA execution: {self.message}"
