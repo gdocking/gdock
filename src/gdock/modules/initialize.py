@@ -85,7 +85,7 @@ class Setup:
             if native:
                 ga_log.debug(f"Copying {native}")
                 shutil.copy(native, input_folder)
-                izone = native.replace(".pdb", ".izone")
+                izone = native.with_suffix(".izone")
                 izone = pathlib.Path(izone)
                 if izone.exists():
                     shutil.copy(izone, input_folder)

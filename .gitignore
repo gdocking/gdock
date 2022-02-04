@@ -153,7 +153,7 @@ cython_debug/
 # Project-related stuff
 .coverage
 benchmark/*/
-example/dev
+example/2oob_*
 tests/test_data/setup.toml
 tests/dummy_f
 tests/test_data/clustering/*.contacts
