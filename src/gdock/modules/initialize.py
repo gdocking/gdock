@@ -45,7 +45,7 @@ class Setup:
 
         run_params = {}
         identifier_folder = self.input_params["main"]["identifier"]
-        run_path = f"{os.getcwd()}/{identifier_folder}"
+        run_path = Path(Path.cwd(), identifier_folder)
         ga_log.info("Initializing")
 
         ga_log.info("Checking for dependencies")
@@ -58,28 +58,28 @@ class Setup:
         ga_log.debug(f"Run path: {run_path}")
         ga_log.debug(f"Run folder: {identifier_folder}")
 
-        if os.path.isdir(identifier_folder):
-            ga_log.warning(f"Your run folder {identifier_folder}" " will be deleted!")
-            shutil.rmtree(identifier_folder)
+        if run_path.exists():
+            ga_log.warning(f"Your run folder {run_path}" " will be deleted!")
+            shutil.rmtree(run_path)
 
-        os.mkdir(identifier_folder)
+        run_path.mkdir()
 
-        mol_a = self.input_params["molecules"]["A"]
-        mol_a_name = mol_a.split("/")[-1]
-        mol_b = self.input_params["molecules"]["B"]
-        mol_b_name = mol_b.split("/")[-1]
+        mol_a = Path(self.input_params["molecules"]["A"]).resolve()
+        mol_b = Path(self.input_params["molecules"]["B"]).resolve()
         if "native" in self.input_params["molecules"]:
-            native = self.input_params["molecules"]["native"]
+            native = Path(self.input_params["molecules"]["native"]).resolve()
         else:
             native = ""
-        input_folder = f"{identifier_folder}/input"
+        input_folder = Path(run_path, "input")
 
         ga_log.info("Copying input molecules to run folder")
         if not os.path.isdir(input_folder):
             ga_log.debug(f"Creating input folder: {input_folder}")
-            os.mkdir(input_folder)
+            input_folder.mkdir()
+
             ga_log.debug(f"Copying {mol_a}")
             shutil.copy(mol_a, input_folder)
+
             ga_log.debug(f"Copying {mol_b}")
             shutil.copy(mol_b, input_folder)
             if native:
@@ -90,21 +90,21 @@ class Setup:
                 if izone.exists():
                     shutil.copy(izone, input_folder)
 
-        analysis_folder = f"{identifier_folder}/analysis"
-        if not os.path.isdir(analysis_folder):
+        analysis_folder = Path(run_path, "analysis")
+        if not analysis_folder.exists():
             ga_log.debug(f"Creating analysis folder {analysis_folder}")
-            os.mkdir(analysis_folder)
+            analysis_folder.mkdir()
 
-        structures_folder = f"{identifier_folder}/structures"
-        if not os.path.isdir(structures_folder):
+        structures_folder = Path(run_path, "structures")
+        if not structures_folder.exists():
             ga_log.debug(f"Creating structures folder {structures_folder}")
-            os.mkdir(structures_folder)
+            structures_folder.mkdir()
 
-        run_params["folder"] = run_path
-        run_params["mol_a"] = f"{run_path}/input/{mol_a_name}"
-        run_params["mol_b"] = f"{run_path}/input/{mol_b_name}"
+        run_params["folder"] = str(run_path)
+        run_params["mol_a"] = str(Path(input_folder, mol_a.name))
+        run_params["mol_b"] = str(Path(input_folder, mol_b.name))
         if native:
-            run_params["native"] = f"{run_path}/input/{native}"
+            run_params["native"] = str(Path(input_folder, native.name))
         run_params["restraints_a"] = self.input_params["restraints"]["A"]
         run_params["restraints_b"] = self.input_params["restraints"]["B"]
         run_params["np"] = self.input_params["main"]["number_of_processors"]
