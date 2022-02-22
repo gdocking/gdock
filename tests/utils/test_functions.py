@@ -4,7 +4,7 @@ import tempfile
 import unittest
 
 from gdock.modules.files import get_full_path
-from gdock.modules.functions import du, format_coords, summary, tidy
+from gdock.modules.functions import du, format_coords, summary, tidy, is_protein
 
 data_folder = get_full_path("tests", "test_data")
 
@@ -86,3 +86,8 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(round(observed_dic["std"], 2), 36.17)
         self.assertEqual(observed_dic["min"], 1)
         self.assertEqual(observed_dic["max"], 100)
+
+    def test_is_protein(self):
+        self.assertFalse(is_protein(f"{data_folder}/atom-hetatm.pdb"))
+        self.assertTrue(is_protein(f"{data_folder}/molA.pdb"))
+        self.assertTrue(is_protein(f"{data_folder}/complex.pdb"))
