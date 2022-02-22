@@ -19,7 +19,7 @@ from gdock.modules.error import (
     SectionNotDefinedError,
 )
 from gdock.modules.files import get_full_path
-from gdock.modules.functions import du
+from gdock.modules.functions import du, is_protein
 
 ga_log = logging.getLogger("ga_log")
 
@@ -64,29 +64,40 @@ class Setup:
 
         os.mkdir(identifier_folder)
 
-        mol_a = self.input_params["molecules"]["A"]
-        mol_a_name = mol_a.split("/")[-1]
-        mol_b = self.input_params["molecules"]["B"]
-        mol_b_name = mol_b.split("/")[-1]
+        mol_a = Path(self.input_params["molecules"]["A"]).resolve()
+        mol_b = Path(self.input_params["molecules"]["B"]).resolve()
+
+        if not is_protein(mol_a) or not is_protein(mol_b):
+            _msg = "Your input is not (only) protein."
+            ga_log.error(_msg)
+            sys.exit()
+
         if "native" in self.input_params["molecules"]:
-            native = self.input_params["molecules"]["native"]
+            native = Path(self.input_params["molecules"]["native"]).resolve()
         else:
             native = ""
+
         input_folder = f"{identifier_folder}/input"
 
         ga_log.info("Copying input molecules to run folder")
         if not os.path.isdir(input_folder):
             ga_log.debug(f"Creating input folder: {input_folder}")
             os.mkdir(input_folder)
-            ga_log.debug(f"Copying {mol_a}")
+
+            ga_log.debug(f"Copying {mol_a.name}")
             shutil.copy(mol_a, input_folder)
-            ga_log.debug(f"Copying {mol_b}")
+
+            ga_log.debug(f"Copying {mol_b.name}")
             shutil.copy(mol_b, input_folder)
+
             if native:
-                ga_log.debug(f"Copying {native}")
+                ga_log.debug(f"Copying {native.name}")
+
                 shutil.copy(native, input_folder)
-                izone = native.replace(".pdb", ".izone")
+
+                izone = native.with_suffix(".izone")
                 izone = pathlib.Path(izone)
+
                 if izone.exists():
                     shutil.copy(izone, input_folder)
 
@@ -101,10 +112,10 @@ class Setup:
             os.mkdir(structures_folder)
 
         run_params["folder"] = run_path
-        run_params["mol_a"] = f"{run_path}/input/{mol_a_name}"
-        run_params["mol_b"] = f"{run_path}/input/{mol_b_name}"
+        run_params["mol_a"] = f"{run_path}/input/{mol_a.name}"
+        run_params["mol_b"] = f"{run_path}/input/{mol_b.name}"
         if native:
-            run_params["native"] = f"{run_path}/input/{native}"
+            run_params["native"] = f"{run_path}/input/{native.name}"
         run_params["restraints_a"] = self.input_params["restraints"]["A"]
         run_params["restraints_b"] = self.input_params["restraints"]["B"]
         run_params["np"] = self.input_params["main"]["number_of_processors"]
