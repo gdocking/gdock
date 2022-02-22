@@ -12,6 +12,30 @@ from gdock.modules.files import get_full_path
 ga_log = logging.getLogger("ga_log")
 
 
+AA = [
+    "ALA",
+    "ARG",
+    "ASP",
+    "ASN",
+    "CYS",
+    "GLU",
+    "GLN",
+    "GLY",
+    "HIS",
+    "ILE",
+    "LEU",
+    "LYS",
+    "MET",
+    "PHE",
+    "PRO",
+    "SER",
+    "THR",
+    "TRP",
+    "TYR",
+    "VAL",
+]
+
+
 def tidy(pdb_str):
     """Tidy PDB using pdbtools pdb_tidy."""
     input_pdb = tempfile.NamedTemporaryFile(delete=False, suffix=".pdb")
@@ -86,6 +110,19 @@ def summary(value_list):
     max_v = max(value_list)
     min_v = min(value_list)
     return {"mean": mean, "std": std, "max": max_v, "min": min_v}
+
+
+def is_protein(file_path):
+    """Check if a file is a protein."""
+    with open(file_path, "r") as fh:
+        for line in fh.readlines():
+            if line.startswith("ATOM"):
+                resname = line[17:20].strip()
+                if resname not in AA:
+                    return False
+            if line.startswith("HETATM"):
+                return False
+    return True
 
 
 # ======
