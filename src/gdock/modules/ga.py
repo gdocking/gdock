@@ -99,6 +99,7 @@ class GeneticAlgorithm:
 
         ga_log.debug("Creating the multiprocessing pool")
         pool = multiprocessing.Pool(processes=self.nproc)
+        ga_log.info(f"Running with {self.nproc} processors")
         self.toolbox.register("map", pool.map)
 
         ga_log.info(f"Your random seed is: {self.random_seed}")
