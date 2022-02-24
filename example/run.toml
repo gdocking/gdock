@@ -3,8 +3,8 @@ identifier = 'dev'
 number_of_processors = 4
 
 [ga]
-population_size = 10
-max_number_of_generations = 10
+population_size = 1000
+max_number_of_generations = 100
 
 [restraints]
 A = [933, 934, 937, 938, 946, 950]
