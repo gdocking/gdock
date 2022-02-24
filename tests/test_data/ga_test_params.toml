@@ -14,5 +14,4 @@ eta = 0.6
 indpb = 0.2
 
 [parameters]
-random_seed        = 42
 convergence_cutoff = 3

@@ -9,6 +9,7 @@ import shutil
 import subprocess  # nosec
 import sys
 import tempfile
+import random
 from pathlib import Path
 
 import mgzip
@@ -119,6 +120,14 @@ class Setup:
         run_params["restraints_a"] = self.input_params["restraints"]["A"]
         run_params["restraints_b"] = self.input_params["restraints"]["B"]
         run_params["np"] = self.input_params["main"]["number_of_processors"]
+
+        # set the random seed
+        if "random_seed" in self.input_params["main"]:
+            random_seed = self.input_params["main"]["random_seed"]
+        else:
+            random_seed = random.randint(100, 999)
+        
+        ga_params["parameters"]["random_seed"] = random_seed
 
         return run_params, ga_params
 
