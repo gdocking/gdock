@@ -19,6 +19,19 @@ from fccpy.similarity import fcc as FCC_METRIC
 
 from gdock.modules.profit import Profit
 
+import pandas as pd
+import seaborn as sns
+
+
+import matplotlib.pyplot as plt
+import matplotlib
+
+matplotlib.use("Agg")
+plt.rcParams["font.family"] = "serif"
+
+import pandas as pd
+
+
 ga_log = logging.getLogger("ga_log")
 
 
@@ -153,7 +166,7 @@ class Analysis:
     def output(self):
         """Generate a script friendly output table."""
         output_f = f"{self.analysis_path}/gdock.dat"
-        ga_log.info(f"Saving output file to {output_f}")
+        ga_log.info(f"Saving output file to {Path(output_f).name}")
 
         sep = "\t"
         header = "gen" + sep
@@ -217,7 +230,7 @@ class Analysis:
                     output_str += f"{irmsd:.2f}" + sep
                     output_str += f"{cluster_id}" + sep
                     output_str += f"{internal_ranking}" + sep
-                    output_str += f"{structure}" + os.linesep
+                    output_str += f"{model}" + os.linesep
                     ga_log.debug(output_str)
 
                     if not math.isnan(ranking):
@@ -225,3 +238,78 @@ class Analysis:
                         fh.write(output_str)
 
         fh.close()
+
+        ga_log.info("Generating plots")
+        try:
+            self.generate_plots(output_f)
+        except Exception as e:
+            ga_log.debug(e)
+            ga_log.warning("Could not generate plots")
+
+    @staticmethod
+    def generate_plots(data_f):
+        """Generate relevant plots for the data."""
+        import warnings
+
+        warnings.filterwarnings("ignore")
+        sns.set_context("talk")
+        df = pd.read_csv(data_f, sep="\t")
+        path = Path(data_f).parent
+        kde_outf = Path(path, "kde")
+        ridge_outf = Path(path, "ridge")
+
+        # Generate ridgeplot
+        sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
+        sub_df = df[["gen", "fitness"]]
+
+        n_gen = len(set(sub_df["gen"]))
+        pal = sns.cubehelix_palette(n_gen)
+        g = sns.FacetGrid(
+            sub_df, row="gen", hue="gen", aspect=15, height=0.5, palette=pal
+        )
+        g.map(
+            sns.kdeplot,
+            "fitness",
+            bw_adjust=0.5,
+            clip_on=False,
+            fill=True,
+            alpha=1,
+            linewidth=1.5,
+        )
+
+        g.map(sns.kdeplot, "fitness", clip_on=False, color="w", lw=2, bw_adjust=0.5)
+        g.refline(y=0, linewidth=2, linestyle="-", color=None, clip_on=False)
+
+        def label(x, color, label):
+            ax = plt.gca()
+            ax.text(
+                0,
+                0.2,
+                label,
+                fontweight="bold",
+                color=color,
+                ha="left",
+                va="center",
+                transform=ax.transAxes,
+            )
+
+        g.map(label, "fitness")
+        g.figure.subplots_adjust(hspace=-0.25)
+        g.set_titles("")
+        g.set(yticks=[], ylabel="")
+        g.despine(bottom=True, left=True)
+        g.fig.subplots_adjust(top=0.9)
+        g.fig.suptitle("Convergence of fitness over generations")
+        g.savefig(ridge_outf.with_suffix(".png"), dpi=300)
+        g.savefig(ridge_outf.with_suffix(".svg"))
+
+        # Generate KDE plots
+        sns.set_style("white")
+        g = sns.jointplot(
+            data=df, x="energy", y="fitness", kind="kde", color="r", n_levels=5
+        )
+        g.fig.subplots_adjust(top=0.9)
+        g.fig.suptitle("Fitness x Energy distributions")
+        g.fig.tight_layout()
+        g.savefig(kde_outf.with_suffix(".png"), dpi=300)
+        g.savefig(kde_outf.with_suffix(".svg"))
