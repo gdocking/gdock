@@ -11,7 +11,6 @@ from gdock.modules.files import get_full_path
 
 data_folder = get_full_path("tests", "test_data")
 
-
 class TestGeneticAlgorithm(unittest.TestCase):
     def setUp(self):
         pioneer_pdb = f"{data_folder}/tidy_transformed.pdb"
@@ -19,7 +18,7 @@ class TestGeneticAlgorithm(unittest.TestCase):
             test_pioneer = "".join(fh.readlines())
         fh.close()
         test_ga_params = toml.load(f"{data_folder}/ga_test_params.toml")
-        random.seed(test_ga_params["parameters"]["random_seed"])
+        test_ga_params["parameters"]["random_seed"] = 42
 
         toml_string = "[main]" + os.linesep
         toml_string += "identifier = 'setup'" + os.linesep
@@ -72,6 +71,7 @@ class TestGeneticAlgorithm(unittest.TestCase):
         self.assertEqual(observed_fitness_l, expected_fitness_l)
 
     def test_generate_individual(self):
+        random.seed(42)
         observed_individual = self.GeneticAlgorithm.generate_individual()
         expected_individual = [327, 57, 12, -1, -2, -2]
         self.assertEqual(observed_individual, expected_individual)
