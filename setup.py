@@ -29,6 +29,8 @@ setup(
         "deap==1.3.1",
         "mgzip",
         "pdb-tools>=2.4.1",
+        "seaborn",
+        "mergedeep"
     ],
     entry_points={
         "console_scripts": [

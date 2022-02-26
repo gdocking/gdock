@@ -1,16 +1,19 @@
 import configparser
 import os
 import unittest
+from pathlib import Path
 
-from gdock.modules.scoring import Scoring
+import toml
 from gdock.modules.files import get_full_path
+from gdock.modules.scoring import Scoring
 
 etc_folder = get_full_path("etc")
 ini = configparser.ConfigParser(os.environ)
 ini.read(os.path.join(etc_folder, "gdock.ini"), encoding="utf-8")
 dcomplex_exe = ini.get("third_party", "dcomplex_exe")
 
-data_folder = get_full_path("tests", "test_data")
+DATA_FOLDER = get_full_path("tests", "test_data")
+ETC_FOLDER = get_full_path("etc")
 
 
 class TestScoring(unittest.TestCase):
@@ -20,13 +23,14 @@ class TestScoring(unittest.TestCase):
                 0: {
                     "individual": [327, 57, 12, -1, -2, -2],
                     "fitness": (0.33,),
-                    "structure": f"{data_folder}/0001_0000.pdb",
+                    "structure": f"{DATA_FOLDER}/0001_0000.pdb",
                     "clone": None,
                 }
             }
         }
-        run_params = {"np": 1}
-        self.Scoring = Scoring(data_dic, run_params)
+        params = toml.load(Path(ETC_FOLDER, "params.toml"))
+        params["main"]["number_of_processors"] = 1
+        self.Scoring = Scoring(data_dic, params)
 
     def test_score(self):
         observed_scored_dic = self.Scoring.score()

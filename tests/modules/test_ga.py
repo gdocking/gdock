@@ -3,41 +3,42 @@ import random
 import unittest
 from tempfile import NamedTemporaryFile
 
-import toml
-
+from gdock.modules.files import get_full_path
 from gdock.modules.ga import GeneticAlgorithm
 from gdock.modules.initialize import Setup
-from gdock.modules.files import get_full_path
 
-data_folder = get_full_path("tests", "test_data")
+DATA_FOLDER = get_full_path("tests", "test_data")
+ETC_FOLDER = get_full_path("etc")
+
 
 class TestGeneticAlgorithm(unittest.TestCase):
     def setUp(self):
-        pioneer_pdb = f"{data_folder}/tidy_transformed.pdb"
+        pioneer_pdb = f"{DATA_FOLDER}/tidy_transformed.pdb"
         with open(pioneer_pdb) as fh:
             test_pioneer = "".join(fh.readlines())
         fh.close()
-        test_ga_params = toml.load(f"{data_folder}/ga_test_params.toml")
-        test_ga_params["parameters"]["random_seed"] = 42
 
+        # This could be in a file, but keep it here for "practical" reasons
         toml_string = "[main]" + os.linesep
         toml_string += "identifier = 'setup'" + os.linesep
         toml_string += "number_of_processors = 1" + os.linesep
+        toml_string += "random_seed = 42" + os.linesep
+        toml_string += "[ga]" + os.linesep
+        toml_string += "population_size = 1" + os.linesep
+        toml_string += "max_number_of_generations = 1" + os.linesep
         toml_string += "[restraints]" + os.linesep
         toml_string += "A = [39,40,41]" + os.linesep
         toml_string += "B = [4,5,6]" + os.linesep
         toml_string += "[molecules]" + os.linesep
-        toml_string += f"A = '{data_folder}/molA.pdb'" + os.linesep
-        toml_string += f"B = '{data_folder}/molB.pdb'" + os.linesep
+        toml_string += f"A = '{DATA_FOLDER}/molA.pdb'" + os.linesep
+        toml_string += f"B = '{DATA_FOLDER}/molB.pdb'" + os.linesep
 
         test_param_f = NamedTemporaryFile(delete=False, suffix=".toml")
         test_param_f.write(str.encode(toml_string))
         test_param_f.close()
-        test_run_params, _ = Setup(test_param_f.name).initialize()
+        test_run_params = Setup(test_param_f.name).initialize()
 
-        self.GeneticAlgorithm = GeneticAlgorithm(
-            test_pioneer, test_run_params, test_ga_params
-        )
+        self.GeneticAlgorithm = GeneticAlgorithm(test_pioneer, test_run_params)
         self.GeneticAlgorithm.setup()
 
     def test_setup(self):
@@ -82,7 +83,7 @@ class TestGeneticAlgorithm(unittest.TestCase):
     def test__recreate(self):
         input_strct_dic = self.GeneticAlgorithm.pioneer_dic
         individual = [327, 57, 12, -1, -2, -2]
-        name = f"{data_folder}/temp.pdb"
+        name = f"{DATA_FOLDER}/temp.pdb"
 
         self.GeneticAlgorithm._recreate(input_strct_dic, individual, name)
 

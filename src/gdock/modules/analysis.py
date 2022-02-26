@@ -31,16 +31,20 @@ ga_log = logging.getLogger("ga_log")
 
 
 class Analysis:
-    def __init__(self, result_dic, run_params):
+    def __init__(self, result_dic, params):
         """Setup the analysis class."""
         self.result_dic = result_dic
-        self.analysis_path = f"{run_params['folder']}/analysis"
-        if "native" in run_params:
-            self.native = run_params["native"]
+        self.analysis_path = f"{params['folder']}/analysis"
+        if "native" in params:
+            self.native = params["native"]
         else:
             self.native = ""
-        self.nproc = run_params["np"]
+        self.nproc = params["main"]["number_of_processors"]
         self.structure_list = self.get_structures(result_dic)
+        self.clust_cutoff = params["analysis"]["clust_cutoff"]
+        self.clust_min_size = params["analysis"]["clust_min_size"]
+        self.clust_n = params["analysis"]["clust_n"]
+        self.contact_cutoff = params["analysis"]["contact_cutoff"]
         self.cluster_dic = {}
         self.irmsd_dic = {}
 
@@ -63,22 +67,21 @@ class Analysis:
         structure_l = [e[0] for e in sorted_structure_score_l]
         return structure_l
 
-    @staticmethod
-    def calc_contact(pdb_f, cutoff=5.0):
+    def calc_contact(self, pdb_f):
         """Calculate the intra-molecular contacts."""
         contact_f = Path(pdb_f.replace(".pdb", ".contacts"))
         s = read_pdb(pdb_f)
-        clist = get_intermolecular_contacts(s, cutoff)
+        clist = get_intermolecular_contacts(s, self.contact_cutoff)
         write_contacts(clist, contact_f)
         if os.path.isfile(contact_f):
             return contact_f
         else:
             return ""
 
-    def cluster(self, cutoff=0.75, min_size=4, top=1000):
+    def cluster(self):
         """Use FCC to cluster structures."""
-        ga_log.info("FCC - Calculating contacts")
-        input_structure_l = self.structure_list[:top]
+        ga_log.info(f"[FCC] Calculating contacts cutoff={self.contact_cutoff}A")
+        input_structure_l = self.structure_list[: self.clust_n]
         for pdb in input_structure_l:
             self.calc_contact(pdb)
 
@@ -92,7 +95,7 @@ class Analysis:
             ga_log.warning("No contacts were calculated")
 
         # Calculate matrix
-        ga_log.info("FCC - Calculating matrix")
+        ga_log.info("[FCC] Calculating matrix")
 
         clist = [list(read_contacts(f)) for f in contact_file_l]
         selector1 = selector2 = BY_RESIDUE
@@ -101,8 +104,13 @@ class Analysis:
             hash_many(c, unique=unique, selector1=selector1, selector2=selector2)
             for c in clist
         ]
-
-        idxs, sims = build_matrix(clist_hashed, metric=FCC_METRIC)
+        try:
+            idxs, sims = build_matrix(clist_hashed, metric=FCC_METRIC)
+        except ZeroDivisionError:
+            # Could not built the matrix
+            # TODO: check FCC to find out why this happens
+            ga_log.warning("Could not build the matrix, skipping clustering.")
+            return {}
 
         # TODO: Implement a way to re-read the matrix in case its already there
         # idxs, sims = read_matrix(fcc_matrix_f)
@@ -111,11 +119,16 @@ class Analysis:
         write_matrix(idxs, sims, fcc_matrix_f)
 
         # cluster
-        ga_log.info("FCC - Clustering")
-        labels = DTB_ALGO(idxs, sims, eps=cutoff, minsize=min_size)
+        ga_log.info(
+            f"[FCC] Clustering with cutoff={self.clust_cutoff} and minsize={self.clust_min_size}"
+        )
+        labels = DTB_ALGO(
+            idxs, sims, eps=self.clust_cutoff, minsize=self.clust_min_size
+        )
 
         if labels:
-            ga_log.info(f"FCC - {len(labels)} clusters identified")
+            ga_log.info(f"[FCC] {len(labels)} clusters identified")
+            ga_log.info("Saving cluster information to analysis/cluster.out")
             cluster_out = f"{self.analysis_path}/cluster.out"
             with open(cluster_out, "w") as fh:
                 clusters = collections.defaultdict(list)
@@ -144,19 +157,24 @@ class Analysis:
                         element_name = pathlib.Path(structure_name).stem
                         self.cluster_dic[cluster_id].append(element_name)
         else:
-            ga_log.info("FCC - No clusters identified")
+            ga_log.info("[FCC] No clusters identified")
 
         return self.cluster_dic
 
     def evaluate(self):
         """Use PROFIT to calculate the interface rmsd."""
-        try:
-            ga_log.info("Using PROFIT to evaluate the irmsd")
-            profit = Profit(ref=self.native, mobi=self.structure_list, nproc=self.nproc)
-            self.irmsd_dic = profit.calc_irmsd()
-        except Exception as e:
-            ga_log.warning(e)
-            ga_log.warning("Skipping evaluation")
+        if self.native:
+            try:
+                ga_log.info("Using PROFIT to evaluate the irmsd")
+                profit = Profit(
+                    ref=self.native, mobi=self.structure_list, nproc=self.nproc
+                )
+                self.irmsd_dic = profit.calc_irmsd()
+            except Exception as e:
+                ga_log.warning(e)
+                ga_log.warning("Skipping evaluation")
+        else:
+            ga_log.info("Native structure not defined, skipping i-rmsd calculation.")
 
     def output(self):
         """Generate a script friendly output table."""
