@@ -1,7 +1,8 @@
+import os
 import pathlib
 import shutil
-import unittest
 import sys
+import unittest
 from pathlib import Path
 
 sys.path.append(str(Path(Path(__file__).parent.parent.parent, "src")))
@@ -114,6 +115,28 @@ class TestAnalysis(unittest.TestCase):
 
         for expected_element in expected_header_elements:
             self.assertTrue(expected_element in header)
+
+    def test_generate_plots(self):
+        test_dat = Path(data_folder, "test.dat")
+        self.Analysis.generate_plots(test_dat)
+
+        kde_plot = Path(data_folder, "kde.png")
+        ridge_plot = Path(data_folder, "ridge.png")
+
+        self.assertTrue(kde_plot.exists())
+        self.assertTrue(ridge_plot.exists())
+
+        os.unlink(kde_plot)
+        os.unlink(ridge_plot)
+
+        kde_plot = Path(data_folder, "kde.svg")
+        ridge_plot = Path(data_folder, "ridge.svg")
+
+        self.assertTrue(kde_plot.exists())
+        self.assertTrue(ridge_plot.exists())
+
+        os.unlink(kde_plot)
+        os.unlink(ridge_plot)
 
     def tearDown(self):
         shutil.rmtree(self.root_folder)

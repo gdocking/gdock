@@ -12,6 +12,9 @@ _Genetic Algorithm applied to Protein-Protein Docking_
 
 ## tl:dr
 
+### Web server
+Its easier to run via its server! Check it out at [gdock.org](https://gdock.org/)
+
 ### Installation
 ```bash
 $ git clone https://github.com/rvhonorato/gdock.git
