@@ -107,7 +107,6 @@ class GeneticAlgorithm:
         ga_log.info(f"  + mutation_probability: {self.mutpb}")
         ga_log.info(f"  + eta (crowding degree of mut): {self.eta}")
         ga_log.info(f"  + indpb (independent prob): {self.indpb}")
-        ga_log.info(f"  + indpb (independent prob): {self.indpb}")
         ga_log.info(f"  + convergence_cutoff_variation: {self.conv_cutoff}")
         ga_log.info(f"  + convergence_cutoff_counter: {self.conv_counter}")
 
