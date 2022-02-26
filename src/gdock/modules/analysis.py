@@ -5,6 +5,10 @@ import os
 import pathlib
 from pathlib import Path
 
+import matplotlib
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
 from fccpy import read_pdb
 from fccpy.clustering import disjoint_taylor_butina as DTB_ALGO
 from fccpy.contacts import (
@@ -14,22 +18,13 @@ from fccpy.contacts import (
     read_contacts,
     write_contacts,
 )
-from fccpy.similarity import build_matrix, write_matrix
+from fccpy.similarity import build_matrix
 from fccpy.similarity import fcc as FCC_METRIC
-
+from fccpy.similarity import write_matrix
 from gdock.modules.profit import Profit
-
-import pandas as pd
-import seaborn as sns
-
-
-import matplotlib.pyplot as plt
-import matplotlib
 
 matplotlib.use("Agg")
 plt.rcParams["font.family"] = "serif"
-
-import pandas as pd
 
 
 ga_log = logging.getLogger("ga_log")
