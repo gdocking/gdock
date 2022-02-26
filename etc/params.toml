@@ -1,0 +1,25 @@
+#======================================================================#
+[main]
+number_of_processors = 4
+random_seed = "none"
+#======================================================================#
+[ga]
+population_size = 5000
+max_number_of_generations = 50
+crossover_probability = 0.6
+mutation_probability = 0.8
+# Crowding degree of the mutation. - A high eta will produce a mutant
+#  resembling its parent, while a small eta will produce a solution much
+#  more different.
+eta = 0.1
+# Independent probability for each attribute to be exchanged.
+indpb = 0.2
+convergence_cutoff_variation = 0.01
+convergence_cutoff_counter = 3
+#======================================================================#
+[analysis]
+contact_cutoff = 5.0
+clust_cutoff = 0.75
+clust_min_size = 4
+clust_n = 1000
+#======================================================================#

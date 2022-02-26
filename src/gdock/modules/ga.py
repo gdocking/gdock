@@ -24,19 +24,20 @@ creator.create("Individual", list, fitness=creator.FitnessSingle)
 
 
 class GeneticAlgorithm:
-    def __init__(self, pioneer, run_params, ga_params):
+    def __init__(self, pioneer, params):
         """Initialize GeneticAlgorithm class."""
-        self.random_seed = ga_params["parameters"]["random_seed"]
-        self.run_params = run_params
-        self.nproc = self.run_params["np"]
-        self.structure_folder = f"{self.run_params['folder']}/structures"
-        self.max_ngen = ga_params["general"]["max_number_of_generations"]
-        self.popsize = ga_params["general"]["population_size"]
-        self.cxpb = ga_params["general"]["crossover_probability"]
-        self.mutpb = ga_params["general"]["mutation_probability"]
-        self.eta = ga_params["general"]["eta"]
-        self.indpb = ga_params["general"]["indpb"]
-        self.conv_counter = ga_params["parameters"]["convergence_cutoff"]
+        self.params = params
+        self.random_seed = params["main"]["random_seed"]
+        self.nproc = params["main"]["number_of_processors"]
+        self.structure_folder = f"{params['folder']}/structures"
+        self.max_ngen = params["ga"]["max_number_of_generations"]
+        self.popsize = params["ga"]["population_size"]
+        self.cxpb = params["ga"]["crossover_probability"]
+        self.mutpb = params["ga"]["mutation_probability"]
+        self.eta = params["ga"]["eta"]
+        self.indpb = params["ga"]["indpb"]
+        self.conv_counter = params["ga"]["convergence_cutoff_counter"]
+        self.conv_cutoff = params["ga"]["convergence_cutoff_variation"]
         self.toolbox = None
         self.generation_dic = {}
         self.pioneer_dic = {}
@@ -51,8 +52,8 @@ class GeneticAlgorithm:
                 self.pioneer_dic[chain]["coord"].append((x, y, z))
                 self.pioneer_dic[chain]["raw"].append(line)
         # TODO: find a better way of assigning chains here
-        self.pioneer_dic["A"]["restraints"] = run_params["restraints_a"]
-        self.pioneer_dic["B"]["restraints"] = run_params["restraints_b"]
+        self.pioneer_dic["A"]["restraints"] = params["restraints_a"]
+        self.pioneer_dic["B"]["restraints"] = params["restraints_b"]
 
     def setup(self):
         """Setup the genetic algorithm."""
@@ -95,20 +96,29 @@ class GeneticAlgorithm:
 
     def run(self):
         """Run the genetic algorithm."""
-        ga_log.info("Running the Genetic Algorithm!")
-
         ga_log.debug("Creating the multiprocessing pool")
         pool = multiprocessing.Pool(processes=self.nproc)
-        ga_log.info(f"Running with {self.nproc} processors")
         self.toolbox.register("map", pool.map)
 
-        ga_log.info(f"Your random seed is: {self.random_seed}")
+        ga_log.info("Genetic Algorithm parameters: ")
+        ga_log.info(f"  + population_size: {self.popsize}")
+        ga_log.info(f"  + max_number_of_generations: {self.max_ngen}")
+        ga_log.info(f"  + crossover_probability: {self.cxpb}")
+        ga_log.info(f"  + mutation_probability: {self.mutpb}")
+        ga_log.info(f"  + eta (crowding degree of mut): {self.eta}")
+        ga_log.info(f"  + indpb (independent prob): {self.indpb}")
+        ga_log.info(f"  + indpb (independent prob): {self.indpb}")
+        ga_log.info(f"  + convergence_cutoff_variation: {self.conv_cutoff}")
+        ga_log.info(f"  + convergence_cutoff_counter: {self.conv_counter}")
+
         random.seed(self.random_seed)
         variation_l = []
         result_l = []
         run = True
-        ga_log.info(f"Population: {self.popsize} Max Generations:" f" {self.max_ngen}")
-        ga_log.info("Gen ... mean +- sd (min, max)")
+        ga_log.info(f"Starting the simulation with {self.nproc} processors")
+        ga_log.info(f"  random_seed = {self.random_seed}")
+        ga_log.info("##########################################")
+        ga_log.info("Gen ... mean +-  sd   (min, max) unique_ind")
         pop = self.toolbox.population(n=self.popsize)
         ngen = 1
         while run:
@@ -204,15 +214,16 @@ class GeneticAlgorithm:
             if len(result_l) >= self.conv_counter:
                 convergence = []
                 for var in variation_l[-self.conv_counter :]:
-                    if abs(var) < 0.01:
+                    if abs(var) < self.conv_cutoff:
                         convergence.append(True)
                     else:
                         convergence.append(False)
 
                 if all(convergence):
+                    ga_log.info("##########################################")
                     ga_log.info('Simulation "converged"')
                     ga_log.info(
-                        f"Absolute mean fitness variation is < .01 for"
+                        f"Absolute mean fitness variation is < {self.conv_cutoff} for"
                         f" last {self.conv_counter} generations"
                     )
                     ga_log.info(f"Stopped at generation {ngen}")
