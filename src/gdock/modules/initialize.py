@@ -11,6 +11,7 @@ import sys
 import tempfile
 import random
 from pathlib import Path
+from mergedeep import merge
 
 import mgzip
 import toml
@@ -31,20 +32,19 @@ class Setup:
         self.input_params = toml.load(toml_file)
         self.data = {}
         self.etc_folder = get_full_path("etc")
-        self.nproc = self.input_params["main"]["number_of_processors"]
+        # self.nproc = self.input_params["main"]["number_of_processors"]
+        self.nproc = None
         self.ga_ini = configparser.ConfigParser(os.environ)
         self.ga_ini.read(os.path.join(self.etc_folder, "gdock.ini"), encoding="utf-8")
-        self.default_ga_params_f = Path(self.etc_folder, "ga_params.toml")
+        self.default_ga_params_f = Path(self.etc_folder, "params.toml")
 
     def initialize(self):
         """Load the parameters and create the folder structure."""
-        ga_params = toml.load(self.default_ga_params_f)
+        params = toml.load(self.default_ga_params_f)
 
-        # update with parameters from the user .toml
-        if "ga" in self.input_params:
-            ga_params["general"].update(self.input_params["ga"])
+        # https://stackoverflow.com/a/58195568
+        merge(params, self.input_params)
 
-        run_params = {}
         identifier_folder = self.input_params["main"]["identifier"]
         run_path = f"{os.getcwd()}/{identifier_folder}"
         ga_log.info("Initializing")
@@ -112,24 +112,19 @@ class Setup:
             ga_log.debug(f"Creating structures folder {structures_folder}")
             os.mkdir(structures_folder)
 
-        run_params["folder"] = run_path
-        run_params["mol_a"] = f"{run_path}/input/{mol_a.name}"
-        run_params["mol_b"] = f"{run_path}/input/{mol_b.name}"
+        params["folder"] = run_path
+        params["mol_a"] = f"{run_path}/input/{mol_a.name}"
+        params["mol_b"] = f"{run_path}/input/{mol_b.name}"
         if native:
-            run_params["native"] = f"{run_path}/input/{native.name}"
-        run_params["restraints_a"] = self.input_params["restraints"]["A"]
-        run_params["restraints_b"] = self.input_params["restraints"]["B"]
-        run_params["np"] = self.input_params["main"]["number_of_processors"]
+            params["native"] = f"{run_path}/input/{native.name}"
+        params["restraints_a"] = self.input_params["restraints"]["A"]
+        params["restraints_b"] = self.input_params["restraints"]["B"]
 
         # set the random seed
-        if "random_seed" in self.input_params["main"]:
-            random_seed = self.input_params["main"]["random_seed"]
-        else:
-            random_seed = random.randint(100, 999)
-        
-        ga_params["parameters"]["random_seed"] = random_seed
+        if params["main"]["random_seed"] == "none":
+            params["main"]["random_seed"] = random.randint(100, 999)
 
-        return run_params, ga_params
+        return params
 
     def clean(self):
         """Clean the run directory."""
@@ -174,7 +169,7 @@ class Setup:
                 file_string = "".join(fr.readlines())
             fr.close()
         except UnicodeDecodeError:
-            ga_log.warning(f"Could not compress {file_path}")
+            ga_log.warning(f"Could not compress {Path(file_path).name}")
             return
 
         with mgzip.open(f"{file_path}.gz", "wt", thread=np) as fw:

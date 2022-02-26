@@ -17,10 +17,10 @@ dcomplex_exe = ini.get("third_party", "dcomplex_exe")
 
 
 class Scoring:
-    def __init__(self, data_dic, run_params):
+    def __init__(self, data_dic, params):
         self.dcomplex_exec = dcomplex_exe
         self.data_dic = data_dic
-        self.nproc = run_params["np"]
+        self.nproc = params["main"]["number_of_processors"]
         self.structure_list = []
         self.scoring_dic = {}
         self.ranked = {}

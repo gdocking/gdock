@@ -46,19 +46,19 @@ def main():
     s = Setup(args.input_file)
     # TODO: implement setup file validation
 
-    run_params, ga_params = s.initialize()
+    params = s.initialize()
 
     # 1. Load structure
     ga_log.info("Loading Structures module")
     input_molecules = PDB()
-    input_molecules.load(run_params["mol_a"])
-    input_molecules.load(run_params["mol_b"])
+    input_molecules.load(params["mol_a"])
+    input_molecules.load(params["mol_b"])
 
     # 2. Load restraints
     ga_log.info("Loading Restraints module")
     restraints = Restraint(input_molecules.raw_pdb)
-    restraints.load(run_params["restraints_a"], "A")
-    restraints.load(run_params["restraints_b"], "B")
+    restraints.load(params["restraints_a"], "A")
+    restraints.load(params["restraints_b"], "B")
 
     # 3. Position
     ga_log.info("Loading Geometry module")
@@ -68,7 +68,7 @@ def main():
 
     # 4. Run GA
     ga_log.info("Loading Genetic Algorithm module")
-    ga = GeneticAlgorithm(initial_complex, run_params, ga_params)
+    ga = GeneticAlgorithm(initial_complex, params)
     ga.setup()
     results = ga.run()
 
@@ -78,13 +78,13 @@ def main():
 
     # 5. Scoring
     ga_log.info("Loading Scoring module")
-    scoring = Scoring(results, run_params)
+    scoring = Scoring(results, params)
     results = scoring.score()
 
     # 6. Analysis
     ga_log.info("Loading Analysis module")
-    ana = Analysis(results, run_params)
-    ana.cluster(cutoff=0.6)
+    ana = Analysis(results, params)
+    ana.cluster()
     ana.evaluate()
     ana.output()
 
