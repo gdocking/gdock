@@ -5,12 +5,15 @@ import sys
 import unittest
 from pathlib import Path
 
+import toml
+
 sys.path.append(str(Path(Path(__file__).parent.parent.parent, "src")))
 
 from gdock.modules.analysis import Analysis
 from gdock.modules.files import get_full_path
 
-data_folder = get_full_path("tests", "test_data")
+DATA_FOLDER = get_full_path("tests", "test_data")
+ETC_FOLDER = get_full_path("etc")
 
 
 class TestAnalysis(unittest.TestCase):
@@ -24,7 +27,7 @@ class TestAnalysis(unittest.TestCase):
                 0: {
                     "individual": [327, 57, 12, -1, -2, -2],
                     "fitness": (0.3333333333333333,),
-                    "structure": f"{data_folder}/0001_0000.pdb",
+                    "structure": f"{DATA_FOLDER}/0001_0000.pdb",
                     "clone": None,
                     "ranking": 1,
                     "score": 25.06220902040817,
@@ -33,20 +36,17 @@ class TestAnalysis(unittest.TestCase):
             }
         }
 
-        structures_path = pathlib.Path(data_folder) / "clustering"
+        structures_path = pathlib.Path(DATA_FOLDER) / "clustering"
         structure_list = structures_path.glob("*pdb")
         self.structure_list = [str(structure) for structure in structure_list]
         self.structure_list.sort()
-        self.native = f"{data_folder}/1a2k_complex_bound.pdb"
+        self.native = f"{DATA_FOLDER}/1a2k_complex_bound.pdb"
         self.nproc = 1
 
-        run_params = {
-            "np": self.nproc,
-            "native": self.native,
-            "folder": str(self.root_folder),
-        }
-
-        self.Analysis = Analysis(self.result_dic, run_params)
+        params = toml.load(Path(ETC_FOLDER, "params.toml"))
+        params["folder"] = str(self.root_folder)
+        params["native"] = self.native
+        self.Analysis = Analysis(self.result_dic, params)
 
     def test_get_structures(self):
         observed_l = self.Analysis.get_structures(self.result_dic)
@@ -57,8 +57,10 @@ class TestAnalysis(unittest.TestCase):
     def test_cluster(self):
 
         self.Analysis.structure_list = self.structure_list
+        self.Analysis.clust_cutoff = 0.4
+        self.Analysis.clust_min_size = 4
 
-        self.Analysis.cluster(cutoff=0.4, min_size=4)
+        self.Analysis.cluster()
 
         for structure in self.structure_list:
             contact_f = pathlib.Path(structure.replace(".pdb", ".contacts"))
@@ -117,11 +119,11 @@ class TestAnalysis(unittest.TestCase):
             self.assertTrue(expected_element in header)
 
     def test_generate_plots(self):
-        test_dat = Path(data_folder, "test.dat")
+        test_dat = Path(DATA_FOLDER, "test.dat")
         self.Analysis.generate_plots(test_dat)
 
-        kde_plot = Path(data_folder, "kde.png")
-        ridge_plot = Path(data_folder, "ridge.png")
+        kde_plot = Path(DATA_FOLDER, "kde.png")
+        ridge_plot = Path(DATA_FOLDER, "ridge.png")
 
         self.assertTrue(kde_plot.exists())
         self.assertTrue(ridge_plot.exists())
@@ -129,8 +131,8 @@ class TestAnalysis(unittest.TestCase):
         os.unlink(kde_plot)
         os.unlink(ridge_plot)
 
-        kde_plot = Path(data_folder, "kde.svg")
-        ridge_plot = Path(data_folder, "ridge.svg")
+        kde_plot = Path(DATA_FOLDER, "kde.svg")
+        ridge_plot = Path(DATA_FOLDER, "ridge.svg")
 
         self.assertTrue(kde_plot.exists())
         self.assertTrue(ridge_plot.exists())
