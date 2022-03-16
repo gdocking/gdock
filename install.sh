@@ -29,6 +29,11 @@ cd haddock-tools
 g++ -O2 -o contact-chainID contact-chainID.cpp
 cd "$GDOCK_PATH"/src || exit
 
+
+# unnoficial haddock3
+pip install git+https://github.com/rvhonorato/haddock3@calc_score
+cd "$GDOCK_PATH"/src || exit
+
 # profit
 wget http://www.bioinf.org.uk/software/profit/235216/profit.tar.gz
 tar zxvf profit.tar.gz
