@@ -70,7 +70,7 @@ class Profit:
         irmsd_max = irmsd_quantiles[4]
         irmsd_sd = np.std(irmsd_list)
         ga_log.info(
-            f"min: {irmsd_min:.2f} Å max: {irmsd_max:.2f} Å mean: "
+            f"[PROFIT] min: {irmsd_min:.2f} Å max: {irmsd_max:.2f} Å mean: "
             f"{irmsd_mean:.2f} Å sd: {irmsd_sd:.2f} Å"
         )
 
