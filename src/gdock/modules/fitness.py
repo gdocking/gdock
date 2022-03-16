@@ -12,14 +12,16 @@ ga_log = logging.getLogger("ga_log")
 etc_folder = get_full_path("etc")
 ini = configparser.ConfigParser(os.environ)
 ini.read(os.path.join(etc_folder, "gdock.ini"), encoding="utf-8")
-haddocktools_path = ini.get("third_party", "haddocktools_path")
+HADDOCKTOOLS_PATH = ini.get("third_party", "haddocktools_path")
+DCOMPLEX_EXE = ini.get("third_party", "dcomplex_exe")
+HADDOCK_EXE = ini.get("third_party", "haddock_exe")
 
 # ============================================= #
 # Keep the fitness functions self-contained!    #
 # ============================================= #
 
 
-def calc_satisfaction(pdb_f, restraints_a, restraints_b, cutoff=4.9):
+def calc_satisfaction(pdb_f, restraints_a, restraints_b, cutoff=4.9, haddocktools_path=HADDOCKTOOLS_PATH):
     """Calculate the restraints satisfaction ratio."""
     # this is 4x faster!
     cmd = f"{haddocktools_path}/contact-chainID {pdb_f} {cutoff}"
@@ -45,6 +47,24 @@ def calc_satisfaction(pdb_f, restraints_a, restraints_b, cutoff=4.9):
     satisfied_ratio = (satisfied_a + satisfied_b) / total_restraints
 
     return satisfied_ratio
+
+
+def calc_haddock_score(pdb_f, haddock_exe=HADDOCK_EXE):
+    """Calculate the HADDOCK-score of a PDB."""
+    cmd = f"{haddock_exe} {pdb_f}"
+    out = subprocess.check_output(shlex.split(cmd))
+    haddock_score = float(out.decode("utf-8"))
+    return haddock_score
+
+
+def run_dcomplex(pdb_f, dcomplex_exe=DCOMPLEX_EXE):
+    """Use DCOMPLEX to calculate the PDB's energy."""
+    cmd = f"{dcomplex_exe} {pdb_f} A B"
+    ga_log.debug(f"cmd is: {cmd}")
+    out = subprocess.check_output(shlex.split(cmd), shell=False)  # nosec
+    result = out.decode("utf-8").split("\n")
+    energy = float(result[-2].split()[1])
+    return energy
 
 
 # TODO: Do a low-level implementation of this

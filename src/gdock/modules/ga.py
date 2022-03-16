@@ -9,17 +9,16 @@ from tempfile import NamedTemporaryFile
 import numpy as np
 from deap import base, creator, tools
 
-from gdock.modules.fitness import calc_satisfaction
+from gdock.modules.fitness import calc_satisfaction, calc_haddock_score, run_dcomplex
 from gdock.modules.geometry import Geometry
-from gdock.modules.functions import format_coords, summary
+from gdock.modules.functions import format_coords, summary, tidy
 
 ga_log = logging.getLogger("ga_log")
 
 
 # This needs to be outside..! https://github.com/rsteca/sklearn-deap/issues/59
 # -1 will optimize towards negative
-# creator.create("FitnessMulti", base.Fitness, weights=(+1.0, -0.8))
-creator.create("FitnessSingle", base.Fitness, weights=(+1.0,))
+creator.create("FitnessSingle", base.Fitness, weights=(-1.0,))
 creator.create("Individual", list, fitness=creator.FitnessSingle)
 
 
@@ -40,20 +39,27 @@ class GeneticAlgorithm:
         self.conv_cutoff = params["ga"]["convergence_cutoff_variation"]
         self.toolbox = None
         self.generation_dic = {}
-        self.pioneer_dic = {}
+        self.pioneer_dic = self._load_pioneer(pioneer)
+        self.energy_function = params["main"]["scoring_function"]
+
+    def _load_pioneer(self, pioneer):
+        """Load the Pioneer into the data structure."""
+        pioneer_dic = {}
         for line in pioneer.split("\n"):
             if line.startswith("ATOM"):
                 chain = line[21]
                 x = float(line[31:38])
                 y = float(line[39:46])
                 z = float(line[47:54])
-                if chain not in self.pioneer_dic:
-                    self.pioneer_dic[chain] = {"coord": [], "raw": []}
-                self.pioneer_dic[chain]["coord"].append((x, y, z))
-                self.pioneer_dic[chain]["raw"].append(line)
+                if chain not in pioneer_dic:
+                    pioneer_dic[chain] = {"coord": [], "raw": []}
+                pioneer_dic[chain]["coord"].append((x, y, z))
+                pioneer_dic[chain]["raw"].append(line)
         # TODO: find a better way of assigning chains here
-        self.pioneer_dic["A"]["restraints"] = params["restraints_a"]
-        self.pioneer_dic["B"]["restraints"] = params["restraints_b"]
+        pioneer_dic["A"]["restraints"] = self.params["restraints_a"]
+        pioneer_dic["B"]["restraints"] = self.params["restraints_b"]
+
+        return pioneer_dic
 
     def setup(self):
         """Setup the genetic algorithm."""
@@ -90,7 +96,9 @@ class GeneticAlgorithm:
 
         toolbox.register("select", tools.selTournament, tournsize=3)
 
-        toolbox.register("evaluate", self.fitness_function, self.pioneer_dic)
+        toolbox.register(
+            "evaluate", self.fitness_function, self.pioneer_dic, self.energy_function
+        )
 
         self.toolbox = toolbox
 
@@ -99,6 +107,8 @@ class GeneticAlgorithm:
         ga_log.debug("Creating the multiprocessing pool")
         pool = multiprocessing.Pool(processes=self.nproc)
         self.toolbox.register("map", pool.map)
+
+        ga_log.info("#" * 72)
 
         ga_log.info("Genetic Algorithm parameters: ")
         ga_log.info(f"  + population_size: {self.popsize}")
@@ -109,15 +119,29 @@ class GeneticAlgorithm:
         ga_log.info(f"  + indpb (independent prob): {self.indpb}")
         ga_log.info(f"  + convergence_cutoff_variation: {self.conv_cutoff}")
         ga_log.info(f"  + convergence_cutoff_counter: {self.conv_counter}")
+        ga_log.info("General parameters: ")
+        ga_log.info(f"  + random_seed: {self.random_seed}")
+        ga_log.info(f"  + scoring_function: {self.energy_function}")
+        ga_log.info(f"  + nproc (number of processors): {self.nproc}")
 
         random.seed(self.random_seed)
+
+        ga_log.info("#" * 72)
+
+        if self.energy_function == "dcomplex":
+            ga_log.info("> fitness = (dcomplex_energy * -1) * satisfaction_ratio")
+
+        elif self.energy_function == "haddock":
+            ga_log.info("> fitness = haddock_score * satisfaction_ratio")
+
+        ga_log.info("#" * 72)
+        ga_log.info(
+            f"Gen ...    mean   +-  sd        (min, max)       | variation ({self.conv_counter})"
+        )
+
         variation_l = []
         result_l = []
         run = True
-        ga_log.info(f"Starting the simulation with {self.nproc} processors")
-        ga_log.info(f"  random_seed = {self.random_seed}")
-        ga_log.info("##########################################")
-        ga_log.info("Gen ... mean +-  sd   (min, max) unique_ind")
         pop = self.toolbox.population(n=self.popsize)
         ngen = 1
         while run:
@@ -148,7 +172,7 @@ class GeneticAlgorithm:
 
             # =====
             #
-            # uncoment below to debug the fitness function
+            # uncomment below to debug the fitness function
             #
             # self.fitness_function(self.pioneer_dic, offspring[0])
             #
@@ -193,14 +217,12 @@ class GeneticAlgorithm:
             variation_l.append(variation)
 
             ngen_str = str(ngen).rjust(3, "0")
-            # ga_log.info(f"Gen {ngen_str} ({satisfaction_summary['mean']:.2f}"
-            #             f", {energy_summary['mean']:.3f})")
             ga_log.info(
-                f"Gen {ngen_str} {satisfaction_summary['mean']:.2f} "
+                f"Gen {ngen_str} {satisfaction_summary['mean']:.2e} "
                 f"+- {satisfaction_summary['std']:.2f} "
-                f"({satisfaction_summary['min']:.2f}, "
-                f"{satisfaction_summary['max']:.2f}) "
-                f"eval={len(invalid_ind)}"
+                f"({satisfaction_summary['min']:.2e}, "
+                f"{satisfaction_summary['max']:.2e}) | "
+                f"{variation:.3e} "
             )
 
             if ngen == self.max_ngen:
@@ -222,7 +244,7 @@ class GeneticAlgorithm:
                     ga_log.info("##########################################")
                     ga_log.info('Simulation "converged"')
                     ga_log.info(
-                        f"Absolute mean fitness variation is < {self.conv_cutoff} for"
+                        f"Absolute mean fitness variation is < {self.conv_cutoff:.3f} for"
                         f" last {self.conv_counter} generations"
                     )
                     ga_log.info(f"Stopped at generation {ngen}")
@@ -239,7 +261,7 @@ class GeneticAlgorithm:
         return self.generation_dic
 
     @staticmethod
-    def fitness_function(pdb_dic, individual):
+    def fitness_function(pdb_dic, energy_function, individual):
         """Calculate the fitness of an individual."""
         # use the chromossome and create the structure!
 
@@ -260,7 +282,8 @@ class GeneticAlgorithm:
 
         # use a temporary file to keep the execution simple with
         #  some I/O trade-off
-        pdb = NamedTemporaryFile(delete=False, suffix=".pdb")
+        pdb = NamedTemporaryFile(delete=False, suffix=".pdb", mode="w")
+        pdb_str = ""
         for chain in individual_dic:
             coord_l = individual_dic[chain]["coord"]
             raw_l = individual_dic[chain]["raw"]
@@ -269,26 +292,42 @@ class GeneticAlgorithm:
                 new_line = (
                     f"{line[:30]} {new_x} {new_y} {new_z} " f"{line[55:]}" + os.linesep
                 )
-                pdb.write(str.encode(new_line))
-        pdb.close()
+                pdb_str += new_line
+
+        # Tidy and write the PDB
+        pdb.write(tidy(pdb_str))
 
         # Calculate fitnesses!
         # ================================#
-        # energy = run_dcomplex(pdb.name)
         satisfaction = calc_satisfaction(
             pdb.name,
             individual_dic["A"]["restraints"],
             individual_dic["B"]["restraints"],
         )
+        if satisfaction == 0.0:
+            # This means the molecules are not in contact, heavily penalize them
+            fitness = 9999.9
+        else:
+            if energy_function == "dcomplex":
+                energy = run_dcomplex(pdb.name)
+                # in dcomplex the higher energy the better, -1 here to flip the direction
+                #  and optimize towards the lowest
+                fitness = (energy * -1) * satisfaction
+
+            elif energy_function == "haddock":
+                haddock_score = calc_haddock_score(pdb.name)
+                fitness = haddock_score * satisfaction
+
         # ================================#
 
         # unlink the pdb so that it disappears
         os.unlink(pdb.name)
 
         # return [satisfaction, energy]
-        ga_log.debug(f"{individual_str} {satisfaction:.2f} {pdb.name}")
+        ga_log.debug(f"{individual_str} {fitness:.2f} {pdb.name}")
+
         # this must (?) be a list: github.com/DEAP/deap/issues/256
-        return [satisfaction]
+        return [fitness]
 
     @staticmethod
     def generate_individual():
@@ -297,9 +336,9 @@ class GeneticAlgorithm:
             random.randint(0, 360),  # nosec
             random.randint(0, 360),
             random.randint(0, 360),
-            random.randint(-5, 5),
-            random.randint(-5, 5),
-            random.randint(-5, 5),
+            random.randint(-2, 2),
+            random.randint(-2, 2),
+            random.randint(-2, 2),
         ]
 
         return ind

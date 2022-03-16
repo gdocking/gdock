@@ -3,6 +3,7 @@ import logging
 import math
 import os
 import pathlib
+import random
 from pathlib import Path
 
 import matplotlib
@@ -48,23 +49,57 @@ class Analysis:
         self.cluster_dic = {}
         self.irmsd_dic = {}
 
+        self._rank_by_fitness()
+
+    def _rank_by_fitness(self):
+        """Add a ranking key to the result dictionary based on the fitness."""
+        ranked_list = []
+        for gen in self.result_dic:
+            for ind in self.result_dic[gen]:
+                pdb_f = self.result_dic[gen][ind]["structure"]
+                if pdb_f:
+                    fitness = self.result_dic[gen][ind]["fitness"][0]
+                    pdb_name = pathlib.Path(pdb_f).stem
+                    ranked_list.append((pdb_name, fitness))
+
+        ranked = {}
+        for counter, (pdb_id, score) in enumerate(
+            sorted(ranked_list, key=lambda tup: tup[1]), start=1
+        ):
+            ranked[pdb_id] = {"rank": counter, "score": score}
+
+        # add the ranking to the data structure
+        for gen in self.result_dic:
+            for ind in self.result_dic[gen]:
+
+                pdb_f = self.result_dic[gen][ind]["structure"]
+
+                if pdb_f:
+                    pdb_id = pathlib.Path(pdb_f).stem
+                    ranking = ranked[pdb_id]["rank"]
+                else:
+                    # there is no structure, its a clone
+                    ranking = float("nan")
+
+                self.result_dic[gen][ind]["ranking"] = ranking
+
     @staticmethod
     def get_structures(data_dic):
-        structure_score_l = []
+        structure_fitness_l = []
         for gen in data_dic:
             for ind in data_dic[gen]:
                 struct = data_dic[gen][ind]["structure"]
                 if struct:
-                    if "score" not in data_dic[gen][ind]:
+                    if "fitness" not in data_dic[gen][ind]:
                         raise Exception(
-                            "Structure does not contain score," " cannot proceed."
+                            "Structure does not contain fitness, cannot proceed."
                         )
-                    score = data_dic[gen][ind]["score"]
-                    structure_score_l.append((struct, score))
-        sorted_structure_score_l = sorted(structure_score_l, key=lambda x: x[1])
+                    fitness = data_dic[gen][ind]["fitness"]
+                    structure_fitness_l.append((struct, fitness))
+        sorted_structure_fitness_l = sorted(structure_fitness_l, key=lambda x: x[1])
 
         # get only the structures
-        structure_l = [e[0] for e in sorted_structure_score_l]
+        structure_l = [e[0] for e in sorted_structure_fitness_l]
         return structure_l
 
     def calc_contact(self, pdb_f):
@@ -109,14 +144,18 @@ class Analysis:
         except ZeroDivisionError:
             # Could not built the matrix
             # TODO: check FCC to find out why this happens
-            ga_log.warning("Could not build the matrix, skipping clustering.")
+            ga_log.warning("[FCC] Could not build the matrix, skipping clustering.")
             return {}
+        else:
+            if idxs.size == 0:
+                ga_log.warning("[FCC] Could not build the matrix, skipping clustering.")
+                return {}
 
         # TODO: Implement a way to re-read the matrix in case its already there
         # idxs, sims = read_matrix(fcc_matrix_f)
 
         fcc_matrix_f = Path(f"{self.analysis_path}/fcc.matrix")
-        write_matrix(idxs, sims, fcc_matrix_f)
+        write_matrix(idxs, idxs, fcc_matrix_f)
 
         # cluster
         ga_log.info(
@@ -128,7 +167,7 @@ class Analysis:
 
         if labels:
             ga_log.info(f"[FCC] {len(labels)} clusters identified")
-            ga_log.info("Saving cluster information to analysis/cluster.out")
+            ga_log.info("[FCC] Saving cluster information to analysis/cluster.out")
             cluster_out = f"{self.analysis_path}/cluster.out"
             with open(cluster_out, "w") as fh:
                 clusters = collections.defaultdict(list)
@@ -161,20 +200,22 @@ class Analysis:
 
         return self.cluster_dic
 
-    def evaluate(self):
+    def evaluate_irmsd(self):
         """Use PROFIT to calculate the interface rmsd."""
         if self.native:
             try:
-                ga_log.info("Using PROFIT to evaluate the irmsd")
+                ga_log.info("[PROFIT] Evaluating I-RMSD")
                 profit = Profit(
                     ref=self.native, mobi=self.structure_list, nproc=self.nproc
                 )
                 self.irmsd_dic = profit.calc_irmsd()
             except Exception as e:
                 ga_log.warning(e)
-                ga_log.warning("Skipping evaluation")
+                ga_log.warning("[PROFIT] Skipping evaluation")
         else:
-            ga_log.info("Native structure not defined, skipping i-rmsd calculation.")
+            ga_log.info(
+                "[PROFIT] Native structure not defined, skipping I-RMSD evaluation."
+            )
 
     def output(self):
         """Generate a script friendly output table."""
@@ -185,9 +226,7 @@ class Analysis:
         header = "gen" + sep
         header += "ind" + sep
         header += "ranking" + sep
-        header += "score" + sep
         header += "fitness" + sep
-        header += "energy" + sep
         header += "irmsd" + sep
         header += "cluster_id" + sep
         header += "internal_cluster_ranking" + sep
@@ -202,9 +241,7 @@ class Analysis:
                     # placeholder for multiple values of fitnessess
                     fitness = fitness_values[0]
 
-                    score = self.result_dic[gen][ind]["score"]
                     ranking = self.result_dic[gen][ind]["ranking"]
-                    energy = self.result_dic[gen][ind]["energy"]
 
                     generation_str = str(gen).rjust(4, "0")
                     individual_str = str(ind).rjust(4, "0")
@@ -237,18 +274,14 @@ class Analysis:
                     output_str = f"{gen}" + sep
                     output_str += f"{ind}" + sep
                     output_str += f"{ranking}" + sep
-                    output_str += f"{score:.3f}" + sep
                     output_str += f"{fitness:.3f}" + sep
-                    output_str += f"{energy:.3f}" + sep
                     output_str += f"{irmsd:.2f}" + sep
                     output_str += f"{cluster_id}" + sep
                     output_str += f"{internal_ranking}" + sep
                     output_str += f"{model}" + os.linesep
                     ga_log.debug(output_str)
 
-                    if not math.isnan(ranking):
-                        # do not write to data file if there's no ranking
-                        fh.write(output_str)
+                    fh.write(output_str)
 
         fh.close()
 
@@ -274,6 +307,19 @@ class Analysis:
         # Generate ridgeplot
         sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
         sub_df = df[["gen", "fitness"]]
+        quantile_75 = sub_df.quantile([.75])['fitness'].values[0]
+        sub_df = sub_df[sub_df["fitness"] <= quantile_75]
+
+        # jitter the dataframe since there are values that are equal
+        #  keep this in mind when presenting the results!
+        new_df_list = []
+        for e in sub_df.values.tolist():
+            gen, value = e
+            value += random.uniform(0, 1)
+            new_df_list.append((gen, value))
+
+        sub_df = pd.DataFrame(new_df_list, columns=["gen", "fitness"])
+        sub_df['gen'] = pd.to_numeric(sub_df['gen'], downcast="integer")
 
         n_gen = len(set(sub_df["gen"]))
         pal = sns.cubehelix_palette(n_gen)
@@ -317,12 +363,14 @@ class Analysis:
         g.savefig(ridge_outf.with_suffix(".svg"))
 
         # Generate KDE plots
-        sns.set_style("white")
-        g = sns.jointplot(
-            data=df, x="energy", y="fitness", kind="kde", color="r", n_levels=5
-        )
-        g.fig.subplots_adjust(top=0.9)
-        g.fig.suptitle("Fitness x Energy distributions")
-        g.fig.tight_layout()
-        g.savefig(kde_outf.with_suffix(".png"), dpi=300)
-        g.savefig(kde_outf.with_suffix(".svg"))
+        #  if there is an i-rmsd col = if not all are null
+        if not df["irmsd"].isnull().all():
+            sns.set_style("white")
+            g = sns.jointplot(
+                data=df, x="irmsd", y="fitness", kind="kde", color="r", n_levels=5
+            )
+            g.fig.subplots_adjust(top=0.9)
+            g.fig.suptitle("Fitness x Energy distributions")
+            g.fig.tight_layout()
+            g.savefig(kde_outf.with_suffix(".png"), dpi=300)
+            g.savefig(kde_outf.with_suffix(".svg"))
