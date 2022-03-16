@@ -19,6 +19,7 @@ from gdock.modules.error import (
     DependencyNotDefinedError,
     DependencyNotFoundError,
     SectionNotDefinedError,
+    InputParamError,
 )
 from gdock.modules.files import get_full_path
 from gdock.modules.functions import du, is_protein
@@ -43,7 +44,7 @@ class Setup:
         params = toml.load(self.default_ga_params_f)
 
         # https://stackoverflow.com/a/58195568
-        merge(params, self.input_params)
+        self.input_params = merge(params, self.input_params)
 
         identifier_folder = self.input_params["main"]["identifier"]
         run_path = f"{os.getcwd()}/{identifier_folder}"
@@ -51,6 +52,7 @@ class Setup:
 
         ga_log.info("Checking for dependencies")
         try:
+            self.validate()
             self.validate_third_party()
         except Exception as e:
             ga_log.error(e)
@@ -60,7 +62,7 @@ class Setup:
         ga_log.debug(f"Run folder: {identifier_folder}")
 
         if os.path.isdir(identifier_folder):
-            ga_log.warning(f"Your run folder {identifier_folder}" " will be deleted!")
+            ga_log.warning(f"Your run folder {identifier_folder} will be deleted!")
             shutil.rmtree(identifier_folder)
 
         os.mkdir(identifier_folder)
@@ -178,6 +180,17 @@ class Setup:
 
         os.remove(file_path)
 
+    def validate(self):
+        """Validate the setup file."""
+        valid_energy_functions = ["dcomplex", "haddock"]
+        energy_function = self.input_params["main"]["scoring_function"]
+        if energy_function not in valid_energy_functions:
+            raise InputParamError(
+                key="scoring_function",
+                value=energy_function,
+                expected=valid_energy_functions,
+            )
+
     def validate_third_party(self):
         """Check if the third-party dependencies are ok in gdock.ini."""
 
@@ -236,6 +249,27 @@ class Setup:
                 raise Exception(f"{dcomplex_exe} execution failed", err)
         else:
             raise DependencyNotFoundError(dcomplex_exe)
+
+        # Check haddock3-score
+        try:
+            haddock_exe = pathlib.Path(self.ga_ini.get("third_party", "haddock_exe"))
+        except configparser.NoOptionError:
+            raise DependencyNotDefinedError("haddock_exe")
+
+        if haddock_exe.exists():
+            # check if executable
+            proc = subprocess.run(  # nosec
+                str(haddock_exe),
+                stderr=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+            )
+
+            err = proc.stderr.decode("utf-8")
+            # out = proc.stdout.decode("utf-8")
+            if "following arguments" not in err:
+                raise Exception(f"{haddock_exe} execution failed", err)
+        else:
+            raise DependencyNotFoundError(haddock_exe)
 
         # Check PROFIT
         try:

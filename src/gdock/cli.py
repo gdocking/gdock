@@ -7,7 +7,8 @@ import sys
 from gdock.modules.analysis import Analysis
 from gdock.modules.ga import GeneticAlgorithm
 from gdock.modules.geometry import Geometry
-from gdock.modules.scoring import Scoring
+
+# from gdock.modules.scoring import Scoring
 from gdock.modules.initialize import Setup
 from gdock.modules.structure import PDB, Restraint
 from gdock.version import version
@@ -17,7 +18,8 @@ ga_log = logging.getLogger("ga_log")
 ga_log.setLevel(logging.INFO)
 ch = logging.StreamHandler()
 formatter = logging.Formatter(
-    " %(asctime)s %(module)s:%(lineno)d " "%(levelname)s - %(message)s"
+    " %(asctime)s %(module)s:%(lineno)d %(levelname)s - %(message)s",
+    "%d-%m-%y %H:%M:%S",
 )
 ch.setFormatter(formatter)
 ga_log.addHandler(ch)
@@ -40,7 +42,7 @@ def main():
 
     start_time = datetime.datetime.now()
     ga_log.info(f"Starting at {start_time.ctime()}")
-    ga_log.info(f"Running {version}")
+    ga_log.info(f"Running v{version}")
 
     ga_log.info("Setting up simulation")
     s = Setup(args.input_file)
@@ -76,16 +78,16 @@ def main():
         ga_log.info("This is a dry run, stopping after models are generated")
         sys.exit()
 
-    # 5. Scoring
-    ga_log.info("Loading Scoring module")
-    scoring = Scoring(results, params)
-    results = scoring.score()
+    # # 5. Scoring
+    # ga_log.info("Loading Scoring module")
+    # scoring = Scoring(results, params)
+    # results = scoring.score()
 
     # 6. Analysis
     ga_log.info("Loading Analysis module")
     ana = Analysis(results, params)
     ana.cluster()
-    ana.evaluate()
+    ana.evaluate_irmsd()
     ana.output()
 
     s.clean()

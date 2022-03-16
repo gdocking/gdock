@@ -40,3 +40,19 @@ class SectionNotDefinedError(Error):
 
     def __str__(self):
         return f"{self.message} {self.section_name}"
+
+
+class InputParamError(Error):
+    """Raised when a there is an error in the Input parameter file."""
+
+    def __init__(self, key, value, expected=None):
+        self.key = key
+        self.value = value
+        self.expected = expected
+        super().__init__()
+
+    def __str__(self):
+        _msg = f"Parameter invalid: {self.key}={self.value}"
+        if self.expected:
+            _msg += f", expected: {self.expected}"
+        return _msg

@@ -2,6 +2,8 @@
 [main]
 number_of_processors = 4
 random_seed = "none"
+# dcomplex or haddock
+scoring_function = "dcomplex"
 #======================================================================#
 [ga]
 population_size = 5000
