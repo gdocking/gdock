@@ -56,7 +56,16 @@ jobs:
         cd ../
 
         # unnoficial haddock3 with calc_score capabilities
-        pip install git+https://github.com/rvhonorato/haddock3@calc_score
+        git clone https://github.com/rvhonorato/haddock3
+        cd haddock3
+        git checkout calc_score
+        python setup.py develop
+        mkdir bin
+        cd bin
+        curl -o cns.zip ${{ secrets.SECRET_LOCATION }}
+        unzip -P ${{ secrets.SUPER_SECURE_KEY }} cns.zip
+        mv cns.linux cns
+        cd ../../
 
         # profit
         wget http://www.bioinf.org.uk/software/profit/235216/profit.tar.gz
