@@ -21,6 +21,10 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
+    - name: Install system packages
+      run: |
+        brew install gfortran
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip setuptools wheel
