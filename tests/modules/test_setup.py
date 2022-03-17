@@ -48,11 +48,12 @@ class TestSetup(unittest.TestCase):
             "main": {
                 "number_of_processors": 1,
                 "random_seed": 42,
+                "scoring_function": "dcomplex",
                 "identifier": "setup",
             },
             "ga": {
-                "population_size": 5000,
-                "max_number_of_generations": 50,
+                "population_size": 1000,
+                "max_number_of_generations": 100,
                 "crossover_probability": 0.6,
                 "mutation_probability": 0.8,
                 "eta": 0.1,

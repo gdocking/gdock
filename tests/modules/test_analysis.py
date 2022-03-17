@@ -84,7 +84,7 @@ class TestAnalysis(unittest.TestCase):
 
     def test_evaluate(self):
         self.Analysis.structure_list = self.structure_list[:3]
-        self.Analysis.evaluate()
+        self.Analysis.evaluate_irmsd()
 
         observed_irmsd_dic = self.Analysis.irmsd_dic
         expected_irmsd_dic = {
@@ -102,21 +102,9 @@ class TestAnalysis(unittest.TestCase):
         with output_f.open() as out_fh:
             header = out_fh.readlines()[0]
 
-        expected_header_elements = [
-            "gen",
-            "ind",
-            "ranking",
-            "score",
-            "fitness",
-            "energy",
-            "irmsd",
-            "cluster_id",
-            "internal_cluster_ranking",
-            "structure_path",
-        ]
+        expected_header = "gen\tind\tranking\tfitness\tirmsd\tcluster_id\tinternal_cluster_ranking\tstructure_path\n"
 
-        for expected_element in expected_header_elements:
-            self.assertTrue(expected_element in header)
+        self.assertEqual(header, expected_header)
 
     def test_generate_plots(self):
         test_dat = Path(DATA_FOLDER, "test.dat")
