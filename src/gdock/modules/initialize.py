@@ -252,24 +252,21 @@ class Setup:
 
         # Check haddock3-score
         try:
-            haddock_exe = pathlib.Path(self.ga_ini.get("third_party", "haddock_exe"))
+            haddock_exe = self.ga_ini.get("third_party", "haddock_exe")
         except configparser.NoOptionError:
             raise DependencyNotDefinedError("haddock_exe")
 
-        if haddock_exe.exists():
-            # check if executable
-            proc = subprocess.run(  # nosec
-                str(haddock_exe),
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-            )
+        # check if executable
+        proc = subprocess.run(  # nosec
+            str(haddock_exe),
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+        )
 
-            err = proc.stderr.decode("utf-8")
-            # out = proc.stdout.decode("utf-8")
-            if "following arguments" not in err:
-                raise Exception(f"{haddock_exe} execution failed", err)
-        else:
-            raise DependencyNotFoundError(haddock_exe)
+        err = proc.stderr.decode("utf-8")
+        # out = proc.stdout.decode("utf-8")
+        if "following arguments" not in err:
+            raise Exception(f"{haddock_exe} execution failed", err)
 
         # Check PROFIT
         try:

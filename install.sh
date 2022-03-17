@@ -29,8 +29,7 @@ cd haddock-tools
 g++ -O2 -o contact-chainID contact-chainID.cpp
 cd "$GDOCK_PATH"/src || exit
 
-
-# unnoficial haddock3
+# unnoficial haddock3 with calc_score capabilities
 pip install git+https://github.com/rvhonorato/haddock3@calc_score
 cd "$GDOCK_PATH"/src || exit
 
