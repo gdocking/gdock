@@ -55,6 +55,9 @@ jobs:
         g++ -O2 -o contact-chainID contact-chainID.cpp
         cd ../
 
+        # unnoficial haddock3 with calc_score capabilities
+        pip install git+https://github.com/rvhonorato/haddock3@calc_score
+
         # profit
         wget http://www.bioinf.org.uk/software/profit/235216/profit.tar.gz
         tar zxvf profit.tar.gz
