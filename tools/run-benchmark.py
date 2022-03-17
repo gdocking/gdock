@@ -12,7 +12,7 @@ bm_log = logging.getLogger("bm_log")
 bm_log.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 formatter = logging.Formatter(
-    " %(asctime)s %(module)s:%(lineno)d" " %(levelname)s - %(message)s"
+    " %(asctime)s %(module)s:%(lineno)d %(levelname)s - %(message)s"
 )
 ch.setFormatter(formatter)
 bm_log.addHandler(ch)
@@ -21,7 +21,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "gdockbm_path",
-        help=("Full path of the root directory" " of the prepared folders"),
+        help=("Full path of the root directory of the prepared folders"),
     )
     args = parser.parse_args()
 
@@ -29,11 +29,6 @@ if __name__ == "__main__":
     if not benchmark_path.exists():
         bm_log.error(f"Path {benchmark_path} does not exist.")
         sys.exit()
-
-    # FIXME: There is probably a better way of doing this
-    dirname, filename = os.path.split(os.path.abspath(__file__))
-    gdock_exe = f"{dirname}/../gdock.py"
-    python_exe = sys.executable
 
     benchmark = [f for f in glob.glob(f"{benchmark_path}/*") if "." not in f]
     benchmark.sort()
@@ -50,7 +45,7 @@ if __name__ == "__main__":
             os.chdir(folder)
             bm_log.debug(f"chdir {folder}")
 
-            cmd = f"{python_exe} {gdock_exe} run.toml"
+            cmd = "gdock run.toml"
             bm_log.debug(f"cmd is: {cmd}")
             result = subprocess.run(  # nosec
                 shlex.split(cmd), capture_output=True, shell=False

@@ -9,7 +9,7 @@ bm_log = logging.getLogger("bm_log")
 bm_log.setLevel(logging.INFO)
 ch = logging.StreamHandler()
 formatter = logging.Formatter(
-    " %(asctime)s %(module)s:%(lineno)d" " %(levelname)s - %(message)s"
+    " %(asctime)s %(module)s:%(lineno)d %(levelname)s - %(message)s"
 )
 ch.setFormatter(formatter)
 bm_log.addHandler(ch)
@@ -44,25 +44,20 @@ def get_restraints(contact_f):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "bm5_path", help=("Location of the Protein-Protein" " Docking Benchmark v5")
+        "bm5_path", help=("Location of the Protein-Protein Docking Benchmark v5")
     )
     parser.add_argument(
-        "gdockbm_path", help=("Location where the prepared" " folders will be")
+        "gdockbm_path", help=("Location where the prepared folders will be")
     )
     parser.add_argument(
         "--np",
-        help=("Number of processors to be used for" " each run"),
+        help=("Number of processors to be used for each run"),
         type=int,
         default=4,
     )
     args = parser.parse_args()
 
-    folder_list = []
-    to_skip = [".", "ana_scripts", "data", "scripts"]
-    for folder in glob.glob(f"{args.bm5_path}/HADDOCK-ready/*"):
-        folder_name = Path(folder).name
-        if not any([j in folder_name for j in to_skip]):
-            folder_list.append(folder)
+    folder_list = [Path(folder) for folder in glob.glob(f"{args.bm5_path}/*")]
 
     folder_list.sort()
 
@@ -80,7 +75,7 @@ if __name__ == "__main__":
         target_path = str(loc.parent)
         target_name = loc.name
 
-        contact_file = f"{target_path}/{target_name}/ana_scripts/" "target.contacts3.9"
+        contact_file = f"{target_path}/{target_name}/ana_scripts/target.contacts3.9"
         izone_file = f"{target_path}/{target_name}/ana_scripts/target.izone"
         receptor_unbound = f"{target_name}_r_u.pdb"
         ligand_unbound = f"{target_name}_l_u.pdb"
@@ -116,7 +111,7 @@ if __name__ == "__main__":
         # native
         shutil.copy(
             f"{target_path}/{target_name}/{native}",
-            (f"{args.gdockbm_path}/{target_name}/" f"{target_name}_complex_bound.pdb"),
+            (f"{args.gdockbm_path}/{target_name}/{target_name}_complex_bound.pdb"),
         )
         # izone
         shutil.copy(
@@ -133,6 +128,7 @@ if __name__ == "__main__":
         run = "[main]" + os.linesep
         run += "identifier = 'run'" + os.linesep
         run += f"number_of_processors = {args.np}" + os.linesep
+        run += 'scoring_function = "haddock"'
         run += os.linesep
         run += "[restraints]" + os.linesep
         run += f"A = {restraints['A']}" + os.linesep
