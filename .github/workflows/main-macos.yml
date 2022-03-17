@@ -60,7 +60,7 @@ jobs:
         cd haddock3
         git checkout calc_score
         python setup.py develop
-        pip install -r requirements.txt
+        pip install pyyaml
         mkdir bin
         cd bin
         curl -o cns ${{ secrets.SECRET_MACOS_LOCATION }}
