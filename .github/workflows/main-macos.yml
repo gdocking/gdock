@@ -1,4 +1,4 @@
-name: unittests
+name: unittests_macos
 
 on:
   ['push','pull_request']
@@ -60,6 +60,7 @@ jobs:
         cd haddock3
         git checkout calc_score
         python setup.py develop
+        pip install -r requirements.txt
         mkdir bin
         cd bin
         curl -o cns ${{ secrets.SECRET_MACOS_LOCATION }}
