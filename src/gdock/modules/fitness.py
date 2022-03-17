@@ -21,7 +21,9 @@ HADDOCK_EXE = ini.get("third_party", "haddock_exe")
 # ============================================= #
 
 
-def calc_satisfaction(pdb_f, restraints_a, restraints_b, cutoff=4.9, haddocktools_path=HADDOCKTOOLS_PATH):
+def calc_satisfaction(
+    pdb_f, restraints_a, restraints_b, cutoff=4.9, haddocktools_path=HADDOCKTOOLS_PATH
+):
     """Calculate the restraints satisfaction ratio."""
     # this is 4x faster!
     cmd = f"{haddocktools_path}/contact-chainID {pdb_f} {cutoff}"
@@ -36,7 +38,7 @@ def calc_satisfaction(pdb_f, restraints_a, restraints_b, cutoff=4.9, haddocktool
             if chain_a == "A" and res_a in restraints_a:
                 contacts["A"].append(res_a)
             if chain_b == "B" and res_b in restraints_b:
-                contacts["A"].append(res_a)
+                contacts["B"].append(res_b)
 
     # check how many are satisfied
     satisfied_a = len(set(contacts["A"]).intersection(restraints_a))
