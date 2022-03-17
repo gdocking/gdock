@@ -8,7 +8,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
     strategy:
       matrix:
-        platform: [ubuntu-latest, macos-latest]
+        platform: [ubuntu-latest]
         python-version: [3.9]
 
     steps:
@@ -62,9 +62,8 @@ jobs:
         python setup.py develop
         mkdir bin
         cd bin
-        curl -o cns.zip ${{ secrets.SECRET_LOCATION }}
-        unzip -P ${{ secrets.SUPER_SECURE_KEY }} cns.zip
-        mv cns.linux cns
+        curl -o cns ${{ secrets.SECRET_UNIX_LOCATION }}
+        chmod +x cns
         cd ../../
 
         # profit
