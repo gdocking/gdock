@@ -21,6 +21,8 @@ ga_log = logging.getLogger("ga_log")
 creator.create("FitnessSingle", base.Fitness, weights=(-1.0,))
 creator.create("Individual", list, fitness=creator.FitnessSingle)
 
+IND_DB = {}
+
 
 class GeneticAlgorithm:
     def __init__(self, pioneer, params):
@@ -268,8 +270,12 @@ class GeneticAlgorithm:
         # fun fact: if you do not use deepcopy here,
         #  the fitness will depend on the number of processors
         #  since pdb_dic is a shared data structure
-        individual_dic = copy.deepcopy(pdb_dic)
         individual_str = " ".join([f"{j:.2f}" for j in individual])
+        if individual_str in IND_DB:
+            fitness = IND_DB[individual_str]
+            return [fitness]
+
+        individual_dic = copy.deepcopy(pdb_dic)
         c = np.array(individual_dic["B"]["coord"])
 
         translation_center = individual[3:]
@@ -327,6 +333,8 @@ class GeneticAlgorithm:
         ga_log.debug(f"{individual_str} {fitness:.2f} {pdb.name}")
 
         # this must (?) be a list: github.com/DEAP/deap/issues/256
+        IND_DB[individual_str] = fitness
+
         return [fitness]
 
     @staticmethod
