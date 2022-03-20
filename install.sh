@@ -30,7 +30,13 @@ g++ -O2 -o contact-chainID contact-chainID.cpp
 cd "$GDOCK_PATH"/src || exit
 
 # unnoficial haddock3 with calc_score capabilities
-pip install git+https://github.com/rvhonorato/haddock3@calc_score
+git clone https://github.com/rvhonorato/haddock3
+cd haddock3
+git checkout calc_score
+pip install jsonpickle pyyaml
+python setup.py develop
+mkdir bin
+# >>> MANUALLY PUT THE CNS EXECUTABLE HERE
 cd "$GDOCK_PATH"/src || exit
 
 # profit
