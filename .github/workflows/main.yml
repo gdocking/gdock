@@ -1,14 +1,14 @@
-name: unittests_macos
+name: unittests_ubuntu
 
 on:
-  ['push','pull_request']
+  ['push', 'pull_request']
 
 jobs:
   build:
     runs-on: ${{ matrix.platform }}
     strategy:
       matrix:
-        platform: [macos-latest]
+        platform: [ubuntu-latest]
         python-version: [3.9]
 
     steps:
@@ -20,10 +20,6 @@ jobs:
       uses: actions/setup-python@v2.2.2
       with:
         python-version: ${{ matrix.python-version }}
-
-    - name: Install system packages
-      run: |
-        brew install gfortran
 
     - name: Install dependencies
       run: |
@@ -63,11 +59,11 @@ jobs:
         git clone https://github.com/rvhonorato/haddock3
         cd haddock3
         git checkout calc_score
-        python setup.py develop
         pip install jsonpickle pyyaml
+        python setup.py develop
         mkdir bin
         cd bin
-        curl -o cns ${{ secrets.SECRET_MACOS_LOCATION }}
+        curl -o cns ${{ secrets.SECRET_UNIX_LOCATION }}
         chmod +x cns
         cd ../../
 

@@ -65,15 +65,14 @@ class TestGeneticAlgorithm(unittest.TestCase):
 
     def test_fitness_function(self):
         test_pdb_dic = self.GeneticAlgorithm.pioneer_dic
-        test_individual = [0, 0, 0, 0, 0, 0]
         # test dcomplex
         observed_fitness_l = self.GeneticAlgorithm.fitness_function(
-            test_pdb_dic, "dcomplex", test_individual
+            test_pdb_dic, "dcomplex", [327, 57, 12, 0, -1, -1]
         )
-        self.assertEqual(round(observed_fitness_l[0], 2), 1.27)
+        self.assertEqual(round(observed_fitness_l[0], 2), -1.88)
         # test haddock-score
         observed_fitness_l = self.GeneticAlgorithm.fitness_function(
-            test_pdb_dic, "haddock", test_individual
+            test_pdb_dic, "haddock", [0, 0, 0, 0, 0, 0]
         )
         self.assertEqual(round(observed_fitness_l[0], 2), -8.08)
 
