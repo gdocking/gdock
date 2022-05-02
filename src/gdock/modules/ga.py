@@ -17,32 +17,37 @@ ga_log = logging.getLogger("ga_log")
 
 
 # This needs to be outside..! https://github.com/rsteca/sklearn-deap/issues/59
-# -1 will optimize towards negative
-creator.create("FitnessSingle", base.Fitness, weights=(-1.0,))
-creator.create("Individual", list, fitness=creator.FitnessSingle)
+# optimize restraints to max and energy to min
+creator.create("FitnessMulti", base.Fitness, weights=(1.0, -0.8))
+creator.create("Individual", list, fitness=creator.FitnessMulti)
 
 IND_DB = {}
+ROT_RANGE = 360
+TRANS_RANGE = 2
 
 
 class GeneticAlgorithm:
     def __init__(self, pioneer, params):
         """Initialize GeneticAlgorithm class."""
         self.params = params
+        self.structure_folder = f"{params['folder']}/structures"
         self.random_seed = params["main"]["random_seed"]
         self.nproc = params["main"]["number_of_processors"]
-        self.structure_folder = f"{params['folder']}/structures"
+        self.energy_function = params["main"]["scoring_function"]
+
         self.max_ngen = params["ga"]["max_number_of_generations"]
         self.popsize = params["ga"]["population_size"]
         self.cxpb = params["ga"]["crossover_probability"]
         self.mutpb = params["ga"]["mutation_probability"]
         self.eta = params["ga"]["eta"]
         self.indpb = params["ga"]["indpb"]
-        self.conv_counter = params["ga"]["convergence_cutoff_counter"]
-        self.conv_cutoff = params["ga"]["convergence_cutoff_variation"]
+        self.conv_counter = params["ga"]["convergence_counter"]
+
         self.toolbox = None
         self.generation_dic = {}
+        self.diff_dic = {"satisfaction": [], "energy": []}
+
         self.pioneer_dic = self._load_pioneer(pioneer)
-        self.energy_function = params["main"]["scoring_function"]
 
     def _load_pioneer(self, pioneer):
         """Load the Pioneer into the data structure."""
@@ -84,15 +89,15 @@ class GeneticAlgorithm:
             tools.mutPolynomialBounded,
             eta=self.eta,
             low=0,
-            up=360,
+            up=ROT_RANGE,
             indpb=self.indpb,
         )
         toolbox.register(
             "mutate_trans",
             tools.mutPolynomialBounded,
             eta=self.eta,
-            low=-5,
-            up=+5,
+            low=-TRANS_RANGE,
+            up=+TRANS_RANGE,
             indpb=self.indpb,
         )
 
@@ -119,8 +124,7 @@ class GeneticAlgorithm:
         ga_log.info(f"  + mutation_probability: {self.mutpb}")
         ga_log.info(f"  + eta (crowding degree of mut): {self.eta}")
         ga_log.info(f"  + indpb (independent prob): {self.indpb}")
-        ga_log.info(f"  + convergence_cutoff_variation: {self.conv_cutoff}")
-        ga_log.info(f"  + convergence_cutoff_counter: {self.conv_counter}")
+        ga_log.info(f"  + convergence_counter: {self.conv_counter}")
         ga_log.info("General parameters: ")
         ga_log.info(f"  + random_seed: {self.random_seed}")
         ga_log.info(f"  + scoring_function: {self.energy_function}")
@@ -130,19 +134,17 @@ class GeneticAlgorithm:
 
         ga_log.info("#" * 72)
 
+        ga_log.info("> satisfaction = ratio of satisfied restraints")
+
         if self.energy_function == "dcomplex":
-            ga_log.info("> fitness = (dcomplex_energy * -1) * satisfaction_ratio")
+            ga_log.info("> energy = dcomplex_energy * -1")
 
         elif self.energy_function == "haddock":
-            ga_log.info("> fitness = haddock_score * satisfaction_ratio")
+            ga_log.info("> energy = haddock_score")
 
         ga_log.info("#" * 72)
-        ga_log.info(
-            f"Gen ...    mean   +-  sd        (min, max)       | variation ({self.conv_counter})"
-        )
+        ga_log.info("Gen ... |  satisfaction  |      energy     | variation")
 
-        variation_l = []
-        result_l = []
         run = True
         pop = self.toolbox.population(n=self.popsize)
         ngen = 1
@@ -194,63 +196,54 @@ class GeneticAlgorithm:
             # replace the old population by the offspring
             pop[:] = offspring
 
-            satisfaction_values = []
             for idx, ind in enumerate(pop):
-                fitness_v = ind.fitness.values
+                satisfaction, energy = ind.fitness.values
                 self.generation_dic[ngen][idx] = {
                     "individual": ind,
-                    "fitness": fitness_v,
+                    "satisfaction": satisfaction,
+                    "energy": energy,
                 }
-                # energy = ind.fitness.values[1]
-                # energy_values.append(energy)
 
-                satisfaction = ind.fitness.values[0]
-                satisfaction_values.append(satisfaction)
+            satisfaction_diff, energy_diff = self.check_diff(generation=ngen)
 
-            # energy_summary = summary(energy_values)
-            satisfaction_summary = summary(satisfaction_values)
-
-            # result_l.append(energy_summary['mean'])
-            result_l.append(satisfaction_summary["mean"])
-
-            last_results = result_l[-self.conv_counter :]
-            variation = min(last_results) - max(last_results)
-
-            variation_l.append(variation)
-
+            satisfaction_summary = summary(
+                [
+                    self.generation_dic[ngen][_ind]["satisfaction"]
+                    for _ind in self.generation_dic[ngen]
+                ]
+            )
+            energy_summary = summary(
+                [
+                    self.generation_dic[ngen][_ind]["energy"]
+                    for _ind in self.generation_dic[ngen]
+                ]
+            )
             ngen_str = str(ngen).rjust(3, "0")
+
             ga_log.info(
-                f"Gen {ngen_str} {satisfaction_summary['mean']:.2e} "
-                f"+- {satisfaction_summary['std']:.2f} "
-                f"({satisfaction_summary['min']:.2e}, "
-                f"{satisfaction_summary['max']:.2e}) | "
-                f"{variation:.3e} "
+                f"Gen {ngen_str} "
+                f"| {satisfaction_summary['mean']:.3f} "
+                f"+- {satisfaction_summary['std']:.3f} "
+                f"| {energy_summary['mean']:.2f} "
+                f"+- {energy_summary['std']:.2f} "
+                f"| {satisfaction_diff:.3f}, {energy_diff:.3f} "
             )
 
+            if self.convergence():
+                ga_log.info("#" * 72)
+                ga_log.info(
+                    f'Simulation "converged", no change over the latest {self.conv_counter} generations'
+                )
+                ga_log.info(f"Stopped at generation {ngen}")
+                run = False
+
             if ngen == self.max_ngen:
+                ga_log.info("#" * 72)
                 ga_log.info(
                     f"Simulation reached maximum number of "
                     f"generations, stopping at {ngen}."
                 )
                 run = False
-
-            if len(result_l) >= self.conv_counter:
-                convergence = []
-                for var in variation_l[-self.conv_counter :]:
-                    if abs(var) < self.conv_cutoff:
-                        convergence.append(True)
-                    else:
-                        convergence.append(False)
-
-                if all(convergence):
-                    ga_log.info("##########################################")
-                    ga_log.info('Simulation "converged"')
-                    ga_log.info(
-                        f"Absolute mean fitness variation is < {self.conv_cutoff:.3f} for"
-                        f" last {self.conv_counter} generations"
-                    )
-                    ga_log.info(f"Stopped at generation {ngen}")
-                    run = False
 
             ngen += 1
 
@@ -272,14 +265,13 @@ class GeneticAlgorithm:
         #  since pdb_dic is a shared data structure
         individual_str = " ".join([f"{j:.2f}" for j in individual])
         if individual_str in IND_DB:
-            fitness = IND_DB[individual_str]
-            return [fitness]
+            return IND_DB[individual_str]
 
         individual_dic = copy.deepcopy(pdb_dic)
         c = np.array(individual_dic["B"]["coord"])
 
-        translation_center = individual[3:]
         rotation_angles = individual[:3]
+        translation_center = individual[3:]
 
         translated_coords = Geometry.translate(c, translation_center)
         rotated_coords = Geometry.rotate(translated_coords, rotation_angles)
@@ -310,46 +302,91 @@ class GeneticAlgorithm:
             individual_dic["A"]["restraints"],
             individual_dic["B"]["restraints"],
         )
-        if satisfaction == 0.0:
-            # This means the molecules are not in contact, heavily penalize them
-            fitness = 9999.9
-        else:
-            if energy_function == "dcomplex":
-                energy = run_dcomplex(pdb.name)
-                # in dcomplex the higher energy the better, -1 here to flip the direction
-                #  and optimize towards the lowest
-                fitness = (energy * -1) * satisfaction
 
-            elif energy_function == "haddock":
-                haddock_score = calc_haddock_score(pdb.name)
-                fitness = haddock_score * satisfaction
+        if energy_function == "dcomplex":
+            dcomplex_score = run_dcomplex(pdb.name)
+            # in dcomplex the higher energy the better, -1 here to flip the direction
+            #  and optimize towards the lowest
+            energy_score = dcomplex_score * -1
+
+        elif energy_function == "haddock":
+            energy_score = calc_haddock_score(pdb.name)
 
         # ================================#
 
         # unlink the pdb so that it disappears
         os.unlink(pdb.name)
 
-        # return [satisfaction, energy]
-        ga_log.debug(f"{individual_str} {fitness:.2f} {pdb.name}")
+        ga_log.debug(
+            f"{individual_str} {satisfaction:.2f} {energy_score:.2f} {pdb.name}"
+        )
+
+        IND_DB[individual_str] = satisfaction, energy_score
 
         # this must (?) be a list: github.com/DEAP/deap/issues/256
-        IND_DB[individual_str] = fitness
-
-        return [fitness]
+        return [satisfaction, energy_score]
 
     @staticmethod
     def generate_individual():
         """Generates the individual."""
         ind = [
-            random.randint(0, 360),  # nosec
-            random.randint(0, 360),
-            random.randint(0, 360),
-            random.randint(-2, 2),
-            random.randint(-2, 2),
-            random.randint(-2, 2),
+            random.uniform(0, ROT_RANGE),  # nosec
+            random.uniform(0, ROT_RANGE),
+            random.uniform(0, ROT_RANGE),
+            random.uniform(-TRANS_RANGE, +TRANS_RANGE),
+            random.uniform(-TRANS_RANGE, +TRANS_RANGE),
+            random.uniform(-TRANS_RANGE, +TRANS_RANGE),
         ]
 
-        return ind
+        return [round(n, 3) for n in ind]
+
+    def convergence(self):
+        """Check if simulation has converged."""
+        # Conversion means no change in the last N generations
+        latest_satisfaction_l = self.diff_dic["satisfaction"][-self.conv_counter :]
+        latest_energy_l = self.diff_dic["energy"][-self.conv_counter :]
+
+        assert len(latest_satisfaction_l) == len(latest_energy_l)
+
+        if (
+            len(latest_satisfaction_l) == self.conv_counter
+            and all(v == 0.0 for v in latest_satisfaction_l)
+            and all(v == 0.0 for v in latest_energy_l)
+        ):
+            return True
+        else:
+            return False
+
+    def check_diff(self, generation):
+        """Check if the values increased or not."""
+
+        if generation == 1:
+            avg_energy_diff = 0.0
+            avg_satisfaction_diff = 0.0
+        else:
+            current_gendic = self.generation_dic[generation]
+            previous_gendic = self.generation_dic[generation - 1]
+
+            current_avg_satisfaction = np.average(
+                [current_gendic[ind]["satisfaction"] for ind in current_gendic]
+            )
+            previous_avg_satisfaction = np.average(
+                [previous_gendic[ind]["satisfaction"] for ind in previous_gendic]
+            )
+            avg_satisfaction_diff = current_avg_satisfaction - previous_avg_satisfaction
+
+            current_avg_energy = np.average(
+                [current_gendic[ind]["energy"] for ind in current_gendic]
+            )
+            previous_avg_energy = np.average(
+                [previous_gendic[ind]["energy"] for ind in previous_gendic]
+            )
+            avg_energy_diff = current_avg_energy - previous_avg_energy
+
+        self.diff_dic["satisfaction"].append(avg_satisfaction_diff)
+        self.diff_dic["energy"].append(avg_energy_diff)
+
+        return avg_satisfaction_diff, avg_energy_diff
 
     def _generate_epoch(self):
         """Read information from simulation and generate structures."""

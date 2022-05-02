@@ -16,8 +16,7 @@ mutation_probability = 0.8
 eta = 0.1
 # Independent probability for each attribute to be exchanged.
 indpb = 0.2
-convergence_cutoff_variation = 0.01
-convergence_cutoff_counter = 3
+convergence_counter = 3
 #======================================================================#
 [analysis]
 contact_cutoff = 5.0

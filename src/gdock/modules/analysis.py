@@ -49,18 +49,18 @@ class Analysis:
         self.cluster_dic = {}
         self.irmsd_dic = {}
 
-        self._rank_by_fitness()
+        self._rank_by_energy()
 
-    def _rank_by_fitness(self):
-        """Add a ranking key to the result dictionary based on the fitness."""
+    def _rank_by_energy(self):
+        """Add a ranking key to the result dictionary based on the energy."""
         ranked_list = []
         for gen in self.result_dic:
             for ind in self.result_dic[gen]:
                 pdb_f = self.result_dic[gen][ind]["structure"]
                 if pdb_f:
-                    fitness = self.result_dic[gen][ind]["fitness"][0]
+                    energy = self.result_dic[gen][ind]["energy"]
                     pdb_name = pathlib.Path(pdb_f).stem
-                    ranked_list.append((pdb_name, fitness))
+                    ranked_list.append((pdb_name, energy))
 
         ranked = {}
         for counter, (pdb_id, score) in enumerate(
@@ -85,21 +85,27 @@ class Analysis:
 
     @staticmethod
     def get_structures(data_dic):
-        structure_fitness_l = []
+        """Retrieve the structures."""
+        structure_l = []
         for gen in data_dic:
             for ind in data_dic[gen]:
                 struct = data_dic[gen][ind]["structure"]
                 if struct:
-                    if "fitness" not in data_dic[gen][ind]:
+                    if "energy" not in data_dic[gen][ind]:
                         raise Exception(
-                            "Structure does not contain fitness, cannot proceed."
+                            "Structure does not contain energy, cannot proceed."
                         )
-                    fitness = data_dic[gen][ind]["fitness"]
-                    structure_fitness_l.append((struct, fitness))
-        sorted_structure_fitness_l = sorted(structure_fitness_l, key=lambda x: x[1])
+                    satisfaction = data_dic[gen][ind]["satisfaction"]
+                    energy = data_dic[gen][ind]["energy"]
+
+                    structure_l.append((struct, satisfaction, energy))
+
+        sorted_structure_l = sorted(
+            structure_l, key=lambda x: (x[1], x[2]), reverse=True
+        )
 
         # get only the structures
-        structure_l = [e[0] for e in sorted_structure_fitness_l]
+        structure_l = [e[0] for e in sorted_structure_l]
         return structure_l
 
     def calc_contact(self, pdb_f):
@@ -115,7 +121,7 @@ class Analysis:
 
     def cluster(self):
         """Use FCC to cluster structures."""
-        ga_log.info(f"[FCC] Calculating contacts cutoff={self.contact_cutoff}A")
+        ga_log.info(f"[FCC] Calculating contacts, cutoff={self.contact_cutoff}A")
         input_structure_l = self.structure_list[: self.clust_n]
         for pdb in input_structure_l:
             self.calc_contact(pdb)
@@ -226,20 +232,20 @@ class Analysis:
         header = "gen" + sep
         header += "ind" + sep
         header += "ranking" + sep
-        header += "fitness" + sep
+        header += "satisfaction" + sep
+        header += "energy" + sep
         header += "irmsd" + sep
         header += "cluster_id" + sep
         header += "internal_cluster_ranking" + sep
-        header += "structure_path" + os.linesep
+        header += "structure_id" + os.linesep
 
         with open(output_f, "w") as fh:
             fh.write(header)
             for gen in self.result_dic:
                 for ind in self.result_dic[gen]:
-                    fitness_values = self.result_dic[gen][ind]["fitness"]
 
-                    # placeholder for multiple values of fitnessess
-                    fitness = fitness_values[0]
+                    satisfaction = self.result_dic[gen][ind]["satisfaction"]
+                    energy = self.result_dic[gen][ind]["energy"]
 
                     ranking = self.result_dic[gen][ind]["ranking"]
 
@@ -274,7 +280,8 @@ class Analysis:
                     output_str = f"{gen}" + sep
                     output_str += f"{ind}" + sep
                     output_str += f"{ranking}" + sep
-                    output_str += f"{fitness:.3f}" + sep
+                    output_str += f"{satisfaction:.3f}" + sep
+                    output_str += f"{energy:.3f}" + sep
                     output_str += f"{irmsd:.2f}" + sep
                     output_str += f"{cluster_id}" + sep
                     output_str += f"{internal_ranking}" + sep
@@ -307,7 +314,7 @@ class Analysis:
         # Generate ridgeplot
         sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
         sub_df = df[["gen", "fitness"]]
-        quantile_75 = sub_df.quantile([.75])['fitness'].values[0]
+        quantile_75 = sub_df.quantile([0.75])["fitness"].values[0]
         sub_df = sub_df[sub_df["fitness"] <= quantile_75]
 
         # jitter the dataframe since there are values that are equal
@@ -319,7 +326,7 @@ class Analysis:
             new_df_list.append((gen, value))
 
         sub_df = pd.DataFrame(new_df_list, columns=["gen", "fitness"])
-        sub_df['gen'] = pd.to_numeric(sub_df['gen'], downcast="integer")
+        sub_df["gen"] = pd.to_numeric(sub_df["gen"], downcast="integer")
 
         n_gen = len(set(sub_df["gen"]))
         pal = sns.cubehelix_palette(n_gen)

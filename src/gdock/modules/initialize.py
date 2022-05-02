@@ -229,44 +229,48 @@ class Setup:
         else:
             raise Exception(f"{haddocktools_script} not found")
 
-        # Check dcomplex
-        try:
-            dcomplex_exe = pathlib.Path(self.ga_ini.get("third_party", "dcomplex_exe"))
-        except configparser.NoOptionError:
-            raise DependencyNotDefinedError("dcomplex_exe")
+        # Check the scoring function
+        if self.input_params["main"]["scoring_function"] == "dcomplex":
+            try:
+                dcomplex_exe = pathlib.Path(
+                    self.ga_ini.get("third_party", "dcomplex_exe")
+                )
+            except configparser.NoOptionError:
+                raise DependencyNotDefinedError("dcomplex_exe")
 
-        if dcomplex_exe.exists():
+            if dcomplex_exe.exists():
+                # check if executable
+                proc = subprocess.run(  # nosec
+                    str(dcomplex_exe),
+                    stderr=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                )
+
+                err = proc.stderr.decode("utf-8")
+                out = proc.stdout.decode("utf-8")
+                if "usage" not in out:
+                    raise Exception(f"{dcomplex_exe} execution failed", err)
+            else:
+                raise DependencyNotFoundError(dcomplex_exe)
+
+        # Check haddock3-score
+        elif self.input_params["main"]["scoring_function"] == "haddock3-score":
+            try:
+                haddock_exe = self.ga_ini.get("third_party", "haddock_exe")
+            except configparser.NoOptionError:
+                raise DependencyNotDefinedError("haddock_exe")
+
             # check if executable
             proc = subprocess.run(  # nosec
-                str(dcomplex_exe),
+                str(haddock_exe),
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
             )
 
             err = proc.stderr.decode("utf-8")
-            out = proc.stdout.decode("utf-8")
-            if "usage" not in out:
-                raise Exception(f"{dcomplex_exe} execution failed", err)
-        else:
-            raise DependencyNotFoundError(dcomplex_exe)
-
-        # Check haddock3-score
-        try:
-            haddock_exe = self.ga_ini.get("third_party", "haddock_exe")
-        except configparser.NoOptionError:
-            raise DependencyNotDefinedError("haddock_exe")
-
-        # check if executable
-        proc = subprocess.run(  # nosec
-            str(haddock_exe),
-            stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-        )
-
-        err = proc.stderr.decode("utf-8")
-        # out = proc.stdout.decode("utf-8")
-        if "following arguments" not in err:
-            raise Exception(f"{haddock_exe} execution failed", err)
+            # out = proc.stdout.decode("utf-8")
+            if "following arguments" not in err:
+                raise Exception(f"{haddock_exe} execution failed", err)
 
         # Check PROFIT
         try:
