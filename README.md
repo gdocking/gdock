@@ -13,7 +13,7 @@ _Genetic Algorithm applied to Protein-Protein Docking_
 ## tl:dr
 
 ### Web server
-Its easier to run via its server! Check it out at [gdock.org](https://gdock.org/)
+~Its easier to run via its server! Check it out at [gdock.org](https://gdock.org/)~ Sorry, I had to take down the server. These things are not free, you know 😔 
 
 ### Installation
 ```bash
