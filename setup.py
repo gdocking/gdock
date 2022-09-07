@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name="gdock",
     license="BSD Zero Clause (0BSD)",
-    version="1.2.1",
+    version="1.2.2",
     author="Rodrigo V. Honorato",
     description="Genetic Algorithm applied to Protein-Protein Docking",
     author_email="rvhonorato@protonmail.com",
