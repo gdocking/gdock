@@ -10,6 +10,10 @@
 
 _Genetic Algorithm applied to Protein-Protein Docking_
 
+# IMPORTANT
+
+The Sparks Lab is no longer offering DCOMPLEX, which is a critical component of `gdock` (as its scoring function) - until this is solved or some other scoring function is implemented, gdock is broken 😭
+
 ## tl:dr
 
 ### Web server
