@@ -22,30 +22,57 @@ pub fn calc_clashes(molecule1: &structure::Molecule, molecule2: &structure::Mole
     clashes as f64 / total_atoms as f64
 }
 
-/// Calculates the Lennard-Jones potential energy between two particles.
+/// Soft-core Lennard-Jones potential for docking.
+/// 
+/// Uses a modified LJ potential that remains finite at r→0, allowing
+/// gentle overlap without catastrophic energies. This enables the GA
+/// to explore near-native conformations that may have minor clashes
+/// before refinement.
 ///
-/// The Lennard-Jones potential energy is a pairwise interaction potential used to model
-/// the intermolecular forces between particles. It is commonly used in molecular dynamics simulations.
-fn lj_potential(atom1: &Atom, atom2: &Atom, distance: f64) -> f64 {
+/// The soft-core potential transitions smoothly:
+/// - At large distances (r > rmin): standard LJ behavior
+/// - At close distances (r < 0.8*rmin): soft repulsion with finite maximum
+///
+/// # Arguments
+/// * `atom1`, `atom2` - The two atoms
+/// * `distance` - Distance between atoms in Angstroms
+/// * `alpha` - Softness parameter (default 0.5, higher = softer)
+///
+/// # Returns
+/// Soft-core VDW energy in kcal/mol
+fn softcore_lj_potential(atom1: &Atom, atom2: &Atom, distance: f64, alpha: f64) -> f64 {
     let epsilon_ij = (atom1.epsilon * atom2.epsilon).sqrt();
     let rmin_ij = atom1.rmin2 + atom2.rmin2;
-    let ratio_pow = (rmin_ij / distance).powi(6);
-    epsilon_ij * (ratio_pow.powi(2) - 2.0 * ratio_pow)
+    
+    // Soft-core modification: r_eff^6 = r^6 + alpha*rmin^6
+    // This prevents singularity at r→0
+    let rmin6 = rmin_ij.powi(6);
+    let r6 = distance.powi(6);
+    let r_eff6 = r6 + alpha * rmin6;
+    
+    // Standard LJ form but with effective distance
+    let ratio = rmin6 / r_eff6;
+    epsilon_ij * (ratio.powi(2) - 2.0 * ratio)
 }
 
 /// Calculates the van der Waals energy between two molecules.
 ///
+/// Uses soft-core VDW potential to prevent catastrophic energies from clashes
+/// while still penalizing severe overlaps. This allows the GA to explore
+/// near-native conformations that may have minor clashes.
+///
 /// # Arguments
 ///
-/// * `molecule1` - The first molecule.
-/// * `molecule2` - The second molecule.
+/// * `receptor` - The receptor molecule.
+/// * `ligand` - The ligand molecule.
 ///
 /// # Returns
 ///
-/// The van der Waals energy between the two molecules.
+/// The van der Waals energy between the two molecules in kcal/mol.
 pub fn vdw_energy(receptor: &structure::Molecule, ligand: &structure::Molecule) -> f64 {
     let mut energy = 0.0;
     let cutoff = 12.0; // VDW cutoff in Angstroms
+    let softcore_alpha = 0.5; // Softness parameter
 
     for atom1 in &receptor.0 {
         for atom2 in &ligand.0 {
@@ -53,7 +80,11 @@ pub fn vdw_energy(receptor: &structure::Molecule, ligand: &structure::Molecule) 
             if atom1.serial != atom2.serial {
                 let dist = structure::distance(atom1, atom2);
                 if dist > 0.0 && dist < cutoff {
-                    energy += lj_potential(atom1, atom2, dist);
+                    // Use soft-core potential to prevent catastrophic energies
+                    let vdw = softcore_lj_potential(atom1, atom2, dist, softcore_alpha);
+                    // Still apply capping for extreme cases
+                    let capped_vdw = vdw.max(-50.0).min(500.0);
+                    energy += capped_vdw;
                 }
             }
         }
