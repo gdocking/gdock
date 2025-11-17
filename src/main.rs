@@ -41,8 +41,8 @@ fn score() {
         let air = fitness::air_energy(&restraints, &mol_a, &mol_b);
 
         // Our score function (matching the GA):
-        //  1.0*vdw + 0.2*elec + 1.0*desolv + 0.1*air
-        let score = 1.0 * vdw + 0.2 * elec + 1.0 * desolv + 0.1 * air;
+        //  1.0*vdw + 1.0*elec + 1.0*desolv + 10.0*air (optimized weights)
+        let score = 1.0 * vdw + 1.0 * elec + 1.0 * desolv + 10.0 * air;
 
         // Print the results
         println!(
