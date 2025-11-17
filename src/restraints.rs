@@ -31,8 +31,9 @@ impl Restraint {
         // Both CAs must exist
         if let (Some(ca1), Some(ca2)) = (ca_receptor, ca_ligand) {
             let dist = structure::distance(ca1, ca2);
-            // Use same threshold as restraint creation for consistency
-            return dist < 8.0;
+            // Restraint is satisfied if within flat-bottom bounds [0.0, 7.0]
+            // This matches the upper_bound in air_energy()
+            return dist <= 7.0;
         }
 
         false
@@ -60,10 +61,10 @@ pub fn create_restraints(mol1: &structure::Molecule, mol2: &structure::Molecule)
     for atom1 in ca_atoms_1.iter() {
         // Loop over CA atoms in mol2
         for atom2 in ca_atoms_2.iter() {
-            // Create restraints for CA atoms within 8A (native contacts)
-            // This matches the typical interface definition
+            // Create restraints for CA atoms within 7.0A (interface contacts)
+            // This matches the upper_bound used in air_energy() flat-bottom potential
             let dist = structure::distance(atom1, atom2);
-            if dist < 8.0 {
+            if dist < 7.0 {
                 // Create a new restraint
                 let restraint = Restraint::new((*atom1).clone(), (*atom2).clone());
 

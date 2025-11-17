@@ -23,7 +23,7 @@ pub fn calc_clashes(molecule1: &structure::Molecule, molecule2: &structure::Mole
 }
 
 /// Soft-core Lennard-Jones potential for docking.
-/// 
+///
 /// Uses a modified LJ potential that remains finite at r→0, allowing
 /// gentle overlap without catastrophic energies. This enables the GA
 /// to explore near-native conformations that may have minor clashes
@@ -43,13 +43,13 @@ pub fn calc_clashes(molecule1: &structure::Molecule, molecule2: &structure::Mole
 fn softcore_lj_potential(atom1: &Atom, atom2: &Atom, distance: f64, alpha: f64) -> f64 {
     let epsilon_ij = (atom1.epsilon * atom2.epsilon).sqrt();
     let rmin_ij = atom1.rmin2 + atom2.rmin2;
-    
+
     // Soft-core modification: r_eff^6 = r^6 + alpha*rmin^6
     // This prevents singularity at r→0
     let rmin6 = rmin_ij.powi(6);
     let r6 = distance.powi(6);
     let r_eff6 = r6 + alpha * rmin6;
-    
+
     // Standard LJ form but with effective distance
     let ratio = rmin6 / r_eff6;
     epsilon_ij * (ratio.powi(2) - 2.0 * ratio)
@@ -201,7 +201,11 @@ pub fn air_energy(
     ligand: &structure::Molecule,
 ) -> f64 {
     let mut energy = 0.0;
-    let distance_threshold = 8.0; // Distance at which restraint is satisfied (matches restraint definition)
+
+    // HADDOCK-style flat-bottom restraints with lower/upper bounds
+    // For CA-CA interface contacts (typical at interface: 3-7 Å)
+    let lower_bound = 0.0; // No penalty for being close (contacts are good!)
+    let upper_bound = 7.0; // Target maximum for interface CA-CA distance
     let force_constant = 10.0; // kcal/mol per Å² - controls penalty strength
 
     for restraint in restraints {
@@ -220,12 +224,18 @@ pub fn air_energy(
         if let (Some(ca1), Some(ca2)) = (ca_receptor, ca_ligand) {
             let dist = structure::distance(ca1, ca2);
 
-            // Harmonic penalty for violated restraints
-            // Only applies when CA-CA distance > threshold
-            if dist > distance_threshold {
-                let violation = dist - distance_threshold;
-                energy += force_constant * violation * violation;
-            }
+            // Flat-bottom harmonic potential (HADDOCK-style):
+            // No penalty if lower_bound <= dist <= upper_bound
+            // Quadratic penalty outside this range
+            let violation = if dist < lower_bound {
+                lower_bound - dist // Too close (rarely happens for CA-CA)
+            } else if dist > upper_bound {
+                dist - upper_bound // Too far (main penalty)
+            } else {
+                0.0 // Within bounds - no penalty
+            };
+
+            energy += force_constant * violation * violation;
         }
     }
 

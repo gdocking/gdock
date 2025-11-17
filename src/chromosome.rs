@@ -100,14 +100,14 @@ impl Chromosome {
         self.restraint_penalty = (1.0 - restraints_ratio) * restraints.len() as f64;
 
         // Information-driven docking score (HADDOCK-like):
-        // Physics-based terms guide realistic interactions
-        // AIR term guides toward native-like contacts
-        // Weights balance restraints and physics for better discrimination:
-        // - VDW: 1.0 (baseline, prevents severe clashes)
-        // - Elec: 1.0 (increased to improve quality discrimination)
-        // - Desolv: 1.0 (burial effects)
-        // - AIR: 10.0 (DOMINANT - restraints are most important)
-        let score = 1.0 * self.vdw + 1.0 * self.elec + 1.0 * self.desolv + 10.0 * self.air;
+        // AIR DOMINATES but physics helps refine geometry
+        // Goal: 100% restraint satisfaction WITH native-like geometry
+        // Balanced weights for information + physics:
+        // - VDW: 1.0 (prevent clashes, guide packing)
+        // - Elec: 0.5 (moderate electrostatic guidance)
+        // - Desolv: 0.5 (burial effects)
+        // - AIR: 100.0 (DOMINANT - restraints define interface)
+        let score = 1.0 * self.vdw + 0.5 * self.elec + 0.5 * self.desolv + 100.0 * self.air;
 
         self.fitness = score;
         self.fitness
