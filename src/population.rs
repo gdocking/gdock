@@ -59,6 +59,11 @@ impl Population {
 
     /// Evolve the population
     pub fn evolve(&self, rng: &mut StdRng) -> Population {
+        // ELITISM: Save best individuals before evolution
+        let mut elite = self.chromosomes.clone();
+        elite.sort_by(|a, b| a.fitness.partial_cmp(&b.fitness).unwrap_or(Ordering::Equal));
+        let elite_individuals: Vec<Chromosome> = elite.iter().take(constants::ELITISM_COUNT).cloned().collect();
+        
         // Tournament selection
         let mut new_population = self.tournament_selection(rng);
 
@@ -82,6 +87,16 @@ impl Population {
             .for_each(|individual| {
                 individual.mutate(rng, constants::MUTATION_RATE);
             });
+
+        // ELITISM: Replace worst individuals with elite
+        // Sort new population by fitness (worst first)
+        new_population.chromosomes.sort_by(|a, b| b.fitness.partial_cmp(&a.fitness).unwrap_or(Ordering::Equal));
+        // Replace worst N individuals with elite
+        for (i, elite_individual) in elite_individuals.iter().enumerate() {
+            if i < new_population.chromosomes.len() {
+                new_population.chromosomes[i] = elite_individual.clone();
+            }
+        }
 
         new_population
     }
