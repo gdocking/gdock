@@ -3,7 +3,7 @@ pub const MUTATION_RATE: f64 = 0.1;
 pub const CROSSOVER_RATE: f64 = 0.6;
 pub const TOURNAMENT_SIZE: u64 = 3;
 pub const MAX_GENERATIONS: u64 = 250;
-pub const MAX_DISPLACEMENT: f64 = 100.0;
+pub const MAX_DISPLACEMENT: f64 = 15.0; // Keep molecules within interaction range!
 pub const RANDOM_SEED: u64 = 42;
 
 // VdW radii
