@@ -13,7 +13,7 @@ pub mod utils;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
-use clap::{App, SubCommand};
+use clap::Command;
 use constants::{MAX_GENERATIONS, POPULATION_SIZE};
 use structure::read_pdb;
 
@@ -287,17 +287,17 @@ fn combine_molecules(
 }
 
 fn main() {
-    let matches = App::new("gdock")
+    let matches = Command::new("gdock")
         .version("2.0.0")
         .author("pending")
         .about("pending")
-        .subcommand(SubCommand::with_name("run").about("Run the GA algorithm"))
-        .subcommand(SubCommand::with_name("score").about("Score the results"))
+        .subcommand(Command::new("run").about("Run the GA algorithm"))
+        .subcommand(Command::new("score").about("Score the results"))
         .get_matches();
 
-    match matches.subcommand_name() {
-        Some("run") => run(),
-        Some("score") => score(),
+    match matches.subcommand() {
+        Some(("run", _)) => run(),
+        Some(("score", _)) => score(),
         _ => eprintln!("Please specify a valid subcommand: run or score"),
     }
 }
