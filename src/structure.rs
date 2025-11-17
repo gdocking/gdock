@@ -24,7 +24,7 @@ pub struct Atom {
     pub z: f64,
     occupancy: f32,
     tempfactor: f32,
-    element: String,
+    pub element: String,
     pub charge: f64,
     pub vdw_radius: f64,
     // pub sigma: f64,
@@ -215,7 +215,6 @@ pub fn read_pdb(pdb_file: &String) -> Molecule {
             };
 
             let atom_type = toppar::get_atom(atom.resname.as_str(), atom.name.as_str());
-            println!("{:?}", atom_type);
 
             match atom_type {
                 Some(v) => {
