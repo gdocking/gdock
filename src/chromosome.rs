@@ -102,12 +102,12 @@ impl Chromosome {
         // Information-driven docking score (HADDOCK-like):
         // Physics-based terms guide realistic interactions
         // AIR term guides toward native-like contacts
-        // Weights heavily favor restraints (information-driven approach):
+        // Weights balance restraints and physics for better discrimination:
         // - VDW: 1.0 (baseline, prevents severe clashes)
-        // - Elec: 0.2 (scaled for large values)
+        // - Elec: 1.0 (increased to improve quality discrimination)
         // - Desolv: 1.0 (burial effects)
         // - AIR: 10.0 (DOMINANT - restraints are most important)
-        let score = 1.0 * self.vdw + 0.2 * self.elec + 1.0 * self.desolv + 10.0 * self.air;
+        let score = 1.0 * self.vdw + 1.0 * self.elec + 1.0 * self.desolv + 10.0 * self.air;
 
         self.fitness = score;
         self.fitness
