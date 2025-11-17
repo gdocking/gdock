@@ -58,7 +58,9 @@ fn score() {
     }
 }
 
-fn run() {
+fn run(w_vdw: f64, w_elec: f64, w_desolv: f64, w_air: f64) {
+    println!("Running with energy weights: VDW={:.2}, Elec={:.2}, Desolv={:.2}, AIR={:.2}", 
+        w_vdw, w_elec, w_desolv, w_air);
     // --------------------------------------------------------------------------------
     // Define number of threads either with the function below or with the
     // environment variable RAYON_NUM_THREADS
@@ -101,7 +103,7 @@ fn run() {
     // Start the GA
     // Create the initial population
     let mut population =
-        population::Population::new(Vec::new(), receptor, ligand, orig, restraints);
+        population::Population::new(Vec::new(), receptor, ligand, orig, restraints, w_vdw, w_elec, w_desolv, w_air);
     let mut rng = StdRng::seed_from_u64(constants::RANDOM_SEED);
     for _ in 0..POPULATION_SIZE {
         let c = chromosome::Chromosome::new(&mut rng);
@@ -262,12 +264,41 @@ fn main() {
         .version("2.0.0")
         .author("pending")
         .about("pending")
-        .subcommand(Command::new("run").about("Run the GA algorithm"))
+        .subcommand(
+            Command::new("run")
+                .about("Run the GA algorithm")
+                .arg(clap::Arg::new("w_vdw")
+                    .long("w_vdw")
+                    .value_name("WEIGHT")
+                    .help("Weight for VDW energy term (default: 1.0)")
+                    .value_parser(clap::value_parser!(f64)))
+                .arg(clap::Arg::new("w_elec")
+                    .long("w_elec")
+                    .value_name("WEIGHT")
+                    .help("Weight for electrostatic energy term (default: 0.5)")
+                    .value_parser(clap::value_parser!(f64)))
+                .arg(clap::Arg::new("w_desolv")
+                    .long("w_desolv")
+                    .value_name("WEIGHT")
+                    .help("Weight for desolvation energy term (default: 0.5)")
+                    .value_parser(clap::value_parser!(f64)))
+                .arg(clap::Arg::new("w_air")
+                    .long("w_air")
+                    .value_name("WEIGHT")
+                    .help("Weight for AIR restraint energy term (default: 100.0)")
+                    .value_parser(clap::value_parser!(f64)))
+        )
         .subcommand(Command::new("score").about("Score the results"))
         .get_matches();
 
     match matches.subcommand() {
-        Some(("run", _)) => run(),
+        Some(("run", sub_matches)) => {
+            let w_vdw = sub_matches.get_one::<f64>("w_vdw").copied().unwrap_or(1.0);
+            let w_elec = sub_matches.get_one::<f64>("w_elec").copied().unwrap_or(0.5);
+            let w_desolv = sub_matches.get_one::<f64>("w_desolv").copied().unwrap_or(0.5);
+            let w_air = sub_matches.get_one::<f64>("w_air").copied().unwrap_or(100.0);
+            run(w_vdw, w_elec, w_desolv, w_air);
+        },
         Some(("score", _)) => score(),
         _ => eprintln!("Please specify a valid subcommand: run or score"),
     }

@@ -6,7 +6,6 @@ use crate::StdRng;
 use core::f64::consts::PI;
 
 use rand::Rng;
-// use rayon::prelude::*;
 
 #[derive(Debug, Clone)]
 pub struct Chromosome {
@@ -87,9 +86,17 @@ impl Chromosome {
         receptor: &structure::Molecule,
         ligand: &structure::Molecule,
         restraints: &[restraints::Restraint],
+        w_vdw: f64,
+        w_elec: f64,
+        w_desolv: f64,
+        w_air: f64,
     ) -> f64 {
         let target_ligand = self.apply_genes(ligand);
 
+        // vdw 1.0 - prevent clashes and guide packing
+        // elec 0.5 - moderate electrostatic influence
+        // desolv 0.5 - burial
+        // air 100.0 -> let restraints guide id
         self.vdw = fitness::vdw_energy(receptor, &target_ligand);
         self.elec = fitness::elec_energy(receptor, &target_ligand);
         self.desolv = fitness::desolv_energy(receptor, &target_ligand);
@@ -99,15 +106,9 @@ impl Chromosome {
         let restraints_ratio = fitness::satisfaction_ratio(restraints, receptor, &target_ligand);
         self.restraint_penalty = (1.0 - restraints_ratio) * restraints.len() as f64;
 
-        // Information-driven docking score (HADDOCK-like):
-        // AIR DOMINATES but physics helps refine geometry
-        // Goal: 100% restraint satisfaction WITH native-like geometry
-        // Balanced weights for information + physics:
-        // - VDW: 1.0 (prevent clashes, guide packing)
-        // - Elec: 0.5 (moderate electrostatic guidance)
-        // - Desolv: 0.5 (burial effects)
-        // - AIR: 100.0 (DOMINANT - restraints define interface)
-        let score = 1.0 * self.vdw + 0.5 * self.elec + 0.5 * self.desolv + 100.0 * self.air;
+        // Information-driven docking score with configurable weights
+        let score =
+            w_vdw * self.vdw + w_elec * self.elec + w_desolv * self.desolv + w_air * self.air;
 
         self.fitness = score;
         self.fitness

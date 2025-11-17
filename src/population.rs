@@ -19,6 +19,10 @@ pub struct Population {
     pub reference: Molecule,
     pub generation: u64,
     pub restraints: Vec<restraints::Restraint>,
+    pub w_vdw: f64,
+    pub w_elec: f64,
+    pub w_desolv: f64,
+    pub w_air: f64,
 }
 
 impl Population {
@@ -28,6 +32,10 @@ impl Population {
         ligand: Molecule,
         reference: Molecule,
         restraints: Vec<restraints::Restraint>,
+        w_vdw: f64,
+        w_elec: f64,
+        w_desolv: f64,
+        w_air: f64,
     ) -> Population {
         Population {
             chromosomes: individuals,
@@ -36,13 +44,21 @@ impl Population {
             reference,
             generation: 0,
             restraints,
+            w_vdw,
+            w_elec,
+            w_desolv,
+            w_air,
         }
     }
 
     pub fn eval_fitness(&mut self) {
         // Calculate the fitness in parallel
+        let w_vdw = self.w_vdw;
+        let w_elec = self.w_elec;
+        let w_desolv = self.w_desolv;
+        let w_air = self.w_air;
         self.chromosomes.par_iter_mut().for_each(|c| {
-            c.fitness(&self.receptor, &self.ligand, &self.restraints);
+            c.fitness(&self.receptor, &self.ligand, &self.restraints, w_vdw, w_elec, w_desolv, w_air);
         });
     }
 
@@ -109,6 +125,10 @@ impl Population {
             self.ligand.clone(),
             self.reference.clone(),
             self.restraints.clone(),
+            self.w_vdw,
+            self.w_elec,
+            self.w_desolv,
+            self.w_air,
         );
 
         offspring.generation = self.generation + 1;
