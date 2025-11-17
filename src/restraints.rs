@@ -1,7 +1,7 @@
 use crate::structure;
 
 #[derive(Debug, Clone)]
-pub struct Restraint(structure::Atom, structure::Atom);
+pub struct Restraint(pub structure::Atom, pub structure::Atom);
 
 impl Restraint {
     fn new(atom1: structure::Atom, atom2: structure::Atom) -> Self {
@@ -13,33 +13,28 @@ impl Restraint {
         receptor: &structure::Molecule,
         ligand: &structure::Molecule,
     ) -> bool {
-        // Look into mol1 for the atoms with the same resseq as self.0
-        let i = receptor
+        // The restraint is based on CA atoms, so check CA-CA distance
+        // This is consistent with how restraints are created
+
+        // Find CA atom in receptor with matching resseq
+        let ca_receptor = receptor
             .0
             .iter()
-            .filter(|&x| x.resseq == self.0.resseq)
-            .collect::<Vec<_>>();
+            .find(|x| x.resseq == self.0.resseq && x.name.trim() == "CA");
 
-        // i must not be 0
-        assert!(i.len() > 1);
-
-        let j = ligand
+        // Find CA atom in ligand with matching resseq
+        let ca_ligand = ligand
             .0
             .iter()
-            .filter(|&x| x.resseq == self.1.resseq)
-            .collect::<Vec<_>>();
+            .find(|x| x.resseq == self.1.resseq && x.name.trim() == "CA");
 
-        // i and j must b
-        assert!(j.len() > 1);
-
-        // Loop over the atoms in i and j and check if ANY of the distances are lower than 5A
-        for atom1 in i.iter() {
-            for atom2 in j.iter() {
-                if structure::distance(atom1, atom2) < 5.0 {
-                    return true;
-                }
-            }
+        // Both CAs must exist
+        if let (Some(ca1), Some(ca2)) = (ca_receptor, ca_ligand) {
+            let dist = structure::distance(ca1, ca2);
+            // Use same threshold as restraint creation for consistency
+            return dist < 8.0;
         }
+
         false
     }
 }
@@ -47,14 +42,30 @@ impl Restraint {
 pub fn create_restraints(mol1: &structure::Molecule, mol2: &structure::Molecule) -> Vec<Restraint> {
     let mut restraints = Vec::new();
 
-    // Loop over the atoms in mol1
-    for atom1 in mol1.0.iter() {
-        // Loop over the atoms in mol2
-        for atom2 in mol2.0.iter() {
-            // Check if the atoms are within 5A
-            if structure::distance(atom1, atom2) < 5.0 {
+    // Only create restraints for CA atoms (backbone) to reduce the number of restraints
+    // This is more realistic for protein-protein docking
+    let ca_atoms_1: Vec<&structure::Atom> = mol1
+        .0
+        .iter()
+        .filter(|atom| atom.name.trim() == "CA")
+        .collect();
+
+    let ca_atoms_2: Vec<&structure::Atom> = mol2
+        .0
+        .iter()
+        .filter(|atom| atom.name.trim() == "CA")
+        .collect();
+
+    // Loop over CA atoms in mol1
+    for atom1 in ca_atoms_1.iter() {
+        // Loop over CA atoms in mol2
+        for atom2 in ca_atoms_2.iter() {
+            // Create restraints for CA atoms within 8A (native contacts)
+            // This matches the typical interface definition
+            let dist = structure::distance(atom1, atom2);
+            if dist < 8.0 {
                 // Create a new restraint
-                let restraint = Restraint::new(atom1.clone(), atom2.clone());
+                let restraint = Restraint::new((*atom1).clone(), (*atom2).clone());
 
                 // Add the restraint to the vector
                 restraints.push(restraint);
