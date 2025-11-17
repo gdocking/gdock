@@ -1,41 +1,6 @@
-// use crate::structure::write_pdb
 use crate::restraints;
 use crate::structure;
 use crate::structure::Atom;
-
-// use crate::structure;
-
-// // Calculate the root mean square deviation between two molecules
-// pub fn calc_rmsd(molecule1: &structure::Molecule, molecule2: &structure::Molecule) -> f64 {
-//     let n = molecule1.0.len();
-//     assert_eq!(
-//         n,
-//         molecule2.0.len(),
-//         "Molecules must have the same number of atoms"
-//     );
-
-//     // structure::write_pdb(&molecule1, &"model_rmsd.pdb".to_string());
-//     // // utils::write_pdb(&self.receptor, &"receptor.pdb".to_string());
-//     // structure::write_pdb(&molecule2, &"reference_rmsd.pdb".to_string());
-
-//     // utils::write_pdb();
-
-//     // Calculate the sum of squared distances between corresponding atoms
-//     let sum_squared_distances = molecule1
-//         .0
-//         .iter()
-//         .zip(molecule2.0.iter())
-//         .map(|(atom1, atom2)| atom1.distance_to(atom2))
-//         .sum::<f64>();
-
-//     // Calculate the root mean square deviation
-
-//     // println!("{}", rmsd);
-
-//     // panic!();
-
-//     (sum_squared_distances / n as f64).sqrt()
-// }
 
 // Calculate the ratio of clashes
 //   i.e. the number of atom pairs that are closer than the sum of their van der Waals radii
@@ -80,13 +45,14 @@ fn lj_potential(atom1: &Atom, atom2: &Atom, distance: f64) -> f64 {
 /// The van der Waals energy between the two molecules.
 pub fn vdw_energy(receptor: &structure::Molecule, ligand: &structure::Molecule) -> f64 {
     let mut energy = 0.0;
+    let cutoff = 12.0; // VDW cutoff in Angstroms
 
     for atom1 in &receptor.0 {
         for atom2 in &ligand.0 {
             // Check if atoms are not from the same molecule
             if atom1.serial != atom2.serial {
                 let dist = structure::distance(atom1, atom2);
-                if dist > 0.0 {
+                if dist > 0.0 && dist < cutoff {
                     energy += lj_potential(atom1, atom2, dist);
                 }
             }
@@ -95,133 +61,145 @@ pub fn vdw_energy(receptor: &structure::Molecule, ligand: &structure::Molecule) 
     energy
 }
 
-// pub fn coulombic_energy(molecule1: &structure::Molecule, molecule2: &structure::Molecule) -> f64 {
-//     let k = 8.9875517923e9; // Coulomb's constant in N m^2 C^-2
-//     let mut energy = 0.0;
+/// Calculates the desolvation energy between two molecules.
+///
+/// Uses empirical atomic solvation parameters (ASP) to estimate the
+/// desolvation penalty when atoms become buried upon complex formation.
+/// This is crucial for protein-protein docking as it compensates for
+/// the loss of favorable water interactions.
+///
+/// # Arguments
+///
+/// * `receptor` - The receptor molecule.
+/// * `ligand` - The ligand molecule.
+///
+/// # Returns
+///
+/// The desolvation energy in kcal/mol (positive = unfavorable).
+pub fn desolv_energy(receptor: &structure::Molecule, ligand: &structure::Molecule) -> f64 {
+    let mut energy = 0.0;
+    let cutoff = 8.0; // Cutoff for burial calculation in Angstroms
 
-//     for atom1 in &molecule1.0 {
-//         for atom2 in &molecule2.0 {
-//             let dist = structure::distance(atom1, atom2);
-//             if dist > 0.0 {
-//                 let charge1 = atom1.charge.parse::<f64>().unwrap();
-//                 let charge2 = atom2.charge.parse::<f64>().unwrap();
-//                 energy += k * (charge1 * charge2) / dist;
-//             }
-//         }
-//     }
+    // Empirical atomic solvation parameters (kcal/mol/Å²)
+    // Based on OPLS/CHARMM atom types - simplified version
+    // Positive values = hydrophobic (burial is favorable)
+    // Negative values = hydrophilic (burial is unfavorable)
+    let get_asp = |element: &str| -> f64 {
+        match element.trim() {
+            "C" => 0.012,  // Carbon: hydrophobic, burial favorable
+            "N" => -0.160, // Nitrogen: polar, burial unfavorable
+            "O" => -0.160, // Oxygen: polar, burial unfavorable
+            "S" => 0.012,  // Sulfur: somewhat hydrophobic
+            "H" => 0.0,    // Hydrogen: usually ignored
+            _ => 0.0,
+        }
+    };
 
-//     energy
-// }
+    // Calculate desolvation for receptor atoms buried by ligand
+    for atom1 in &receptor.0 {
+        let asp1 = get_asp(&atom1.element);
+        if asp1.abs() < 0.001 {
+            continue; // Skip atoms with no ASP
+        }
 
-// pub
+        let mut burial_count = 0;
+        for atom2 in &ligand.0 {
+            let dist = structure::distance(atom1, atom2);
+            if dist < cutoff {
+                burial_count += 1;
+            }
+        }
 
-// // Evaluate the ratio of restraints that are satisfied
-// pub fn eval_restraints(molecule1: &structure::Molecule, molecule2: &structure::Molecule) -> f64 {
-//     let cutoff = 10.0;
-//     // Get the atoms which are part of a restraint
-//     let mut restraints_a: Vec<&Atom> = Vec::new();
-//     for atom in &molecule1.0 {
-//         if molecule1.1.contains(&atom.resseq) && atom.name == "CA" {
-//             restraints_a.push(atom);
-//         }
-//     }
-//     let mut restraints_b: Vec<&Atom> = Vec::new();
-//     for atom in &molecule2.0 {
-//         if molecule2.1.contains(&atom.resseq) && atom.name == "CA" {
-//             restraints_b.push(atom);
-//         }
-//     }
+        // Burial factor: 0 = not buried, 1 = fully buried
+        // Use sigmoid-like function for smooth burial
+        let burial = (burial_count as f64 / 10.0).min(1.0);
 
-//     // let mut in_contact_mol_1: Vec<&i16> = Vec::new();
+        // Desolvation = ASP * burial * surface_area
+        // Surface area of sphere = 4πr²
+        energy -= asp1 * burial * atom1.vdw_radius * atom1.vdw_radius * 4.0 * std::f64::consts::PI;
+    }
 
-//     let mut in_contact_a = 0;
+    // Calculate desolvation for ligand atoms buried by receptor
+    for atom2 in &ligand.0 {
+        let asp2 = get_asp(&atom2.element);
+        if asp2.abs() < 0.001 {
+            continue;
+        }
 
-//     // println!("{} {}", restraints_a.len(), restraints_b.len());
-//     // println!("{:?}", restraints_a);
-//     // panic!();
+        let mut burial_count = 0;
+        for atom1 in &receptor.0 {
+            let dist = structure::distance(atom1, atom2);
+            if dist < cutoff {
+                burial_count += 1;
+            }
+        }
 
-//     for atom_a in &restraints_a {
-//         for atom_b in &restraints_b {
-//             let dist = structure::distance(atom_a, atom_b);
-//             if dist <= cutoff {
-//                 in_contact_a += 1;
-//                 break;
-//             }
-//         }
-//     }
+        let burial = (burial_count as f64 / 10.0).min(1.0);
+        energy -= asp2 * burial * atom2.vdw_radius * atom2.vdw_radius * 4.0 * std::f64::consts::PI;
+    }
 
-//     let mut in_contact_b = 0;
-
-//     for atom_b in &restraints_b {
-//         for atom_a in &restraints_a {
-//             let dist = structure::distance(atom_b, atom_a);
-//             if dist <= cutoff {
-//                 // println!("{} {}", atom_b.resseq, atom_a.resseq);
-//                 // panic!("");
-//                 in_contact_b += 1;
-//                 break;
-//             }
-//         }
-//     }
-
-//     // Do the calculation
-//     let v_a = in_contact_a as f64;
-//     let v_b = in_contact_b as f64;
-
-//     let t_a = molecule1.1.len() as f64;
-//     let t_b = molecule2.1.len() as f64;
-
-//     // println("{}")
-//     // if score > 0.0 {
-//     //     println!("{} {} {} {} {}", v_a, v_b, t_a, t_b, score);
-//     //     panic!();
-//     // }
-
-//     (v_a + v_b) / (t_a + t_b)
-// }
-
-pub fn desolv_energy(_molecule1: &structure::Molecule, _molecule2: &structure::Molecule) -> f64 {
-    todo!();
+    energy
 }
 
 pub fn bsa_energy(_molecule1: &structure::Molecule, _molecule2: &structure::Molecule) -> f64 {
     todo!();
 }
 
-// pub fn air_energy(_molecule1: &structure::Molecule, _molecule2: &structure::Molecule) -> f64 {
-//     todo!();
-// }
+/// Calculates AIR (Ambiguous Interaction Restraints) energy.
+///
+/// AIR energy uses restraints as soft distance constraints to guide docking
+/// toward native-like conformations. This is the core of information-driven
+/// docking approaches like HADDOCK.
+///
+/// For each restraint that is NOT satisfied (distance > threshold), we add
+/// a penalty that grows with distance. This creates a smooth energy landscape
+/// that guides the search toward satisfying restraints.
+///
+/// # Arguments
+///
+/// * `restraints` - Vector of restraints from native structure
+/// * `receptor` - The receptor molecule
+/// * `ligand` - The ligand molecule
+///
+/// # Returns
+///
+/// The AIR energy penalty in kcal/mol (0 = all satisfied, positive = violations).
+pub fn air_energy(
+    restraints: &[crate::restraints::Restraint],
+    receptor: &structure::Molecule,
+    ligand: &structure::Molecule,
+) -> f64 {
+    let mut energy = 0.0;
+    let distance_threshold = 8.0; // Distance at which restraint is satisfied (matches restraint definition)
+    let force_constant = 10.0; // kcal/mol per Å² - controls penalty strength
 
-// pub fn calculate_eair(molecule1: &structure::Molecule, molecule2: &structure::Molecule) -> f64 {
-//     let active_atoms_a = molecule1
-//         .0
-//         .iter()
-//         .filter(|atom| molecule1.1.contains(&atom.resseq))
-//         .collect::<Vec<&Atom>>();
+    for restraint in restraints {
+        // Find CA atoms for this restraint (consistent with is_satisfied)
+        let ca_receptor = receptor
+            .0
+            .iter()
+            .find(|a| a.resseq == restraint.0.resseq && a.name.trim() == "CA");
 
-//     let active_atoms_b = molecule2
-//         .0
-//         .iter()
-//         .filter(|atom| molecule2.1.contains(&atom.resseq))
-//         .collect::<Vec<&Atom>>();
+        let ca_ligand = ligand
+            .0
+            .iter()
+            .find(|a| a.resseq == restraint.1.resseq && a.name.trim() == "CA");
 
-//     let mut sum_inverse_sixth_powers = 0.0;
+        // Both CAs must exist
+        if let (Some(ca1), Some(ca2)) = (ca_receptor, ca_ligand) {
+            let dist = structure::distance(ca1, ca2);
 
-//     for &atom_a in &active_atoms_a {
-//         for &atom_b in &active_atoms_b {
-//             let dist = structure::distance(atom_a, atom_b);
-//             if dist > 0.0 && dist <= 2.0 {
-//                 sum_inverse_sixth_powers += 1.0 / dist.powi(6);
-//             }
-//         }
-//     }
+            // Harmonic penalty for violated restraints
+            // Only applies when CA-CA distance > threshold
+            if dist > distance_threshold {
+                let violation = dist - distance_threshold;
+                energy += force_constant * violation * violation;
+            }
+        }
+    }
 
-//     if sum_inverse_sixth_powers > 0.0 {
-//         sum_inverse_sixth_powers.powf(-1.0 / 6.0)
-//     } else {
-//         f64::INFINITY
-//     }
-// }
+    energy
+}
 
 pub fn satisfaction_ratio(
     restraints: &[restraints::Restraint],
@@ -241,16 +219,35 @@ pub fn satisfaction_ratio(
     }
 }
 
-pub fn coulombic_energy(receptor: &structure::Molecule, ligand: &structure::Molecule) -> f64 {
-    let k = 8.9875517923e9; // Coulomb's constant in N m^2 C^-2
+/// Calculates the electrostatic energy between two molecules.
+///
+/// Uses distance-dependent dielectric (ε = r) which is common in protein docking
+/// to dampen long-range electrostatic interactions.
+///
+/// Formula: E = k * (q1 * q2) / (ε * r) where ε = r, thus E = k * (q1 * q2) / r²
+///
+/// # Arguments
+///
+/// * `receptor` - The receptor molecule.
+/// * `ligand` - The ligand molecule.
+///
+/// # Returns
+///
+/// The electrostatic energy in kcal/mol.
+pub fn elec_energy(receptor: &structure::Molecule, ligand: &structure::Molecule) -> f64 {
+    // Coulomb's constant in kcal⋅Å/(mol⋅e²) for molecular mechanics
+    let k = 332.0636;
     let mut energy = 0.0;
+    let cutoff = 15.0; // Electrostatics cutoff in Angstroms
+    let min_dist = 1.0; // Minimum distance to avoid singularities
 
     for atom1 in &receptor.0 {
         for atom2 in &ligand.0 {
             let dist = structure::distance(atom1, atom2);
-            if dist > 0.0 {
+            if dist > min_dist && dist < cutoff {
                 let charge1 = atom1.charge;
                 let charge2 = atom2.charge;
+                // Distance-dependent dielectric: ε = r
                 energy += k * (charge1 * charge2) / (dist * dist);
             }
         }
