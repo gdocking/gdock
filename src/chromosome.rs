@@ -54,15 +54,26 @@ impl Chromosome {
     }
 
     pub fn mutate(&mut self, rng: &mut StdRng, mutation_chance: f64) {
-        let random_chromossome: Chromosome = Chromosome::new(rng);
-        self.genes
-            .iter_mut()
-            .zip(random_chromossome.genes.iter())
-            .for_each(|(gene, random_gene)| {
-                if rng.gen_range(0.0..1.0) <= mutation_chance {
-                    *gene = *random_gene;
+        use rand_distr::{Distribution, Normal};
+
+        // Creep mutation: add small perturbations instead of random replacement
+        // This (should) allow local refinement around good solutions
+        for i in 0..self.genes.len() {
+            if rng.gen_range(0.0..1.0) <= mutation_chance {
+                if i < 3 {
+                    // Rotations (alpha, beta, gamma): perturbation ±10° (0.174 radians)
+                    // Allows fine-tuning of orientation
+                    let perturbation = Normal::new(0.0, 0.174).unwrap().sample(rng);
+                    self.genes[i] = (self.genes[i] + perturbation).rem_euclid(2.0 * PI);
+                } else {
+                    // Translations (x, y, z): perturbation ±1.0 Å
+                    // Allows fine-tuning of position
+                    let perturbation = Normal::new(0.0, 1.0).unwrap().sample(rng);
+                    self.genes[i] =
+                        (self.genes[i] + perturbation).clamp(-MAX_DISPLACEMENT, MAX_DISPLACEMENT);
                 }
-            });
+            }
+        }
     }
 
     pub fn apply_genes(&self, ligand: &structure::Molecule) -> structure::Molecule {
