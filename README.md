@@ -2,7 +2,8 @@
 
 **Information-driven protein-protein docking using a genetic algorithm**
 
---
+![GitHub License](https://img.shields.io/github/license/gdocking/gdock)
+
 ## IMPORTANT
 
 🚧 `gdock` is currently undergoing a full Rust-rewrite 🚧
