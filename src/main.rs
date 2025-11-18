@@ -22,45 +22,21 @@ use constants::{
 use indicatif::{ProgressBar, ProgressStyle};
 use structure::read_pdb;
 
-fn score() {
-    let mut filenames = Vec::new();
+fn score(receptor_file: String, ligand_file: String, restraint_pairs: Vec<(i32, i32)>) {
+    let receptor = read_pdb(&receptor_file);
+    let ligand = read_pdb(&ligand_file);
 
-    // --------------------------------------------
-    // TODO: Read the filenames from somwehere here
-    filenames.push("data/2oob.pdb");
-    // --------------------------------------------
+    let restraints = restraints::create_restraints_from_pairs(&receptor, &ligand, &restraint_pairs);
 
-    // Loop over the filenames
-    for filename in filenames {
-        let (mol_a, mol_b) = scoring::read_complex(filename);
+    let vdw = fitness::vdw_energy(&receptor, &ligand);
+    let elec = fitness::elec_energy(&receptor, &ligand);
+    let desolv = fitness::desolv_energy(&receptor, &ligand);
+    let air = fitness::air_energy(&restraints, &receptor, &ligand);
 
-        let restraints = restraints::create_restraints(&mol_a, &mol_b);
-
-        let ratio = fitness::satisfaction_ratio(&restraints, &mol_a, &mol_b);
-
-        println!("Ratio of satisfied restraints: {:.3}", ratio);
-
-        let vdw = fitness::vdw_energy(&mol_a, &mol_b);
-        let elec = fitness::elec_energy(&mol_a, &mol_b);
-        let desolv = fitness::desolv_energy(&mol_a, &mol_b);
-        let air = fitness::air_energy(&restraints, &mol_a, &mol_b);
-
-        // Our score function (matching the GA):
-        //  1.0*vdw + 1.0*elec + 1.0*desolv + 10.0*air (optimized weights)
-        let score = 1.0 * vdw + 1.0 * elec + 1.0 * desolv + 10.0 * air;
-
-        // Print the results
-        println!(
-            "{} score: {:.3} vdw: {:.3} elec: {:.3} desolv: {:.3} air: {:.3} rest_sat: {:.1}%",
-            filename,
-            score,
-            vdw,
-            elec,
-            desolv,
-            air,
-            ratio * 100.0
-        );
-    }
+    println!(
+        "vdw: {:.3} elec: {:.3} desolv: {:.3} air: {:.3} ",
+        vdw, elec, desolv, air,
+    );
 }
 
 fn run(
@@ -410,8 +386,9 @@ fn combine_molecules(
 }
 
 fn main() {
+    const VERSION: &str = env!("CARGO_PKG_VERSION");
     let matches = Command::new("gdock")
-        .version("2.0.0")
+        .version(VERSION)
         .author("pending")
         .about("pending")
         .subcommand(
@@ -459,7 +436,27 @@ fn main() {
                     .help("Weight for AIR restraint energy term (default: 100.0)")
                     .value_parser(clap::value_parser!(f64)))
         )
-        .subcommand(Command::new("score").about("Score the results"))
+        .subcommand(Command::new("score").about("Score the results")
+                .arg(clap::Arg::new("receptor")
+                    .long("receptor")
+                    .short('r')
+                    .value_name("FILE")
+                    .help("Receptor PDB file")
+                    .required(true))
+                .arg(clap::Arg::new("ligand")
+                    .long("ligand")
+                    .short('l')
+                    .value_name("FILE")
+                    .help("Ligand PDB file")
+                    .required(true))
+                .arg(clap::Arg::new("restraints")
+                    .long("restraints")
+                    .value_name("PAIRS")
+                    .help("Comma-separated restraint pairs receptor:ligand (e.g., 10:45,15:50,20:55)")
+                    .required(true))
+
+
+        )
         .get_matches();
 
     match matches.subcommand() {
@@ -522,7 +519,37 @@ fn main() {
                 w_air,
             );
         }
-        Some(("score", _)) => score(),
+        Some(("score", sub_matches)) => {
+            let receptor_file = sub_matches.get_one::<String>("receptor").unwrap().clone();
+            let ligand_file = sub_matches.get_one::<String>("ligand").unwrap().clone();
+
+            // Parse restraint pairs (format: "rec1:lig1,rec2:lig2,...")
+            let restraint_pairs: Vec<(i32, i32)> = sub_matches
+                .get_one::<String>("restraints")
+                .unwrap()
+                .split(',')
+                .map(|pair| {
+                    let parts: Vec<&str> = pair.trim().split(':').collect();
+                    if parts.len() != 2 {
+                        panic!(
+                            "Invalid restraint format: '{}'. Expected format: 'receptor:ligand'",
+                            pair
+                        );
+                    }
+                    let rec = parts[0]
+                        .trim()
+                        .parse::<i32>()
+                        .expect(&format!("Invalid receptor residue number: '{}'", parts[0]));
+                    let lig = parts[1]
+                        .trim()
+                        .parse::<i32>()
+                        .expect(&format!("Invalid ligand residue number: '{}'", parts[1]));
+                    (rec, lig)
+                })
+                .collect();
+
+            score(receptor_file, ligand_file, restraint_pairs)
+        }
         _ => eprintln!("Please specify a valid subcommand: run or score"),
     }
 }
