@@ -1,5 +1,4 @@
 # gdock 🦀
-
 **Information-driven protein-protein docking using a genetic algorithm**
 
 ![Crates.io License](https://img.shields.io/crates/l/gdock)
@@ -16,6 +15,7 @@ The older v1.1.0 python version is still available in the releases.
 
 ---
 
+<img src="imgs/gdock_logo.png" width="350">
 
 gdock is a fast, efficient protein-protein docking tool written in Rust that uses restraints and energy components to guide the docking process. It combines a genetic algorithm with physics-based scoring to find optimal protein-protein complexes.
 
