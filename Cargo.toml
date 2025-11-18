@@ -1,0 +1,16 @@
+[package]
+name = "gdock"
+version = "2.0.0-alpha.1"
+edition = "2021"
+
+[dependencies]
+regex = "1.12"
+rand = "0.8.5"
+rand_distr = "0.4"
+rayon = "1.11"
+clap = "4.5"
+colored = "2.1"
+indicatif = "0.17"
+
+[profile.dev]
+debug = true

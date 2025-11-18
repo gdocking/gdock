@@ -164,3 +164,8 @@ src/pdb-tools
 src/ProFit_V3.3
 src/fcc
 src/dcomplex_single_file
+best_by_dockq.pdb
+best_by_score.pdb
+native_reference.pdb
+top_opls_aam.inp
+SUMMARY.md
