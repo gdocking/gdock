@@ -14,9 +14,13 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 
 use clap::Command;
-use constants::{MAX_GENERATIONS, POPULATION_SIZE, ENABLE_EARLY_STOPPING, CONVERGENCE_THRESHOLD, CONVERGENCE_WINDOW, DEFAULT_W_AIR, DEFAULT_W_DESOLV, DEFAULT_W_ELEC, DEFAULT_W_VDW};
+use colored::*;
+use constants::{
+    CONVERGENCE_THRESHOLD, CONVERGENCE_WINDOW, DEFAULT_W_AIR, DEFAULT_W_DESOLV, DEFAULT_W_ELEC,
+    DEFAULT_W_VDW, ENABLE_EARLY_STOPPING, MAX_GENERATIONS, POPULATION_SIZE,
+};
+use indicatif::{ProgressBar, ProgressStyle};
 use structure::read_pdb;
-
 
 fn score() {
     let mut filenames = Vec::new();
@@ -69,17 +73,61 @@ fn run(
     w_desolv: f64,
     w_air: f64,
 ) {
-    println!("=== GDock Run Configuration ===");
-    println!("Receptor: {}", receptor_file);
-    println!("Ligand: {}", ligand_file);
-    println!("Restraint pairs: {} (receptor:ligand)", restraint_pairs.len());
-    for (i, (rec, lig)) in restraint_pairs.iter().enumerate() {
-        println!("  {}. {}:{}", i + 1, rec, lig);
+    const VERSION: &str = env!("CARGO_PKG_VERSION");
+    println!(
+        "\n{} {}",
+        "🧬 GDock".bold().cyan(),
+        format!("v{}", VERSION).bright_black()
+    );
+    println!(
+        "{}",
+        "   Protein-Protein Docking with Genetic Algorithm".bright_black()
+    );
+    println!(
+        "{}",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bright_black()
+    );
+    println!("{}", "📁 Input Files".bold());
+    println!("  {}  {}", "Receptor: ".green(), receptor_file);
+    println!("  {}    {}", "Ligand: ".green(), ligand_file);
+    if let Some(ref_file) = &reference_file {
+        println!(
+            "  {} {} {}",
+            "Reference:".green(),
+            ref_file,
+            "(DockQ mode)".bright_black()
+        );
+    } else {
+        println!(
+            "  {} {}",
+            "Reference:".green(),
+            "None (score-only mode)".yellow()
+        );
     }
-    println!("Reference structure: {}", reference_file.as_ref().unwrap_or(&"None (score-only mode)".to_string()));
-    println!("Energy weights: VDW={:.2}, Elec={:.2}, Desolv={:.2}, AIR={:.2}", 
-        w_vdw, w_elec, w_desolv, w_air);
-    println!();
+    println!(
+        "\n{} {} pairs",
+        "🎯 Restraints:".bold(),
+        restraint_pairs.len().to_string().cyan()
+    );
+    for (rec, lig) in restraint_pairs.iter() {
+        println!("  {} {}:{}", "•".bright_blue(), rec, lig);
+    }
+    println!("\n{}", "⚙️  Energy Weights".bold());
+    println!(
+        "  {}={:.2} │ {}={:.2} │ {}={:.2} │ {}={:.2}",
+        "VDW".green(),
+        w_vdw,
+        "Elec".green(),
+        w_elec,
+        "Desolv".green(),
+        w_desolv,
+        "AIR".green(),
+        w_air
+    );
+    println!(
+        "{}\n",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bright_black()
+    );
 
     // --------------------------------------------------------------------------------
     // Define number of threads either with the function below or with the
@@ -94,16 +142,12 @@ fn run(
     let ligand = read_pdb(&ligand_file);
 
     // Create restraints from user-specified residue pairs
-    let restraints = restraints::create_restraints_from_pairs(
-        &receptor,
-        &ligand,
-        &restraint_pairs,
-    );
+    let restraints = restraints::create_restraints_from_pairs(&receptor, &ligand, &restraint_pairs);
     let num_restraints = restraints.len();
     println!(
-        "Created {} restraints from {} residue pairs",
-        num_restraints,
-        restraint_pairs.len()
+        "{} Created {} distance restraints\n",
+        "✓".green(),
+        num_restraints.to_string().cyan()
     );
 
     // Clone the original molecule for potential RMSD calculations
@@ -113,12 +157,12 @@ fn run(
 
     // Start the evaluator (only if reference is provided)
     let evaluator = if let Some(ref_file) = &reference_file {
-        println!("Loading reference structure for DockQ calculations...");
         let (_, reference_ligand) = scoring::read_complex(ref_file);
-        // Use the INPUT receptor (not reference receptor) since receptor doesn't move
-        Some(evaluator::Evaluator::new(receptor.clone(), reference_ligand))
+        Some(evaluator::Evaluator::new(
+            receptor.clone(),
+            reference_ligand,
+        ))
     } else {
-        println!("No reference structure provided - running in score-only mode");
         None
     };
 
@@ -126,10 +170,28 @@ fn run(
     let receptor_clone = receptor.clone();
     let ligand_clone = ligand.clone();
 
+    // Create progress bar
+    let progress = ProgressBar::new(MAX_GENERATIONS);
+    progress.set_style(
+        ProgressStyle::default_bar()
+            .template("{spinner:.green} [{bar:40.cyan/blue}] {pos}/{len} gens | {msg}")
+            .unwrap()
+            .progress_chars("█▓░"),
+    );
+
     // Start the GA
     // Create the initial population
-    let mut population =
-        population::Population::new(Vec::new(), receptor, ligand, orig, restraints, w_vdw, w_elec, w_desolv, w_air);
+    let mut population = population::Population::new(
+        Vec::new(),
+        receptor,
+        ligand,
+        orig,
+        restraints,
+        w_vdw,
+        w_elec,
+        w_desolv,
+        w_air,
+    );
     let mut rng = StdRng::seed_from_u64(constants::RANDOM_SEED);
     for _ in 0..POPULATION_SIZE {
         let c = chromosome::Chromosome::new(&mut rng);
@@ -141,7 +203,7 @@ fn run(
     let mut best_score_history: Vec<f64> = Vec::new();
     let mut generations_without_improvement = 0;
     let mut last_best_score = f64::MAX;
-    
+
     while generation_count < MAX_GENERATIONS {
         population.eval_fitness();
 
@@ -175,22 +237,31 @@ fn run(
             }
         }
         last_best_score = best_fitness;
-        
+
         // Check for early stopping
         if ENABLE_EARLY_STOPPING && generations_without_improvement >= CONVERGENCE_WINDOW {
-            println!("\n⚠ Early stopping triggered: No improvement for {} generations", CONVERGENCE_WINDOW);
-            println!("Converged at generation {}", generation_count);
+            progress.finish_with_message(format!(
+                "{} Converged at generation {} (no improvement for {} gens)",
+                "✓".green(),
+                generation_count,
+                CONVERGENCE_WINDOW
+            ));
+            println!();
             break;
         }
 
         // Calculate population averages
         let mean_fitness = population.get_mean_fitness();
-        let mean_rest: f64 = 100.0 * (population.chromosomes.iter()
-            .map(|c| 1.0 - c.restraint_penalty / num_restraints as f64).sum::<f64>() 
-            / population.chromosomes.len() as f64);
-        
+        let mean_rest: f64 = 100.0
+            * (population
+                .chromosomes
+                .iter()
+                .map(|c| 1.0 - c.restraint_penalty / num_restraints as f64)
+                .sum::<f64>()
+                / population.chromosomes.len() as f64);
+
         let best_rest = 100.0 * (1.0 - best_chr.restraint_penalty / num_restraints as f64);
-        
+
         // Calculate improvement metrics
         let improvement_since_last = if generation_count > 0 {
             let prev = best_score_history[generation_count as usize - 1];
@@ -198,42 +269,71 @@ fn run(
         } else {
             0.0
         };
-        
-        let improvement_from_start = if generation_count > 0 {
-            ((best_score_history[0] - best_fitness) / best_score_history[0]) * 100.0
-        } else {
-            0.0
-        };
-        
-        // Print output based on whether we have metrics or not
+
+        // Update progress bar and print output
+        progress.set_position(generation_count);
+
         if let Some(ref metrics) = metric_vec {
-            let mean_dockq: f64 = metrics.iter().map(|m| m.dockq).sum::<f64>() / metrics.len() as f64;
+            let mean_dockq: f64 =
+                metrics.iter().map(|m| m.dockq).sum::<f64>() / metrics.len() as f64;
             let best_metrics = &metrics[best_fitness_idx];
-            
-            println!("Gen #{:04} | Avg: Score={:.1} DockQ={:.3} Rest={:.0}% | Best: Score={:.1} DockQ={:.3} Rest={:.0}% RMSD={:.2} FNAT={:.3} iRMSD={:.2} | Δ={:.2}% ΔTotal={:.1}%",
-                generation_count,
+
+            let dockq_color = if best_metrics.dockq >= 0.8 {
+                "green"
+            } else if best_metrics.dockq >= 0.5 {
+                "yellow"
+            } else if best_metrics.dockq >= 0.23 {
+                "bright_yellow"
+            } else {
+                "red"
+            };
+
+            progress.set_message(format!(
+                "DockQ: {:.3} | Score: {:.0}",
+                best_metrics.dockq, best_fitness
+            ));
+
+            progress.println(format!("  [{}] {} score={:>8.1} dockq={} rest={}% │ {} score={:>8.1} dockq={} rest={}% rmsd={:.2}Å fnat={:.3} irmsd={:.2}Å │ Δ={}%",
+                format!("{:>3}", generation_count).bright_black(),
+                "📊".bright_blue(),
                 mean_fitness,
-                mean_dockq, 
-                mean_rest,
-                best_fitness, 
-                best_metrics.dockq,
-                best_rest,
+                format!("{:.3}", mean_dockq).cyan(),
+                format!("{:>3.0}", mean_rest).bright_black(),
+                "🎯".bright_green(),
+                best_fitness,
+                match dockq_color {
+                    "green" => format!("{:.3}", best_metrics.dockq).green(),
+                    "yellow" => format!("{:.3}", best_metrics.dockq).yellow(),
+                    "bright_yellow" => format!("{:.3}", best_metrics.dockq).bright_yellow(),
+                    _ => format!("{:.3}", best_metrics.dockq).red()
+                },
+                format!("{:>3.0}", best_rest).bright_black(),
                 best_metrics.rmsd,
                 best_metrics.fnat,
                 best_metrics.irmsd,
-                improvement_since_last,
-                improvement_from_start
-            );
+                if improvement_since_last > 0.0 {
+                    format!("{:>+5.2}", improvement_since_last).green()
+                } else {
+                    format!("{:>+5.2}", improvement_since_last).bright_black()
+                }
+            ));
         } else {
-            println!("Gen #{:04} | Avg: Score={:.1} Rest={:.0}% | Best: Score={:.1} Rest={:.0}% | Δ={:.2}% ΔTotal={:.1}%",
-                generation_count,
+            progress.set_message(format!("Score: {:.0}", best_fitness));
+            progress.println(format!(
+                "  [{}] {} score={:>8.1} rest={}% │ {} score={:>8.1} rest={}% │ Δ={}%",
+                format!("{:>3}", generation_count).bright_black(),
+                "📊".bright_blue(),
                 mean_fitness,
-                mean_rest,
-                best_fitness, 
-                best_rest,
-                improvement_since_last,
-                improvement_from_start
-            );
+                format!("{:>3.0}", mean_rest).bright_black(),
+                "🎯".bright_green(),
+                best_fitness,
+                format!("{:>3.0}", best_rest).bright_black(),
+                if improvement_since_last > 0.0 {
+                    format!("{:>+5.2}", improvement_since_last).green()
+                } else {
+                    format!("{:>+5.2}", improvement_since_last).bright_black()
+                }
+            ));
         }
 
         generation_count += 1;
@@ -253,8 +353,13 @@ fn run(
 
     let final_best_score = &population.chromosomes[best_fitness_idx];
 
+    // Finish progress bar if not already finished
+    if !progress.is_finished() {
+        progress.finish_and_clear();
+    }
+
     // Save the best models to disk
-    println!("\n=== Saving Models ===");
+    println!("\n{}", "💾 Saving Results".bold().cyan());
 
     // Apply transformations and save best-by-score model
     let best_score_ligand = final_best_score.apply_genes(&ligand_clone);
@@ -276,10 +381,12 @@ fn run(
         let best_dockq_complex = combine_molecules(&receptor_clone, &best_dockq_ligand);
         structure::write_pdb(&best_dockq_complex, &"best_by_dockq.pdb".to_string());
 
-        println!("Saved: best_by_score.pdb, best_by_dockq.pdb");
+        println!("  {} {}", "✓".green(), "best_by_score.pdb".bright_white());
+        println!("  {} {}", "✓".green(), "best_by_dockq.pdb".bright_white());
     } else {
-        println!("Saved: best_by_score.pdb");
+        println!("  {} {}", "✓".green(), "best_by_score.pdb".bright_white());
     }
+    println!("\n{}", "✨ Done!".bold().green());
 }
 
 /// Combines receptor and ligand into a single molecule for PDB output
@@ -359,7 +466,7 @@ fn main() {
         Some(("run", sub_matches)) => {
             let receptor_file = sub_matches.get_one::<String>("receptor").unwrap().clone();
             let ligand_file = sub_matches.get_one::<String>("ligand").unwrap().clone();
-            
+
             // Parse restraint pairs (format: "rec1:lig1,rec2:lig2,...")
             let restraint_pairs: Vec<(i32, i32)> = sub_matches
                 .get_one::<String>("restraints")
@@ -368,23 +475,42 @@ fn main() {
                 .map(|pair| {
                     let parts: Vec<&str> = pair.trim().split(':').collect();
                     if parts.len() != 2 {
-                        panic!("Invalid restraint format: '{}'. Expected format: 'receptor:ligand'", pair);
+                        panic!(
+                            "Invalid restraint format: '{}'. Expected format: 'receptor:ligand'",
+                            pair
+                        );
                     }
-                    let rec = parts[0].trim().parse::<i32>()
+                    let rec = parts[0]
+                        .trim()
+                        .parse::<i32>()
                         .expect(&format!("Invalid receptor residue number: '{}'", parts[0]));
-                    let lig = parts[1].trim().parse::<i32>()
+                    let lig = parts[1]
+                        .trim()
+                        .parse::<i32>()
                         .expect(&format!("Invalid ligand residue number: '{}'", parts[1]));
                     (rec, lig)
                 })
                 .collect();
-            
+
             let reference_file = sub_matches.get_one::<String>("reference").cloned();
 
-            let w_vdw = sub_matches.get_one::<f64>("w_vdw").copied().unwrap_or(DEFAULT_W_VDW);
-            let w_elec = sub_matches.get_one::<f64>("w_elec").copied().unwrap_or(DEFAULT_W_ELEC);
-            let w_desolv = sub_matches.get_one::<f64>("w_desolv").copied().unwrap_or(DEFAULT_W_DESOLV);
-            let w_air = sub_matches.get_one::<f64>("w_air").copied().unwrap_or(DEFAULT_W_AIR);
-            
+            let w_vdw = sub_matches
+                .get_one::<f64>("w_vdw")
+                .copied()
+                .unwrap_or(DEFAULT_W_VDW);
+            let w_elec = sub_matches
+                .get_one::<f64>("w_elec")
+                .copied()
+                .unwrap_or(DEFAULT_W_ELEC);
+            let w_desolv = sub_matches
+                .get_one::<f64>("w_desolv")
+                .copied()
+                .unwrap_or(DEFAULT_W_DESOLV);
+            let w_air = sub_matches
+                .get_one::<f64>("w_air")
+                .copied()
+                .unwrap_or(DEFAULT_W_AIR);
+
             run(
                 receptor_file,
                 ligand_file,
@@ -395,7 +521,7 @@ fn main() {
                 w_desolv,
                 w_air,
             );
-        },
+        }
         Some(("score", _)) => score(),
         _ => eprintln!("Please specify a valid subcommand: run or score"),
     }
