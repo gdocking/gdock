@@ -1,0 +1,112 @@
+use crate::structure;
+
+#[derive(Debug, Clone)]
+pub struct Restraint(pub structure::Atom, pub structure::Atom);
+
+impl Restraint {
+    fn new(atom1: structure::Atom, atom2: structure::Atom) -> Self {
+        Self(atom1, atom2)
+    }
+
+    pub fn is_satisfied(
+        &self,
+        receptor: &structure::Molecule,
+        ligand: &structure::Molecule,
+    ) -> bool {
+        // The restraint is based on CA atoms, so check CA-CA distance
+        // This is consistent with how restraints are created
+
+        // Find CA atom in receptor with matching resseq
+        let ca_receptor = receptor
+            .0
+            .iter()
+            .find(|x| x.resseq == self.0.resseq && x.name.trim() == "CA");
+
+        // Find CA atom in ligand with matching resseq
+        let ca_ligand = ligand
+            .0
+            .iter()
+            .find(|x| x.resseq == self.1.resseq && x.name.trim() == "CA");
+
+        // Both CAs must exist
+        if let (Some(ca1), Some(ca2)) = (ca_receptor, ca_ligand) {
+            let dist = structure::distance(ca1, ca2);
+            // Restraint is satisfied if within flat-bottom bounds [0.0, 7.0]
+            // This matches the upper_bound in air_energy()
+            return dist <= 7.0;
+        }
+
+        false
+    }
+}
+
+/// Create restraints from user-specified residue pairs
+pub fn create_restraints_from_pairs(
+    mol1: &structure::Molecule,
+    mol2: &structure::Molecule,
+    pairs: &[(i32, i32)],
+) -> Vec<Restraint> {
+    let mut restraints = Vec::new();
+
+    for (res1, res2) in pairs {
+        // Find CA atom in mol1 with matching residue number
+        let ca_atom_1 = mol1
+            .0
+            .iter()
+            .find(|atom| atom.name.trim() == "CA" && atom.resseq as i32 == *res1);
+
+        // Find CA atom in mol2 with matching residue number
+        let ca_atom_2 = mol2
+            .0
+            .iter()
+            .find(|atom| atom.name.trim() == "CA" && atom.resseq as i32 == *res2);
+
+        // Both CAs must exist
+        if let (Some(atom1), Some(atom2)) = (ca_atom_1, ca_atom_2) {
+            let restraint = Restraint::new(atom1.clone(), atom2.clone());
+            restraints.push(restraint);
+        } else {
+            eprintln!("Warning: Restraint pair {}:{} not found in structures", res1, res2);
+        }
+    }
+
+    restraints
+}
+
+/// Create restraints automatically from interface (for benchmarking/development)
+pub fn create_restraints(mol1: &structure::Molecule, mol2: &structure::Molecule) -> Vec<Restraint> {
+    let mut restraints = Vec::new();
+
+    // Only create restraints for CA atoms (backbone) to reduce the number of restraints
+    // This is more realistic for protein-protein docking
+    let ca_atoms_1: Vec<&structure::Atom> = mol1
+        .0
+        .iter()
+        .filter(|atom| atom.name.trim() == "CA")
+        .collect();
+
+    let ca_atoms_2: Vec<&structure::Atom> = mol2
+        .0
+        .iter()
+        .filter(|atom| atom.name.trim() == "CA")
+        .collect();
+
+    // Loop over CA atoms in mol1
+    for atom1 in ca_atoms_1.iter() {
+        // Loop over CA atoms in mol2
+        for atom2 in ca_atoms_2.iter() {
+            // Create restraints for CA atoms within 7.0A (interface contacts)
+            // This matches the upper_bound used in air_energy() flat-bottom potential
+            let dist = structure::distance(atom1, atom2);
+            if dist < 7.0 {
+                // Create a new restraint
+                let restraint = Restraint::new((*atom1).clone(), (*atom2).clone());
+
+                // Add the restraint to the vector
+                restraints.push(restraint);
+            }
+        }
+    }
+
+    restraints
+}
