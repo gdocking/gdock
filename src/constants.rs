@@ -1,3 +1,4 @@
+// GA Parameters
 pub const POPULATION_SIZE: u64 = 150;
 pub const MUTATION_RATE: f64 = 0.1;
 pub const CROSSOVER_RATE: f64 = 0.6;
@@ -11,6 +12,12 @@ pub const RANDOM_SEED: u64 = 42;
 pub const ENABLE_EARLY_STOPPING: bool = true;
 pub const CONVERGENCE_THRESHOLD: f64 = 0.001; // 0.1% improvement threshold
 pub const CONVERGENCE_WINDOW: u64 = 10; // Stop if no improvement for this many generations
+
+// Default weights (based on a score sweep)
+pub const DEFAULT_W_VDW: f64 = 1.0;
+pub const DEFAULT_W_ELEC: f64 = 0.5;
+pub const DEFAULT_W_DESOLV: f64 = 0.1;
+pub const DEFAULT_W_AIR: f64 = 100.0;
 
 // VdW radii
 // `https://en.wikipedia.org/wiki/Van_der_Waals_radius`

@@ -14,8 +14,9 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 
 use clap::Command;
-use constants::{MAX_GENERATIONS, POPULATION_SIZE, ENABLE_EARLY_STOPPING, CONVERGENCE_THRESHOLD, CONVERGENCE_WINDOW};
+use constants::{MAX_GENERATIONS, POPULATION_SIZE, ENABLE_EARLY_STOPPING, CONVERGENCE_THRESHOLD, CONVERGENCE_WINDOW, DEFAULT_W_AIR, DEFAULT_W_DESOLV, DEFAULT_W_ELEC, DEFAULT_W_VDW};
 use structure::read_pdb;
+
 
 fn score() {
     let mut filenames = Vec::new();
@@ -58,9 +59,28 @@ fn score() {
     }
 }
 
-fn run(w_vdw: f64, w_elec: f64, w_desolv: f64, w_air: f64) {
-    println!("Running with energy weights: VDW={:.2}, Elec={:.2}, Desolv={:.2}, AIR={:.2}", 
+fn run(
+    receptor_file: String,
+    ligand_file: String,
+    restraint_pairs: Vec<(i32, i32)>,
+    reference_file: Option<String>,
+    w_vdw: f64,
+    w_elec: f64,
+    w_desolv: f64,
+    w_air: f64,
+) {
+    println!("=== GDock Run Configuration ===");
+    println!("Receptor: {}", receptor_file);
+    println!("Ligand: {}", ligand_file);
+    println!("Restraint pairs: {} (receptor:ligand)", restraint_pairs.len());
+    for (i, (rec, lig)) in restraint_pairs.iter().enumerate() {
+        println!("  {}. {}:{}", i + 1, rec, lig);
+    }
+    println!("Reference structure: {}", reference_file.as_ref().unwrap_or(&"None (score-only mode)".to_string()));
+    println!("Energy weights: VDW={:.2}, Elec={:.2}, Desolv={:.2}, AIR={:.2}", 
         w_vdw, w_elec, w_desolv, w_air);
+    println!();
+
     // --------------------------------------------------------------------------------
     // Define number of threads either with the function below or with the
     // environment variable RAYON_NUM_THREADS
@@ -70,35 +90,40 @@ fn run(w_vdw: f64, w_elec: f64, w_desolv: f64, w_air: f64) {
     //     .unwrap();
     // --------------------------------------------------------------------------------
 
-    let input_receptor = &"data/A.pdb".to_string();
-    let input_ligand = &"data/B.pdb".to_string();
+    let receptor = read_pdb(&receptor_file);
+    let ligand = read_pdb(&ligand_file);
 
-    let receptor = read_pdb(input_receptor);
-    let ligand = read_pdb(input_ligand);
-
-    // --------------------------------------------------------------------------------
-    // DEVELOPMENT //
-    // --------------------------------------------------------------------------------
-    let restraints = restraints::create_restraints(&receptor, &ligand);
+    // Create restraints from user-specified residue pairs
+    let restraints = restraints::create_restraints_from_pairs(
+        &receptor,
+        &ligand,
+        &restraint_pairs,
+    );
     let num_restraints = restraints.len();
     println!(
-        "Created {} restraints from native structure",
-        num_restraints
+        "Created {} restraints from {} residue pairs",
+        num_restraints,
+        restraint_pairs.len()
     );
 
-    // --------------------------------------------------------------------------------
-    // Clone the original molecule for RMSD calculations
+    // Clone the original molecule for potential RMSD calculations
     let orig = ligand.clone();
 
     let ligand = utils::position_ligand(&receptor, ligand);
 
-    // Start the evaluator
-    let evaluator = evaluator::Evaluator::new(receptor.clone(), orig.clone());
+    // Start the evaluator (only if reference is provided)
+    let evaluator = if let Some(ref_file) = &reference_file {
+        println!("Loading reference structure for DockQ calculations...");
+        let (reference_receptor, reference_ligand) = scoring::read_complex(ref_file);
+        Some(evaluator::Evaluator::new(reference_receptor, reference_ligand))
+    } else {
+        println!("No reference structure provided - running in score-only mode");
+        None
+    };
 
     // Clone molecules before moving them into population (needed for PDB output later)
     let receptor_clone = receptor.clone();
     let ligand_clone = ligand.clone();
-    let orig_clone = orig.clone();
 
     // Start the GA
     // Create the initial population
@@ -119,8 +144,12 @@ fn run(w_vdw: f64, w_elec: f64, w_desolv: f64, w_air: f64) {
     while generation_count < MAX_GENERATIONS {
         population.eval_fitness();
 
-        // Calculate metrics for all chromosomes
-        let metric_vec = population.eval_metrics(&evaluator);
+        // Calculate metrics for all chromosomes (only if reference is available)
+        let metric_vec = if let Some(ref eval) = evaluator {
+            Some(population.eval_metrics(eval))
+        } else {
+            None
+        };
 
         // Find the best fitness chromosome and its corresponding RMSD
         let best_fitness_idx = population
@@ -155,13 +184,10 @@ fn run(w_vdw: f64, w_elec: f64, w_desolv: f64, w_air: f64) {
 
         // Calculate population averages
         let mean_fitness = population.get_mean_fitness();
-        let mean_dockq: f64 = metric_vec.iter().map(|m| m.dockq).sum::<f64>() / metric_vec.len() as f64;
         let mean_rest: f64 = 100.0 * (population.chromosomes.iter()
             .map(|c| 1.0 - c.restraint_penalty / num_restraints as f64).sum::<f64>() 
             / population.chromosomes.len() as f64);
         
-        // Get best individual metrics
-        let best_metrics = &metric_vec[best_fitness_idx];
         let best_rest = 100.0 * (1.0 - best_chr.restraint_penalty / num_restraints as f64);
         
         // Calculate improvement metrics
@@ -178,20 +204,36 @@ fn run(w_vdw: f64, w_elec: f64, w_desolv: f64, w_air: f64) {
             0.0
         };
         
-        println!("Gen #{:04} | Avg: Score={:.1} DockQ={:.3} Rest={:.0}% | Best: Score={:.1} DockQ={:.3} Rest={:.0}% RMSD={:.2} FNAT={:.3} iRMSD={:.2} | Δ={:.2}% ΔTotal={:.1}%",
-            generation_count,
-            mean_fitness,
-            mean_dockq, 
-            mean_rest,
-            best_fitness, 
-            best_metrics.dockq,
-            best_rest,
-            best_metrics.rmsd,
-            best_metrics.fnat,
-            best_metrics.irmsd,
-            improvement_since_last,
-            improvement_from_start
-        );
+        // Print output based on whether we have metrics or not
+        if let Some(ref metrics) = metric_vec {
+            let mean_dockq: f64 = metrics.iter().map(|m| m.dockq).sum::<f64>() / metrics.len() as f64;
+            let best_metrics = &metrics[best_fitness_idx];
+            
+            println!("Gen #{:04} | Avg: Score={:.1} DockQ={:.3} Rest={:.0}% | Best: Score={:.1} DockQ={:.3} Rest={:.0}% RMSD={:.2} FNAT={:.3} iRMSD={:.2} | Δ={:.2}% ΔTotal={:.1}%",
+                generation_count,
+                mean_fitness,
+                mean_dockq, 
+                mean_rest,
+                best_fitness, 
+                best_metrics.dockq,
+                best_rest,
+                best_metrics.rmsd,
+                best_metrics.fnat,
+                best_metrics.irmsd,
+                improvement_since_last,
+                improvement_from_start
+            );
+        } else {
+            println!("Gen #{:04} | Avg: Score={:.1} Rest={:.0}% | Best: Score={:.1} Rest={:.0}% | Δ={:.2}% ΔTotal={:.1}%",
+                generation_count,
+                mean_fitness,
+                mean_rest,
+                best_fitness, 
+                best_rest,
+                improvement_since_last,
+                improvement_from_start
+            );
+        }
 
         generation_count += 1;
         population = population.evolve(&mut rng);
@@ -199,7 +241,6 @@ fn run(w_vdw: f64, w_elec: f64, w_desolv: f64, w_air: f64) {
 
     // Final evaluation for saving models
     population.eval_fitness();
-    let final_metrics = population.eval_metrics(&evaluator);
 
     let best_fitness_idx = population
         .chromosomes
@@ -209,15 +250,7 @@ fn run(w_vdw: f64, w_elec: f64, w_desolv: f64, w_air: f64) {
         .map(|(idx, _)| idx)
         .unwrap();
 
-    let best_dockq_idx = final_metrics
-        .iter()
-        .enumerate()
-        .max_by(|(_, a), (_, b)| a.dockq.partial_cmp(&b.dockq).unwrap())
-        .map(|(idx, _)| idx)
-        .unwrap();
-
     let final_best_score = &population.chromosomes[best_fitness_idx];
-    let final_best_dockq = &population.chromosomes[best_dockq_idx];
 
     // Save the best models to disk
     println!("\n=== Saving Models ===");
@@ -227,16 +260,25 @@ fn run(w_vdw: f64, w_elec: f64, w_desolv: f64, w_air: f64) {
     let best_score_complex = combine_molecules(&receptor_clone, &best_score_ligand);
     structure::write_pdb(&best_score_complex, &"best_by_score.pdb".to_string());
 
-    // Apply transformations and save best-by-DockQ model
-    let best_dockq_ligand = final_best_dockq.apply_genes(&ligand_clone);
-    let best_dockq_complex = combine_molecules(&receptor_clone, &best_dockq_ligand);
-    structure::write_pdb(&best_dockq_complex, &"best_by_dockq.pdb".to_string());
+    // If we have a reference, also save best-by-DockQ model
+    if let Some(ref eval) = evaluator {
+        let final_metrics = population.eval_metrics(eval);
+        let best_dockq_idx = final_metrics
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| a.dockq.partial_cmp(&b.dockq).unwrap())
+            .map(|(idx, _)| idx)
+            .unwrap();
 
-    // Save the native structure for comparison
-    let native_complex = combine_molecules(&receptor_clone, &orig_clone);
-    structure::write_pdb(&native_complex, &"native_reference.pdb".to_string());
-    
-    println!("Saved: best_by_score.pdb, best_by_dockq.pdb, native_reference.pdb");
+        let final_best_dockq = &population.chromosomes[best_dockq_idx];
+        let best_dockq_ligand = final_best_dockq.apply_genes(&ligand_clone);
+        let best_dockq_complex = combine_molecules(&receptor_clone, &best_dockq_ligand);
+        structure::write_pdb(&best_dockq_complex, &"best_by_dockq.pdb".to_string());
+
+        println!("Saved: best_by_score.pdb, best_by_dockq.pdb");
+    } else {
+        println!("Saved: best_by_score.pdb");
+    }
 }
 
 /// Combines receptor and ligand into a single molecule for PDB output
@@ -266,7 +308,28 @@ fn main() {
         .about("pending")
         .subcommand(
             Command::new("run")
-                .about("Run the GA algorithm")
+                .about("Run the GA docking algorithm")
+                .arg(clap::Arg::new("receptor")
+                    .long("receptor")
+                    .short('r')
+                    .value_name("FILE")
+                    .help("Receptor PDB file")
+                    .required(true))
+                .arg(clap::Arg::new("ligand")
+                    .long("ligand")
+                    .short('l')
+                    .value_name("FILE")
+                    .help("Ligand PDB file")
+                    .required(true))
+                .arg(clap::Arg::new("restraints")
+                    .long("restraints")
+                    .value_name("PAIRS")
+                    .help("Comma-separated restraint pairs receptor:ligand (e.g., 10:45,15:50,20:55)")
+                    .required(true))
+                .arg(clap::Arg::new("reference")
+                    .long("reference")
+                    .value_name("FILE")
+                    .help("Reference PDB file for DockQ calculation (optional)"))
                 .arg(clap::Arg::new("w_vdw")
                     .long("w_vdw")
                     .value_name("WEIGHT")
@@ -293,11 +356,44 @@ fn main() {
 
     match matches.subcommand() {
         Some(("run", sub_matches)) => {
-            let w_vdw = sub_matches.get_one::<f64>("w_vdw").copied().unwrap_or(1.0);
-            let w_elec = sub_matches.get_one::<f64>("w_elec").copied().unwrap_or(0.5);
-            let w_desolv = sub_matches.get_one::<f64>("w_desolv").copied().unwrap_or(0.5);
-            let w_air = sub_matches.get_one::<f64>("w_air").copied().unwrap_or(100.0);
-            run(w_vdw, w_elec, w_desolv, w_air);
+            let receptor_file = sub_matches.get_one::<String>("receptor").unwrap().clone();
+            let ligand_file = sub_matches.get_one::<String>("ligand").unwrap().clone();
+            
+            // Parse restraint pairs (format: "rec1:lig1,rec2:lig2,...")
+            let restraint_pairs: Vec<(i32, i32)> = sub_matches
+                .get_one::<String>("restraints")
+                .unwrap()
+                .split(',')
+                .map(|pair| {
+                    let parts: Vec<&str> = pair.trim().split(':').collect();
+                    if parts.len() != 2 {
+                        panic!("Invalid restraint format: '{}'. Expected format: 'receptor:ligand'", pair);
+                    }
+                    let rec = parts[0].trim().parse::<i32>()
+                        .expect(&format!("Invalid receptor residue number: '{}'", parts[0]));
+                    let lig = parts[1].trim().parse::<i32>()
+                        .expect(&format!("Invalid ligand residue number: '{}'", parts[1]));
+                    (rec, lig)
+                })
+                .collect();
+            
+            let reference_file = sub_matches.get_one::<String>("reference").cloned();
+
+            let w_vdw = sub_matches.get_one::<f64>("w_vdw").copied().unwrap_or(DEFAULT_W_VDW);
+            let w_elec = sub_matches.get_one::<f64>("w_elec").copied().unwrap_or(DEFAULT_W_ELEC);
+            let w_desolv = sub_matches.get_one::<f64>("w_desolv").copied().unwrap_or(DEFAULT_W_DESOLV);
+            let w_air = sub_matches.get_one::<f64>("w_air").copied().unwrap_or(DEFAULT_W_AIR);
+            
+            run(
+                receptor_file,
+                ligand_file,
+                restraint_pairs,
+                reference_file,
+                w_vdw,
+                w_elec,
+                w_desolv,
+                w_air,
+            );
         },
         Some(("score", _)) => score(),
         _ => eprintln!("Please specify a valid subcommand: run or score"),

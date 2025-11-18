@@ -61,11 +61,16 @@ impl Evaluator {
     }
 
     pub fn calc_metrics(&self, model: &structure::Molecule) -> Metrics {
-        // let model = ligand.clone();
-        let rmsd = self.calc_rmsd(model);
-        let irmsd = self.calc_irmsd(model);
         let fnat = self.calc_fnat(model);
-        let dockq = self.calc_dockq(model);
+        let irmsd = self.calc_irmsd(model);
+        let rmsd = self.calc_rmsd(model);
+        
+        // Calculate DockQ using the same values
+        let fnat_score = fnat;
+        let irmsd_score = 1.0 / (1.0 + (irmsd / 1.5).powi(2));
+        let lrmsd_score = 1.0 / (1.0 + (rmsd / 8.5).powi(2));
+        let dockq = (fnat_score + irmsd_score + lrmsd_score) / 3.0;
+        
         Metrics {
             rmsd,
             irmsd,
@@ -108,8 +113,11 @@ impl Evaluator {
     }
 
     fn calc_fnat(&self, ligand: &structure::Molecule) -> f64 {
-        // Get the contact between this ligand and the receptor
-        let docked_contacts = calculate_contacts(&self.receptor_interface, ligand);
+        // Filter ligand to only interface residues to match how native_contacts was calculated
+        let ligand_interface = structure::filter_by_resseq_vec(ligand, &self.interface.1);
+        
+        // Get the contact between this ligand interface and the receptor interface
+        let docked_contacts = calculate_contacts(&self.receptor_interface, &ligand_interface);
 
         // Check how many of the docked contacts are in the native contacts, this will be the common contacts
         let common_contacts = docked_contacts
@@ -121,17 +129,6 @@ impl Evaluator {
         common_contacts as f64 / self.native_contacts.len() as f64
     }
 
-    fn calc_dockq(&self, ligand: &structure::Molecule) -> f64 {
-        let fnat = self.calc_fnat(ligand);
-        let irmsd = self.calc_irmsd(ligand);
-        let lrmsd = self.calc_rmsd(ligand);
-        let fnat_score = fnat;
-        let irmsd_score = 1.0 / (1.0 + (irmsd / 1.5).powi(2));
-        let lrmsd_score = 1.0 / (1.0 + (lrmsd / 8.5).powi(2));
-
-        (fnat_score + irmsd_score + lrmsd_score) / 3.0
-        // }
-    }
 }
 
 fn calculate_contacts(
