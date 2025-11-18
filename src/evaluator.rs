@@ -2,6 +2,7 @@
 use crate::structure;
 use std::collections::HashSet;
 
+#[derive(Clone)]
 pub struct Evaluator {
     // receptor: structure::Molecule,
     reference: structure::Molecule,
@@ -11,7 +12,7 @@ pub struct Evaluator {
     native_contacts: Vec<Contact>,
 }
 
-#[derive(PartialEq, Debug, Hash, Eq)]
+#[derive(PartialEq, Debug, Hash, Eq, Clone)]
 pub struct Contact {
     chain_i: char,
     res_i: i16,
@@ -64,13 +65,13 @@ impl Evaluator {
         let fnat = self.calc_fnat(model);
         let irmsd = self.calc_irmsd(model);
         let rmsd = self.calc_rmsd(model);
-        
+
         // Calculate DockQ using the same values
         let fnat_score = fnat;
         let irmsd_score = 1.0 / (1.0 + (irmsd / 1.5).powi(2));
         let lrmsd_score = 1.0 / (1.0 + (rmsd / 8.5).powi(2));
         let dockq = (fnat_score + irmsd_score + lrmsd_score) / 3.0;
-        
+
         Metrics {
             rmsd,
             irmsd,
@@ -115,7 +116,7 @@ impl Evaluator {
     fn calc_fnat(&self, ligand: &structure::Molecule) -> f64 {
         // Filter ligand to only interface residues to match how native_contacts was calculated
         let ligand_interface = structure::filter_by_resseq_vec(ligand, &self.interface.1);
-        
+
         // Get the contact between this ligand interface and the receptor interface
         let docked_contacts = calculate_contacts(&self.receptor_interface, &ligand_interface);
 
@@ -128,7 +129,6 @@ impl Evaluator {
         // Calculate the FNAT
         common_contacts as f64 / self.native_contacts.len() as f64
     }
-
 }
 
 fn calculate_contacts(

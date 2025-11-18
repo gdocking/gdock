@@ -74,15 +74,20 @@ pub fn split_complex(pdb_file: &str) -> Vec<String> {
         }
     }
 
+    // Sort chains alphabetically to ensure deterministic order
+    let mut chains: Vec<_> = atom_map.keys().cloned().collect();
+    chains.sort();
+    
     let mut result = vec![];
 
-    for (chain, atoms) in atom_map {
+    for chain in chains {
+        let atoms = &atom_map[&chain];
         let fname = format!("{}.pdb", chain);
         let mut file = File::create(&fname).expect("Cannot create file");
         let mut pdb_string = String::new();
 
         for atom in atoms {
-            pdb_string.push_str(&atom);
+            pdb_string.push_str(atom);
         }
 
         file.write_all(pdb_string.as_bytes())

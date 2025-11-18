@@ -114,8 +114,9 @@ fn run(
     // Start the evaluator (only if reference is provided)
     let evaluator = if let Some(ref_file) = &reference_file {
         println!("Loading reference structure for DockQ calculations...");
-        let (reference_receptor, reference_ligand) = scoring::read_complex(ref_file);
-        Some(evaluator::Evaluator::new(reference_receptor, reference_ligand))
+        let (_, reference_ligand) = scoring::read_complex(ref_file);
+        // Use the INPUT receptor (not reference receptor) since receptor doesn't move
+        Some(evaluator::Evaluator::new(receptor.clone(), reference_ligand))
     } else {
         println!("No reference structure provided - running in score-only mode");
         None

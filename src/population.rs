@@ -58,7 +58,15 @@ impl Population {
         let w_desolv = self.w_desolv;
         let w_air = self.w_air;
         self.chromosomes.par_iter_mut().for_each(|c| {
-            c.fitness(&self.receptor, &self.ligand, &self.restraints, w_vdw, w_elec, w_desolv, w_air);
+            c.fitness(
+                &self.receptor,
+                &self.ligand,
+                &self.restraints,
+                w_vdw,
+                w_elec,
+                w_desolv,
+                w_air,
+            );
         });
     }
 
@@ -67,7 +75,6 @@ impl Population {
             .par_iter()
             .map(|c| {
                 let model = c.apply_genes(&self.ligand);
-                // let model = self.ligand.clone();
                 evaluator.calc_metrics(&model)
             })
             .collect()
@@ -78,8 +85,12 @@ impl Population {
         // ELITISM: Save best individuals before evolution
         let mut elite = self.chromosomes.clone();
         elite.sort_by(|a, b| a.fitness.partial_cmp(&b.fitness).unwrap_or(Ordering::Equal));
-        let elite_individuals: Vec<Chromosome> = elite.iter().take(constants::ELITISM_COUNT).cloned().collect();
-        
+        let elite_individuals: Vec<Chromosome> = elite
+            .iter()
+            .take(constants::ELITISM_COUNT)
+            .cloned()
+            .collect();
+
         // Tournament selection
         let mut new_population = self.tournament_selection(rng);
 
@@ -106,7 +117,9 @@ impl Population {
 
         // ELITISM: Replace worst individuals with elite
         // Sort new population by fitness (worst first)
-        new_population.chromosomes.sort_by(|a, b| b.fitness.partial_cmp(&a.fitness).unwrap_or(Ordering::Equal));
+        new_population
+            .chromosomes
+            .sort_by(|a, b| b.fitness.partial_cmp(&a.fitness).unwrap_or(Ordering::Equal));
         // Replace worst N individuals with elite
         for (i, elite_individual) in elite_individuals.iter().enumerate() {
             if i < new_population.chromosomes.len() {
