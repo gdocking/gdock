@@ -2,6 +2,13 @@
 name = "gdock"
 version = "2.0.0-alpha.1"
 edition = "2021"
+license = "0BSD"
+authors = ["Rodrigo V. Honorato <rvhonorato@protonmail.com>"]
+description = "Fast information-driven protein-protein docking using genetic algorithms and physics-based scoring"
+repository = "https://github.com/gdocking/gdock"
+readme = "README.md"
+keywords = ["bioinformatics", "protein", "docking", "molecular", "genetics"]
+categories = ["science", "command-line-utilities", "algorithms"]
 
 [dependencies]
 regex = "1.12"
