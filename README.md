@@ -30,6 +30,8 @@ gdock is a fast, efficient protein-protein docking tool written in Rust that use
 ## Installation
 
 ```bash
+git clone https://github.com/gdocking/gdock
+cd gdock
 cargo build --release
 ```
 
