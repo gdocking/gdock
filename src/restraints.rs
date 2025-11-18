@@ -40,6 +40,40 @@ impl Restraint {
     }
 }
 
+/// Create restraints from user-specified residue pairs
+pub fn create_restraints_from_pairs(
+    mol1: &structure::Molecule,
+    mol2: &structure::Molecule,
+    pairs: &[(i32, i32)],
+) -> Vec<Restraint> {
+    let mut restraints = Vec::new();
+
+    for (res1, res2) in pairs {
+        // Find CA atom in mol1 with matching residue number
+        let ca_atom_1 = mol1
+            .0
+            .iter()
+            .find(|atom| atom.name.trim() == "CA" && atom.resseq as i32 == *res1);
+
+        // Find CA atom in mol2 with matching residue number
+        let ca_atom_2 = mol2
+            .0
+            .iter()
+            .find(|atom| atom.name.trim() == "CA" && atom.resseq as i32 == *res2);
+
+        // Both CAs must exist
+        if let (Some(atom1), Some(atom2)) = (ca_atom_1, ca_atom_2) {
+            let restraint = Restraint::new(atom1.clone(), atom2.clone());
+            restraints.push(restraint);
+        } else {
+            eprintln!("Warning: Restraint pair {}:{} not found in structures", res1, res2);
+        }
+    }
+
+    restraints
+}
+
+/// Create restraints automatically from interface (for benchmarking/development)
 pub fn create_restraints(mol1: &structure::Molecule, mol2: &structure::Molecule) -> Vec<Restraint> {
     let mut restraints = Vec::new();
 
