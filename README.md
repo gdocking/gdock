@@ -2,7 +2,9 @@
 
 **Information-driven protein-protein docking using a genetic algorithm**
 
-![GitHub License](https://img.shields.io/github/license/gdocking/gdock)
+![Crates.io License](https://img.shields.io/crates/l/gdock)
+![Crates.io Version](https://img.shields.io/crates/v/gdock)
+![Crates.io Total Downloads](https://img.shields.io/crates/d/gdock)
 
 ## IMPORTANT
 
