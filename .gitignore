@@ -68,6 +68,36 @@ instance/
 # Scrapy stuff:
 .scrapy
 
+
+# AI stuff
+.claude
+.copilot
+.cursor
+.aider*
+.continue
+.windsurf
+
+# AI chat/context files
+.ai
+*.ai.md
+*-ai-context.txt
+
+# Common AI tool caches
+.ai-cache
+.llm-cache
+.gpt-cache
+
+# Anthropic Claude specific
+.claude-history
+claude-context.json
+
+# GitHub Copilot
+.copilot-chat-history
+
+# AI-generated temporary files
+ai-scratch/
+ai-temp/
+
 # Sphinx documentation
 docs/_build/
 
