@@ -2,7 +2,7 @@
 use crate::structure;
 use std::collections::HashSet;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Evaluator {
     // receptor: structure::Molecule,
     reference: structure::Molecule,

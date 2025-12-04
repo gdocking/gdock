@@ -88,6 +88,7 @@ impl Chromosome {
         ligand: &structure::Molecule,
         restraints: &[restraints::Restraint],
         weights: &constants::EnergyWeights,
+        evaluator: Option<&crate::evaluator::Evaluator>,
     ) -> f64 {
         let target_ligand = self.apply_genes(ligand);
 
@@ -103,6 +104,14 @@ impl Chromosome {
         // Calculate restraint satisfaction for monitoring
         let restraints_ratio = fitness::satisfaction_ratio(restraints, receptor, &target_ligand);
         self.restraint_penalty = (1.0 - restraints_ratio) * restraints.len() as f64;
+
+        // Debug mode: use negative DockQ as fitness (lower is better, so we negate)
+        // This validates that the sampling strategy can find the native structure
+        if let Some(eval) = evaluator {
+            let metrics = eval.calc_metrics(&target_ligand);
+            self.fitness = -metrics.dockq; // Negate because GA minimizes fitness
+            return self.fitness;
+        }
 
         // Information-driven docking score with configurable weights
         let score = weights.vdw * self.vdw
@@ -304,7 +313,7 @@ mod tests {
             fnat: 0.0,
         };
 
-        let fitness = chromosome.fitness(&receptor, &ligand, &restraints, &weights);
+        let fitness = chromosome.fitness(&receptor, &ligand, &restraints, &weights, None);
 
         // Fitness should be calculated (non-zero for this setup)
         assert!(fitness.is_finite(), "Fitness should be a finite number");
@@ -337,7 +346,7 @@ mod tests {
             fnat: 0.0,
         };
 
-        chromosome.fitness(&receptor, &ligand, &restraints, &weights);
+        chromosome.fitness(&receptor, &ligand, &restraints, &weights, None);
 
         // Energy components should be calculated and stored
         assert!(

@@ -53,6 +53,7 @@ fn run(
     restraint_pairs: Vec<(i32, i32)>,
     reference_file: Option<String>,
     weights: constants::EnergyWeights,
+    debug_mode: bool,
 ) {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     println!(
@@ -64,6 +65,12 @@ fn run(
         "{}",
         "   Protein-Protein Docking with Genetic Algorithm".bright_black()
     );
+    if debug_mode {
+        println!(
+            "{}",
+            "   ⚠️  DEBUG MODE: Using DockQ as fitness function".yellow().bold()
+        );
+    }
     println!(
         "{}",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bright_black()
@@ -147,6 +154,13 @@ fn run(
         None
     };
 
+    // In debug mode, we use the evaluator as the fitness function
+    let debug_evaluator = if debug_mode {
+        evaluator.clone()
+    } else {
+        None
+    };
+
     // Clone molecules before moving them into population (needed for PDB output later)
     let receptor_clone = receptor.clone();
     let ligand_clone = ligand.clone();
@@ -163,7 +177,7 @@ fn run(
     // Start the GA
     // Create the initial population
     let mut population =
-        population::Population::new(Vec::new(), receptor, ligand, orig, restraints, weights);
+        population::Population::new(Vec::new(), receptor, ligand, orig, restraints, weights, debug_evaluator);
     let mut rng = StdRng::seed_from_u64(constants::RANDOM_SEED);
     for _ in 0..POPULATION_SIZE {
         let c = chromosome::Chromosome::new(&mut rng);
@@ -176,6 +190,7 @@ fn run(
     let mut generations_without_improvement = 0;
     let mut last_best_score = f64::MAX;
 
+    println!("{} Starting evolution for {} generations", "🧬".bold(), MAX_GENERATIONS);
     while generation_count < MAX_GENERATIONS {
         population.eval_fitness();
 
@@ -256,19 +271,23 @@ fn run(
                 "red"
             };
 
+            let score_label = if debug_mode { "DockQ" } else { "Score" };
+            let score_value = if debug_mode { -best_fitness } else { best_fitness };
             progress.set_message(format!(
-                "DockQ: {:.3} | Score: {:.0}",
-                best_metrics.dockq, best_fitness
+                "DockQ: {:.3} | {}: {:.3}",
+                best_metrics.dockq, score_label, score_value
             ));
 
-            progress.println(format!("  [{}] {} score={:>8.1} dockq={} rest={}% │ {} score={:>8.1} dockq={} rest={}% rmsd={:.2}Å fnat={:.3} irmsd={:.2}Å │ Δ={}%",
+            let mean_score_display = if debug_mode { -mean_fitness } else { mean_fitness };
+            let best_score_display = if debug_mode { -best_fitness } else { best_fitness };
+            progress.println(format!("  [{}] {} score={:>8.3} dockq={} rest={}% │ {} score={:>8.3} dockq={} rest={}% rmsd={:.2}Å fnat={:.3} irmsd={:.2}Å │ Δ={}%",
                 format!("{:>3}", generation_count).bright_black(),
                 "📊".bright_blue(),
-                mean_fitness,
+                mean_score_display,
                 format!("{:.3}", mean_dockq).cyan(),
                 format!("{:>3.0}", mean_rest).bright_black(),
                 "🎯".bright_green(),
-                best_fitness,
+                best_score_display,
                 match dockq_color {
                     "green" => format!("{:.3}", best_metrics.dockq).green(),
                     "yellow" => format!("{:.3}", best_metrics.dockq).yellow(),
@@ -323,11 +342,40 @@ fn run(
 
     // Finish progress bar if not already finished
     if !progress.is_finished() {
-        progress.finish_and_clear();
+        progress.finish();
     }
 
     // Save the best models to disk
     println!("\n{}", "💾 Saving Results".bold().cyan());
+
+    // Display final metrics
+    if let Some(ref eval) = evaluator {
+        let final_metrics = population.eval_metrics(eval);
+        let best_dockq_idx = final_metrics
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| a.dockq.partial_cmp(&b.dockq).unwrap())
+            .map(|(idx, _)| idx)
+            .unwrap();
+        let best_score_metrics = &final_metrics[best_fitness_idx];
+        let best_dockq_metrics = &final_metrics[best_dockq_idx];
+
+        println!("\n{}", "📊 Final Metrics".bold().cyan());
+        println!("  {} DockQ={:.3} RMSD={:.2}Å iRMSD={:.2}Å FNAT={:.3}",
+            "Best by score:".green(),
+            best_score_metrics.dockq,
+            best_score_metrics.rmsd,
+            best_score_metrics.irmsd,
+            best_score_metrics.fnat
+        );
+        println!("  {} DockQ={:.3} RMSD={:.2}Å iRMSD={:.2}Å FNAT={:.3}",
+            "Best by DockQ:".green(),
+            best_dockq_metrics.dockq,
+            best_dockq_metrics.rmsd,
+            best_dockq_metrics.irmsd,
+            best_dockq_metrics.fnat
+        );
+    }
 
     // Apply transformations and save best-by-score model
     let best_score_ligand = final_best_score.apply_genes(&ligand_clone);
@@ -446,6 +494,12 @@ fn main() {
                 .help("Weight for AIR restraint energy term (default: 100.0)")
                 .value_parser(clap::value_parser!(f64)),
         )
+        .arg(
+            clap::Arg::new("debug")
+                .long("debug")
+                .help("Debug mode: use DockQ as fitness (requires reference). Validates sampling by optimizing directly for native structure.")
+                .action(clap::ArgAction::SetTrue),
+        )
         .get_matches();
 
     // Parse common arguments
@@ -453,6 +507,17 @@ fn main() {
     let ligand_file = matches.get_one::<String>("ligand").unwrap().clone();
     let reference_file = matches.get_one::<String>("reference").cloned();
     let score_only = matches.get_flag("score");
+    let debug_mode = matches.get_flag("debug");
+
+    // Validate debug mode requirements
+    if debug_mode && reference_file.is_none() {
+        eprintln!("Error: --debug mode requires --reference to be specified");
+        std::process::exit(1);
+    }
+    if debug_mode && score_only {
+        eprintln!("Error: --debug mode cannot be used with --score mode");
+        std::process::exit(1);
+    }
 
     // Parse restraint pairs (format: "rec1:lig1,rec2:lig2,...")
     let restraint_pairs: Vec<(i32, i32)> = matches
@@ -509,6 +574,7 @@ fn main() {
             restraint_pairs,
             reference_file,
             weights,
+            debug_mode,
         );
     }
 }

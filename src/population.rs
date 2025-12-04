@@ -20,6 +20,7 @@ pub struct Population {
     pub generation: u64,
     pub restraints: Vec<restraints::Restraint>,
     pub weights: constants::EnergyWeights,
+    pub debug_evaluator: Option<evaluator::Evaluator>,
 }
 
 impl Population {
@@ -30,6 +31,7 @@ impl Population {
         reference: Molecule,
         restraints: Vec<restraints::Restraint>,
         weights: constants::EnergyWeights,
+        debug_evaluator: Option<evaluator::Evaluator>,
     ) -> Population {
         Population {
             chromosomes: individuals,
@@ -39,14 +41,16 @@ impl Population {
             generation: 0,
             restraints,
             weights,
+            debug_evaluator,
         }
     }
 
     pub fn eval_fitness(&mut self) {
         // Calculate the fitness in parallel
         let weights = self.weights;
+        let evaluator_ref = self.debug_evaluator.as_ref();
         self.chromosomes.par_iter_mut().for_each(|c| {
-            c.fitness(&self.receptor, &self.ligand, &self.restraints, &weights);
+            c.fitness(&self.receptor, &self.ligand, &self.restraints, &weights, evaluator_ref);
         });
     }
 
@@ -119,6 +123,7 @@ impl Population {
             self.reference.clone(),
             self.restraints.clone(),
             self.weights,
+            self.debug_evaluator.clone(),
         );
 
         offspring.generation = self.generation + 1;
@@ -266,6 +271,7 @@ mod tests {
             reference,
             vec![],
             constants::EnergyWeights::default(),
+            None,
         )
     }
 
