@@ -66,7 +66,10 @@ pub fn create_restraints_from_pairs(
             let restraint = Restraint::new(atom1.clone(), atom2.clone());
             restraints.push(restraint);
         } else {
-            eprintln!("Warning: Restraint pair {}:{} not found in structures", res1, res2);
+            eprintln!(
+                "Warning: Restraint pair {}:{} not found in structures",
+                res1, res2
+            );
         }
     }
 
@@ -109,4 +112,270 @@ pub fn create_restraints(mol1: &structure::Molecule, mol2: &structure::Molecule)
     }
 
     restraints
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_test_atom(name: &str, resseq: i16, x: f64, y: f64, z: f64) -> structure::Atom {
+        structure::Atom {
+            serial: 1,
+            name: name.to_string(),
+            altloc: ' ',
+            resname: "ALA".to_string(),
+            chainid: 'A',
+            resseq,
+            icode: ' ',
+            x,
+            y,
+            z,
+            occupancy: 1.0,
+            tempfactor: 0.0,
+            element: "C".to_string(),
+            charge: 0.0,
+            vdw_radius: 1.7,
+            epsilon: 0.0,
+            rmin2: 0.0,
+            eps_1_4: 0.0,
+            rmin2_1_4: 0.0,
+        }
+    }
+
+    #[test]
+    fn test_restraint_new() {
+        let atom1 = create_test_atom("CA", 1, 0.0, 0.0, 0.0);
+        let atom2 = create_test_atom("CA", 10, 5.0, 0.0, 0.0);
+
+        let restraint = Restraint::new(atom1.clone(), atom2.clone());
+
+        assert_eq!(restraint.0.resseq, 1);
+        assert_eq!(restraint.1.resseq, 10);
+    }
+
+    #[test]
+    fn test_restraint_is_satisfied_within_bounds() {
+        let atom1 = create_test_atom("CA", 1, 0.0, 0.0, 0.0);
+        let atom2 = create_test_atom("CA", 10, 5.0, 0.0, 0.0);
+
+        let restraint = Restraint::new(atom1.clone(), atom2.clone());
+
+        // Create molecules with CA atoms within 7.0A
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0)); // Distance = 5.0
+
+        assert!(restraint.is_satisfied(&receptor, &ligand));
+    }
+
+    #[test]
+    fn test_restraint_is_satisfied_at_boundary() {
+        let atom1 = create_test_atom("CA", 1, 0.0, 0.0, 0.0);
+        let atom2 = create_test_atom("CA", 10, 7.0, 0.0, 0.0);
+
+        let restraint = Restraint::new(atom1.clone(), atom2.clone());
+
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom("CA", 10, 7.0, 0.0, 0.0)); // Distance = 7.0 (at boundary)
+
+        assert!(restraint.is_satisfied(&receptor, &ligand));
+    }
+
+    #[test]
+    fn test_restraint_is_not_satisfied_beyond_bounds() {
+        let atom1 = create_test_atom("CA", 1, 0.0, 0.0, 0.0);
+        let atom2 = create_test_atom("CA", 10, 10.0, 0.0, 0.0);
+
+        let restraint = Restraint::new(atom1.clone(), atom2.clone());
+
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom("CA", 10, 10.0, 0.0, 0.0)); // Distance = 10.0
+
+        assert!(!restraint.is_satisfied(&receptor, &ligand));
+    }
+
+    #[test]
+    fn test_restraint_is_not_satisfied_missing_receptor_ca() {
+        let atom1 = create_test_atom("CA", 1, 0.0, 0.0, 0.0);
+        let atom2 = create_test_atom("CA", 10, 5.0, 0.0, 0.0);
+
+        let restraint = Restraint::new(atom1, atom2);
+
+        // Receptor has wrong residue number
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom("CA", 99, 0.0, 0.0, 0.0));
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0));
+
+        assert!(!restraint.is_satisfied(&receptor, &ligand));
+    }
+
+    #[test]
+    fn test_restraint_is_not_satisfied_missing_ligand_ca() {
+        let atom1 = create_test_atom("CA", 1, 0.0, 0.0, 0.0);
+        let atom2 = create_test_atom("CA", 10, 5.0, 0.0, 0.0);
+
+        let restraint = Restraint::new(atom1, atom2);
+
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+
+        // Ligand has wrong residue number
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom("CA", 99, 5.0, 0.0, 0.0));
+
+        assert!(!restraint.is_satisfied(&receptor, &ligand));
+    }
+
+    #[test]
+    fn test_create_restraints_from_pairs_single_pair() {
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+        receptor.0.push(create_test_atom("CB", 1, 0.5, 0.0, 0.0)); // Non-CA atom
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0));
+        ligand.0.push(create_test_atom("CB", 10, 5.5, 0.0, 0.0)); // Non-CA atom
+
+        let pairs = vec![(1, 10)];
+        let restraints = create_restraints_from_pairs(&receptor, &ligand, &pairs);
+
+        assert_eq!(restraints.len(), 1);
+        assert_eq!(restraints[0].0.resseq, 1);
+        assert_eq!(restraints[0].1.resseq, 10);
+    }
+
+    #[test]
+    fn test_create_restraints_from_pairs_multiple_pairs() {
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+        receptor.0.push(create_test_atom("CA", 2, 1.0, 0.0, 0.0));
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0));
+        ligand.0.push(create_test_atom("CA", 11, 6.0, 0.0, 0.0));
+
+        let pairs = vec![(1, 10), (2, 11)];
+        let restraints = create_restraints_from_pairs(&receptor, &ligand, &pairs);
+
+        assert_eq!(restraints.len(), 2);
+        assert_eq!(restraints[0].0.resseq, 1);
+        assert_eq!(restraints[0].1.resseq, 10);
+        assert_eq!(restraints[1].0.resseq, 2);
+        assert_eq!(restraints[1].1.resseq, 11);
+    }
+
+    #[test]
+    fn test_create_restraints_from_pairs_missing_residue() {
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0));
+
+        // Request a pair where one residue doesn't exist
+        let pairs = vec![(1, 10), (999, 10)];
+        let restraints = create_restraints_from_pairs(&receptor, &ligand, &pairs);
+
+        // Should only create 1 restraint (the valid one)
+        assert_eq!(restraints.len(), 1);
+        assert_eq!(restraints[0].0.resseq, 1);
+    }
+
+    #[test]
+    fn test_create_restraints_from_pairs_no_ca_atoms() {
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom("CB", 1, 0.0, 0.0, 0.0)); // Not CA
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom("CB", 10, 5.0, 0.0, 0.0)); // Not CA
+
+        let pairs = vec![(1, 10)];
+        let restraints = create_restraints_from_pairs(&receptor, &ligand, &pairs);
+
+        // Should create 0 restraints since no CA atoms exist
+        assert_eq!(restraints.len(), 0);
+    }
+
+    #[test]
+    fn test_create_restraints_within_distance() {
+        let mut mol1 = structure::Molecule::new();
+        mol1.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+        mol1.0.push(create_test_atom("CA", 2, 100.0, 0.0, 0.0)); // Far away
+
+        let mut mol2 = structure::Molecule::new();
+        mol2.0.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0)); // Within 7.0A of res 1
+        mol2.0.push(create_test_atom("CA", 11, 200.0, 0.0, 0.0)); // Far away
+
+        let restraints = create_restraints(&mol1, &mol2);
+
+        // Should only create 1 restraint (1-10 pair within 7.0A)
+        assert_eq!(restraints.len(), 1);
+        assert_eq!(restraints[0].0.resseq, 1);
+        assert_eq!(restraints[0].1.resseq, 10);
+    }
+
+    #[test]
+    fn test_create_restraints_at_boundary() {
+        let mut mol1 = structure::Molecule::new();
+        mol1.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+
+        let mut mol2 = structure::Molecule::new();
+        mol2.0.push(create_test_atom("CA", 10, 6.99, 0.0, 0.0)); // Just under 7.0A
+
+        let restraints = create_restraints(&mol1, &mol2);
+
+        assert_eq!(restraints.len(), 1);
+    }
+
+    #[test]
+    fn test_create_restraints_beyond_distance() {
+        let mut mol1 = structure::Molecule::new();
+        mol1.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+
+        let mut mol2 = structure::Molecule::new();
+        mol2.0.push(create_test_atom("CA", 10, 10.0, 0.0, 0.0)); // Beyond 7.0A
+
+        let restraints = create_restraints(&mol1, &mol2);
+
+        assert_eq!(restraints.len(), 0);
+    }
+
+    #[test]
+    fn test_create_restraints_filters_non_ca() {
+        let mut mol1 = structure::Molecule::new();
+        mol1.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+        mol1.0.push(create_test_atom("CB", 1, 0.0, 0.0, 0.0)); // Non-CA
+        mol1.0.push(create_test_atom("N", 1, 0.0, 0.0, 0.0)); // Non-CA
+
+        let mut mol2 = structure::Molecule::new();
+        mol2.0.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0));
+        mol2.0.push(create_test_atom("CB", 10, 5.0, 0.0, 0.0)); // Non-CA
+
+        let restraints = create_restraints(&mol1, &mol2);
+
+        // Should only create 1 restraint (CA-CA pair)
+        assert_eq!(restraints.len(), 1);
+        assert_eq!(restraints[0].0.name.trim(), "CA");
+        assert_eq!(restraints[0].1.name.trim(), "CA");
+    }
+
+    #[test]
+    fn test_create_restraints_empty_molecules() {
+        let mol1 = structure::Molecule::new();
+        let mol2 = structure::Molecule::new();
+
+        let restraints = create_restraints(&mol1, &mol2);
+
+        assert_eq!(restraints.len(), 0);
+    }
 }

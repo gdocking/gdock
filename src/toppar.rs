@@ -661,3 +661,220 @@ pub fn get_charge(atom: &str) -> Option<f64> {
         _ => None, // for atoms not listed
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_epsilon_carbon() {
+        let epsilon = get_epsilon("C135");
+        assert!(epsilon.is_some());
+        assert!((epsilon.unwrap() - (-0.066000)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_get_epsilon_nitrogen() {
+        let epsilon = get_epsilon("N238");
+        assert!(epsilon.is_some());
+        assert!((epsilon.unwrap() - (-0.170000)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_get_epsilon_unknown() {
+        let epsilon = get_epsilon("UNKNOWN");
+        assert!(epsilon.is_none());
+    }
+
+    #[test]
+    fn test_get_rmin2_carbon() {
+        let rmin2 = get_rmin2("C135");
+        assert!(rmin2.is_some());
+        assert!((rmin2.unwrap() - 1.9643086).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_get_rmin2_hydrogen() {
+        let rmin2 = get_rmin2("H140");
+        assert!(rmin2.is_some());
+        assert!((rmin2.unwrap() - 1.4030776).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_get_rmin2_unknown() {
+        let rmin2 = get_rmin2("INVALID");
+        assert!(rmin2.is_none());
+    }
+
+    #[test]
+    fn test_get_eps_1_4_carbon() {
+        let eps = get_eps_1_4("C135");
+        assert!(eps.is_some());
+        assert!((eps.unwrap() - (-0.033000)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_get_eps_1_4_sulfur() {
+        let eps = get_eps_1_4("S200");
+        assert!(eps.is_some());
+        assert!((eps.unwrap() - (-0.212500)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_get_eps_1_4_unknown() {
+        let eps = get_eps_1_4("NOTFOUND");
+        assert!(eps.is_none());
+    }
+
+    #[test]
+    fn test_get_rmin2_1_4_oxygen() {
+        let rmin2 = get_rmin2_1_4("O154");
+        assert!(rmin2.is_some());
+        assert!((rmin2.unwrap() - 1.7510408).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_get_rmin2_1_4_chloride() {
+        let rmin2 = get_rmin2_1_4("CLA");
+        assert!(rmin2.is_some());
+        assert!((rmin2.unwrap() - 2.2561487).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_get_rmin2_1_4_unknown() {
+        let rmin2 = get_rmin2_1_4("XYZ");
+        assert!(rmin2.is_none());
+    }
+
+    #[test]
+    fn test_get_atom_alanine() {
+        assert_eq!(get_atom("ALA", "N"), Some("N238"));
+        assert_eq!(get_atom("ALA", "CA"), Some("C224"));
+        assert_eq!(get_atom("ALA", "CB"), Some("C135"));
+        assert_eq!(get_atom("ALA", "C"), Some("C235"));
+        assert_eq!(get_atom("ALA", "O"), Some("O236"));
+    }
+
+    #[test]
+    fn test_get_atom_glycine() {
+        assert_eq!(get_atom("GLY", "N"), Some("N238"));
+        assert_eq!(get_atom("GLY", "CA"), Some("C223"));
+        assert_eq!(get_atom("GLY", "C"), Some("C235"));
+        assert_eq!(get_atom("GLY", "O"), Some("O236"));
+    }
+
+    #[test]
+    fn test_get_atom_proline() {
+        assert_eq!(get_atom("PRO", "N"), Some("N239"));
+        assert_eq!(get_atom("PRO", "CD"), Some("C245"));
+        assert_eq!(get_atom("PRO", "CA"), Some("C246"));
+    }
+
+    #[test]
+    fn test_get_atom_arginine() {
+        assert_eq!(get_atom("ARG", "NE"), Some("N303"));
+        assert_eq!(get_atom("ARG", "CZ"), Some("C302"));
+        assert_eq!(get_atom("ARG", "NH1"), Some("N300"));
+        assert_eq!(get_atom("ARG", "NH2"), Some("N300"));
+    }
+
+    #[test]
+    fn test_get_atom_tryptophan() {
+        assert_eq!(get_atom("TRP", "NE1"), Some("N503"));
+        assert_eq!(get_atom("TRP", "CG"), Some("C500"));
+        assert_eq!(get_atom("TRP", "CD2"), Some("C501"));
+    }
+
+    #[test]
+    fn test_get_atom_unknown_residue() {
+        let atom = get_atom("XXX", "CA");
+        assert!(atom.is_none());
+    }
+
+    #[test]
+    fn test_get_atom_unknown_atom() {
+        let atom = get_atom("ALA", "NOTEXIST");
+        assert!(atom.is_none());
+    }
+
+    #[test]
+    fn test_get_charge_backbone() {
+        assert_eq!(get_charge("N238"), Some(-0.500));
+        assert_eq!(get_charge("H241"), Some(0.300));
+        assert_eq!(get_charge("C235"), Some(0.500));
+        assert_eq!(get_charge("O236"), Some(-0.500));
+    }
+
+    #[test]
+    fn test_get_charge_lysine_sidechain() {
+        assert_eq!(get_charge("N287"), Some(-0.300));
+        assert_eq!(get_charge("H290"), Some(0.330));
+    }
+
+    #[test]
+    fn test_get_charge_arginine_sidechain() {
+        assert_eq!(get_charge("N303"), Some(-0.700));
+        assert_eq!(get_charge("H304"), Some(0.440));
+        assert_eq!(get_charge("C302"), Some(0.640));
+        assert_eq!(get_charge("N300"), Some(-0.800));
+    }
+
+    #[test]
+    fn test_get_charge_aspartate() {
+        assert_eq!(get_charge("C271"), Some(0.700));
+        assert_eq!(get_charge("O272"), Some(-0.800));
+    }
+
+    #[test]
+    fn test_get_charge_unknown() {
+        let charge = get_charge("NOTFOUND");
+        assert!(charge.is_none());
+    }
+
+    #[test]
+    fn test_get_charge_sulfur() {
+        assert_eq!(get_charge("S200"), Some(-0.335));
+        assert_eq!(get_charge("S202"), Some(-0.335));
+    }
+
+    #[test]
+    fn test_get_atom_histidine_variants() {
+        // HSD (neutral histidine, proton on ND1)
+        assert_eq!(get_atom("HSD", "ND1"), Some("N503"));
+        assert_eq!(get_atom("HSD", "NE2"), Some("N511"));
+
+        // HSE (neutral histidine, proton on NE2)
+        assert_eq!(get_atom("HSE", "ND1"), Some("N511"));
+        assert_eq!(get_atom("HSE", "NE2"), Some("N503"));
+
+        // HSP (protonated histidine)
+        assert_eq!(get_atom("HSP", "ND1"), Some("N512"));
+        assert_eq!(get_atom("HSP", "NE2"), Some("N512"));
+
+        // HIS (alias for HSD)
+        assert_eq!(get_atom("HIS", "ND1"), Some("N503"));
+    }
+
+    #[test]
+    fn test_parameters_consistency() {
+        // Test that C135 has all four parameters
+        let test_atom = "C135";
+        assert!(get_epsilon(test_atom).is_some());
+        assert!(get_rmin2(test_atom).is_some());
+        assert!(get_eps_1_4(test_atom).is_some());
+        assert!(get_rmin2_1_4(test_atom).is_some());
+    }
+
+    #[test]
+    fn test_complete_alanine_mapping() {
+        // Verify all alanine atoms can be mapped
+        let ala_atoms = vec!["N", "HN", "CA", "HA", "CB", "HB1", "HB2", "HB3", "C", "O"];
+        for atom_name in ala_atoms {
+            assert!(
+                get_atom("ALA", atom_name).is_some(),
+                "Failed to map ALA {}",
+                atom_name
+            );
+        }
+    }
+}

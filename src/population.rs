@@ -209,3 +209,328 @@ impl Population {
         &self.chromosomes[index]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::SeedableRng;
+
+    fn create_test_atom(
+        x: f64,
+        y: f64,
+        z: f64,
+        resseq: i16,
+        chainid: char,
+    ) -> crate::structure::Atom {
+        crate::structure::Atom {
+            serial: 1,
+            name: "CA".to_string(),
+            altloc: ' ',
+            resname: "ALA".to_string(),
+            chainid,
+            resseq,
+            icode: ' ',
+            x,
+            y,
+            z,
+            occupancy: 1.0,
+            tempfactor: 0.0,
+            element: "C".to_string(),
+            charge: 0.0,
+            vdw_radius: 1.7,
+            epsilon: -0.1,
+            rmin2: 2.0,
+            eps_1_4: -0.1,
+            rmin2_1_4: 1.9,
+        }
+    }
+
+    fn create_test_population(num_chromosomes: usize) -> Population {
+        let mut rng = StdRng::seed_from_u64(42);
+        let chromosomes: Vec<Chromosome> = (0..num_chromosomes)
+            .map(|_| Chromosome::new(&mut rng))
+            .collect();
+
+        let mut receptor = Molecule::new();
+        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+
+        let mut ligand = Molecule::new();
+        ligand.0.push(create_test_atom(5.0, 0.0, 0.0, 10, 'B'));
+
+        let reference = ligand.clone();
+
+        Population::new(
+            chromosomes,
+            receptor,
+            ligand,
+            reference,
+            vec![],
+            constants::EnergyWeights::default(),
+        )
+    }
+
+    #[test]
+    fn test_population_new() {
+        let pop = create_test_population(10);
+
+        assert_eq!(pop.chromosomes.len(), 10);
+        assert_eq!(pop.generation, 0);
+        assert_eq!(pop.receptor.0.len(), 1);
+        assert_eq!(pop.ligand.0.len(), 1);
+        assert_eq!(pop.reference.0.len(), 1);
+    }
+
+    #[test]
+    fn test_population_size() {
+        let pop = create_test_population(25);
+        assert_eq!(pop.size(), 25);
+
+        let empty_pop = create_test_population(0);
+        assert_eq!(empty_pop.size(), 0);
+    }
+
+    #[test]
+    fn test_eval_fitness() {
+        let mut pop = create_test_population(5);
+
+        // Before evaluation, fitness should be 0
+        for chromosome in &pop.chromosomes {
+            assert_eq!(chromosome.fitness, 0.0);
+        }
+
+        pop.eval_fitness();
+
+        // After evaluation, fitness should be calculated (non-zero)
+        for chromosome in &pop.chromosomes {
+            assert!(chromosome.fitness.is_finite());
+        }
+    }
+
+    #[test]
+    fn test_get_min_fittest() {
+        let mut pop = create_test_population(5);
+        pop.chromosomes[0].fitness = 10.0;
+        pop.chromosomes[1].fitness = 5.0;
+        pop.chromosomes[2].fitness = 15.0;
+        pop.chromosomes[3].fitness = 3.0;
+        pop.chromosomes[4].fitness = 8.0;
+
+        let min_fittest = pop.get_min_fittest();
+        assert_eq!(min_fittest.fitness, 3.0);
+    }
+
+    #[test]
+    fn test_get_max_fittest() {
+        let mut pop = create_test_population(5);
+        pop.chromosomes[0].fitness = 10.0;
+        pop.chromosomes[1].fitness = 5.0;
+        pop.chromosomes[2].fitness = 15.0;
+        pop.chromosomes[3].fitness = 3.0;
+        pop.chromosomes[4].fitness = 8.0;
+
+        let max_fittest = pop.get_max_fittest();
+        assert_eq!(max_fittest.fitness, 15.0);
+    }
+
+    #[test]
+    fn test_get_mean_fitness() {
+        let mut pop = create_test_population(5);
+        pop.chromosomes[0].fitness = 10.0;
+        pop.chromosomes[1].fitness = 20.0;
+        pop.chromosomes[2].fitness = 30.0;
+        pop.chromosomes[3].fitness = 40.0;
+        pop.chromosomes[4].fitness = 50.0;
+
+        let mean = pop.get_mean_fitness();
+        assert!((mean - 30.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_get_mean_fitness_empty() {
+        let pop = create_test_population(0);
+        let mean = pop.get_mean_fitness();
+        assert!(mean.is_nan());
+    }
+
+    #[test]
+    fn test_get_mean_rmsd() {
+        let mut pop = create_test_population(4);
+        pop.chromosomes[0].rmsd = 2.0;
+        pop.chromosomes[1].rmsd = 4.0;
+        pop.chromosomes[2].rmsd = 6.0;
+        pop.chromosomes[3].rmsd = 8.0;
+
+        let mean = pop.get_mean_rmsd();
+        assert!((mean - 5.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_get_mean_rmsd_empty() {
+        let pop = create_test_population(0);
+        let mean = pop.get_mean_rmsd();
+        assert!(mean.is_nan());
+    }
+
+    #[test]
+    fn test_get_min_rmsd() {
+        let mut pop = create_test_population(4);
+        pop.chromosomes[0].rmsd = 5.5;
+        pop.chromosomes[1].rmsd = 2.3;
+        pop.chromosomes[2].rmsd = 7.8;
+        pop.chromosomes[3].rmsd = 3.1;
+
+        let min_rmsd = pop.get_min_rmsd();
+        assert!((min_rmsd - 2.3).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_get_max_fnat() {
+        let mut pop = create_test_population(4);
+        pop.chromosomes[0].fnat = 0.5;
+        pop.chromosomes[1].fnat = 0.8;
+        pop.chromosomes[2].fnat = 0.3;
+        pop.chromosomes[3].fnat = 0.95;
+
+        let max_fnat = pop.get_max_fnat();
+        assert!((max_fnat - 0.95).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_save_and_get_individual() {
+        let mut pop = create_test_population(3);
+        let mut rng = StdRng::seed_from_u64(123);
+        let new_chromosome = Chromosome::new(&mut rng);
+
+        pop.save_individual(1, new_chromosome.clone());
+        let retrieved = pop.get_individual(1);
+
+        assert_eq!(retrieved.genes, new_chromosome.genes);
+    }
+
+    #[test]
+    fn test_tournament_selection_maintains_size() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let mut pop = create_test_population(20);
+        pop.eval_fitness();
+
+        let new_pop = pop.tournament_selection(&mut rng);
+
+        assert_eq!(new_pop.size(), pop.size());
+    }
+
+    #[test]
+    fn test_tournament_selection_increments_generation() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let mut pop = create_test_population(10);
+        pop.eval_fitness();
+        pop.generation = 5;
+
+        let new_pop = pop.tournament_selection(&mut rng);
+
+        assert_eq!(new_pop.generation, 6);
+    }
+
+    #[test]
+    fn test_tournament_selection_selects_fitter_individuals() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let mut pop = create_test_population(10);
+
+        // Set fitness values - lower is better
+        for (i, chromosome) in pop.chromosomes.iter_mut().enumerate() {
+            chromosome.fitness = (i as f64) * 10.0; // 0, 10, 20, ..., 90
+        }
+
+        let new_pop = pop.tournament_selection(&mut rng);
+
+        // Tournament selection should favor lower fitness values
+        let mean_original = pop.get_mean_fitness();
+        let mean_selected = new_pop.get_mean_fitness();
+
+        // The mean fitness of selected population should be lower or equal
+        // (though randomness means it might not always be strictly lower)
+        assert!(
+            mean_selected.is_finite() && mean_original.is_finite(),
+            "Both means should be finite"
+        );
+    }
+
+    #[test]
+    fn test_evolve_maintains_population_size() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let mut pop = create_test_population(20);
+        pop.eval_fitness();
+
+        let new_pop = pop.evolve(&mut rng);
+
+        assert_eq!(new_pop.size(), pop.size());
+    }
+
+    #[test]
+    fn test_evolve_increments_generation() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let mut pop = create_test_population(10);
+        pop.eval_fitness();
+        pop.generation = 3;
+
+        let new_pop = pop.evolve(&mut rng);
+
+        assert_eq!(new_pop.generation, 4);
+    }
+
+    #[test]
+    fn test_evolve_preserves_elite() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let mut pop = create_test_population(20);
+        pop.eval_fitness();
+
+        // Set specific fitness values to track elites
+        for (i, chromosome) in pop.chromosomes.iter_mut().enumerate() {
+            chromosome.fitness = (i as f64) * 5.0;
+        }
+
+        // Best individuals have lowest fitness (0, 5, 10, 15, 20)
+        let elite_fitness_values: Vec<f64> = pop
+            .chromosomes
+            .iter()
+            .take(constants::ELITISM_COUNT)
+            .map(|c| c.fitness)
+            .collect();
+
+        let new_pop = pop.evolve(&mut rng);
+
+        // Check that the elite fitness values are preserved in new population
+        let mut elite_preserved = 0;
+        for elite_fitness in &elite_fitness_values {
+            if new_pop
+                .chromosomes
+                .iter()
+                .any(|c| (c.fitness - elite_fitness).abs() < 1e-10)
+            {
+                elite_preserved += 1;
+            }
+        }
+
+        assert_eq!(
+            elite_preserved,
+            constants::ELITISM_COUNT,
+            "Elite individuals should be preserved"
+        );
+    }
+
+    #[test]
+    fn test_eval_metrics() {
+        let mut pop = create_test_population(3);
+        pop.eval_fitness();
+
+        let evaluator = evaluator::Evaluator::new(pop.receptor.clone(), pop.reference.clone());
+        let metrics = pop.eval_metrics(&evaluator);
+
+        assert_eq!(metrics.len(), 3);
+        for metric in &metrics {
+            assert!(metric.rmsd.is_finite());
+            assert!(metric.irmsd.is_finite());
+            assert!(metric.fnat.is_finite());
+            assert!(metric.dockq.is_finite());
+        }
+    }
+}

@@ -296,3 +296,309 @@ pub fn elec_energy(receptor: &structure::Molecule, ligand: &structure::Molecule)
 
     energy
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_test_atom(x: f64, y: f64, z: f64, element: &str, charge: f64) -> structure::Atom {
+        structure::Atom {
+            serial: 1,
+            name: "CA".to_string(),
+            altloc: ' ',
+            resname: "ALA".to_string(),
+            chainid: 'A',
+            resseq: 1,
+            icode: ' ',
+            x,
+            y,
+            z,
+            occupancy: 1.0,
+            tempfactor: 0.0,
+            element: element.to_string(),
+            charge,
+            vdw_radius: 1.7,
+            epsilon: -0.1,
+            rmin2: 2.0,
+            eps_1_4: -0.1,
+            rmin2_1_4: 1.9,
+        }
+    }
+
+    #[test]
+    fn test_calc_clashes_no_clashes() {
+        let mut mol1 = structure::Molecule::new();
+        mol1.0.push(create_test_atom(0.0, 0.0, 0.0, "C", 0.0));
+
+        let mut mol2 = structure::Molecule::new();
+        mol2.0.push(create_test_atom(10.0, 0.0, 0.0, "C", 0.0)); // Far away
+
+        let ratio = calc_clashes(&mol1, &mol2);
+        assert_eq!(ratio, 0.0);
+    }
+
+    #[test]
+    fn test_calc_clashes_with_clashes() {
+        let mut mol1 = structure::Molecule::new();
+        mol1.0.push(create_test_atom(0.0, 0.0, 0.0, "C", 0.0));
+
+        let mut mol2 = structure::Molecule::new();
+        mol2.0.push(create_test_atom(1.0, 0.0, 0.0, "C", 0.0)); // Within VDW distance (< 3.4Å)
+
+        let ratio = calc_clashes(&mol1, &mol2);
+        assert!(ratio > 0.0, "Should detect clash");
+        assert!(ratio <= 1.0, "Clash ratio should be <= 1.0");
+    }
+
+    #[test]
+    fn test_vdw_energy_far_atoms() {
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, "C", 0.0));
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom(20.0, 0.0, 0.0, "C", 0.0)); // Beyond cutoff (12Å)
+
+        let energy = vdw_energy(&receptor, &ligand);
+        assert_eq!(energy, 0.0, "Energy should be zero beyond cutoff");
+    }
+
+    #[test]
+    fn test_vdw_energy_close_atoms() {
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, "C", 0.0));
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom(5.0, 0.0, 0.0, "C", 0.0)); // Within cutoff
+
+        let energy = vdw_energy(&receptor, &ligand);
+        assert!(energy.is_finite(), "Energy should be finite");
+    }
+
+    #[test]
+    fn test_vdw_energy_very_close_atoms() {
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, "C", 0.0));
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom(1.0, 0.0, 0.0, "C", 0.0)); // Very close (clash)
+
+        let energy = vdw_energy(&receptor, &ligand);
+        // Soft-core potential should keep this finite
+        assert!(energy.is_finite(), "Soft-core should prevent infinities");
+        assert!(energy <= 500.0, "Energy should be capped at 500.0");
+    }
+
+    #[test]
+    fn test_elec_energy_neutral_atoms() {
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, "C", 0.0)); // No charge
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom(5.0, 0.0, 0.0, "C", 0.0)); // No charge
+
+        let energy = elec_energy(&receptor, &ligand);
+        assert_eq!(energy, 0.0, "Energy should be zero for neutral atoms");
+    }
+
+    #[test]
+    fn test_elec_energy_charged_atoms() {
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, "C", 1.0)); // +1 charge
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom(5.0, 0.0, 0.0, "C", -1.0)); // -1 charge
+
+        let energy = elec_energy(&receptor, &ligand);
+        assert!(
+            energy < 0.0,
+            "Opposite charges should give attractive (negative) energy"
+        );
+        assert!(energy.is_finite(), "Energy should be finite");
+    }
+
+    #[test]
+    fn test_elec_energy_same_charge() {
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, "C", 1.0)); // +1 charge
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom(5.0, 0.0, 0.0, "C", 1.0)); // +1 charge
+
+        let energy = elec_energy(&receptor, &ligand);
+        assert!(
+            energy > 0.0,
+            "Same charges should give repulsive (positive) energy"
+        );
+    }
+
+    #[test]
+    fn test_desolv_energy_hydrophobic_burial() {
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, "C", 0.0)); // Hydrophobic carbon
+
+        let mut ligand = structure::Molecule::new();
+        // Add many atoms nearby to create burial
+        for i in 0..15 {
+            ligand.0.push(create_test_atom(
+                3.0 * (i as f64).cos(),
+                3.0 * (i as f64).sin(),
+                0.0,
+                "C",
+                0.0,
+            ));
+        }
+
+        let energy = desolv_energy(&receptor, &ligand);
+        // Hydrophobic burial should be favorable (negative energy)
+        assert!(
+            energy < 0.0,
+            "Burying hydrophobic carbon should be favorable"
+        );
+    }
+
+    #[test]
+    fn test_desolv_energy_hydrophilic_burial() {
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, "O", 0.0)); // Hydrophilic oxygen
+
+        let mut ligand = structure::Molecule::new();
+        // Add many atoms nearby to create burial
+        for i in 0..15 {
+            ligand.0.push(create_test_atom(
+                3.0 * (i as f64).cos(),
+                3.0 * (i as f64).sin(),
+                0.0,
+                "C",
+                0.0,
+            ));
+        }
+
+        let energy = desolv_energy(&receptor, &ligand);
+        // Hydrophilic burial should be unfavorable (positive energy)
+        assert!(
+            energy > 0.0,
+            "Burying hydrophilic oxygen should be unfavorable"
+        );
+    }
+
+    #[test]
+    fn test_air_energy_satisfied_restraints() {
+        let mut receptor = structure::Molecule::new();
+        let mut atom1 = create_test_atom(0.0, 0.0, 0.0, "C", 0.0);
+        atom1.name = "CA".to_string();
+        atom1.resseq = 1;
+        receptor.0.push(atom1.clone());
+
+        let mut ligand = structure::Molecule::new();
+        let mut atom2 = create_test_atom(5.0, 0.0, 0.0, "C", 0.0); // Within 7Å
+        atom2.name = "CA".to_string();
+        atom2.resseq = 10;
+        ligand.0.push(atom2.clone());
+
+        let restraints = vec![restraints::Restraint(atom1, atom2)];
+
+        let energy = air_energy(&restraints, &receptor, &ligand);
+        assert_eq!(energy, 0.0, "Satisfied restraints should have zero penalty");
+    }
+
+    #[test]
+    fn test_air_energy_violated_restraints() {
+        let mut receptor = structure::Molecule::new();
+        let mut atom1 = create_test_atom(0.0, 0.0, 0.0, "C", 0.0);
+        atom1.name = "CA".to_string();
+        atom1.resseq = 1;
+        receptor.0.push(atom1.clone());
+
+        let mut ligand = structure::Molecule::new();
+        let mut atom2 = create_test_atom(15.0, 0.0, 0.0, "C", 0.0); // Beyond 7Å
+        atom2.name = "CA".to_string();
+        atom2.resseq = 10;
+        ligand.0.push(atom2.clone());
+
+        let restraints = vec![restraints::Restraint(atom1, atom2)];
+
+        let energy = air_energy(&restraints, &receptor, &ligand);
+        assert!(energy > 0.0, "Violated restraints should have penalty");
+    }
+
+    #[test]
+    fn test_satisfaction_ratio_all_satisfied() {
+        let mut receptor = structure::Molecule::new();
+        let mut atom1 = create_test_atom(0.0, 0.0, 0.0, "C", 0.0);
+        atom1.name = "CA".to_string();
+        atom1.resseq = 1;
+        receptor.0.push(atom1.clone());
+
+        let mut ligand = structure::Molecule::new();
+        let mut atom2 = create_test_atom(5.0, 0.0, 0.0, "C", 0.0);
+        atom2.name = "CA".to_string();
+        atom2.resseq = 10;
+        ligand.0.push(atom2.clone());
+
+        let restraints = vec![restraints::Restraint(atom1, atom2)];
+
+        let ratio = satisfaction_ratio(&restraints, &receptor, &ligand);
+        assert_eq!(ratio, 1.0, "All restraints satisfied should give ratio 1.0");
+    }
+
+    #[test]
+    fn test_satisfaction_ratio_none_satisfied() {
+        let mut receptor = structure::Molecule::new();
+        let mut atom1 = create_test_atom(0.0, 0.0, 0.0, "C", 0.0);
+        atom1.name = "CA".to_string();
+        atom1.resseq = 1;
+        receptor.0.push(atom1.clone());
+
+        let mut ligand = structure::Molecule::new();
+        let mut atom2 = create_test_atom(15.0, 0.0, 0.0, "C", 0.0);
+        atom2.name = "CA".to_string();
+        atom2.resseq = 10;
+        ligand.0.push(atom2.clone());
+
+        let restraints = vec![restraints::Restraint(atom1, atom2)];
+
+        let ratio = satisfaction_ratio(&restraints, &receptor, &ligand);
+        assert_eq!(ratio, 0.0, "No restraints satisfied should give ratio 0.0");
+    }
+
+    #[test]
+    fn test_satisfaction_ratio_empty_restraints() {
+        let receptor = structure::Molecule::new();
+        let ligand = structure::Molecule::new();
+        let restraints = vec![];
+
+        let ratio = satisfaction_ratio(&restraints, &receptor, &ligand);
+        assert_eq!(ratio, 0.0, "Empty restraints should give ratio 0.0");
+    }
+
+    #[test]
+    fn test_satisfaction_ratio_partial() {
+        let mut receptor = structure::Molecule::new();
+        let mut atom1 = create_test_atom(0.0, 0.0, 0.0, "C", 0.0);
+        atom1.name = "CA".to_string();
+        atom1.resseq = 1;
+        let mut atom3 = create_test_atom(0.0, 0.0, 0.0, "C", 0.0);
+        atom3.name = "CA".to_string();
+        atom3.resseq = 2;
+        receptor.0.push(atom1.clone());
+        receptor.0.push(atom3.clone());
+
+        let mut ligand = structure::Molecule::new();
+        let mut atom2 = create_test_atom(5.0, 0.0, 0.0, "C", 0.0); // Satisfied
+        atom2.name = "CA".to_string();
+        atom2.resseq = 10;
+        let mut atom4 = create_test_atom(15.0, 0.0, 0.0, "C", 0.0); // Violated
+        atom4.name = "CA".to_string();
+        atom4.resseq = 11;
+        ligand.0.push(atom2.clone());
+        ligand.0.push(atom4.clone());
+
+        let restraints = vec![
+            restraints::Restraint(atom1, atom2),
+            restraints::Restraint(atom3, atom4),
+        ];
+
+        let ratio = satisfaction_ratio(&restraints, &receptor, &ligand);
+        assert_eq!(ratio, 0.5, "1 of 2 satisfied should give ratio 0.5");
+    }
+}

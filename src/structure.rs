@@ -14,16 +14,16 @@ pub struct Molecule(pub Vec<Atom>);
 pub struct Atom {
     pub serial: i32,
     pub name: String,
-    altloc: char,
-    resname: String,
+    pub altloc: char,
+    pub resname: String,
     pub chainid: char,
     pub resseq: i16,
-    icode: char,
+    pub icode: char,
     pub x: f64,
     pub y: f64,
     pub z: f64,
-    occupancy: f32,
-    tempfactor: f32,
+    pub occupancy: f32,
+    pub tempfactor: f32,
     pub element: String,
     pub charge: f64,
     pub vdw_radius: f64,
@@ -248,7 +248,6 @@ pub fn read_pdb(pdb_file: &String) -> Molecule {
 }
 
 // Output a Molecule in PDB format
-#[allow(dead_code)]
 pub fn write_pdb(molecule: &Molecule, output_file: &String) {
     // let data = "Some data!";
     // fs::write("/tmp/foo", data).expect("Unable to write file");
@@ -270,15 +269,6 @@ pub fn write_pdb(molecule: &Molecule, output_file: &String) {
     fs::write(output_file, pdb_string).expect("Unable to write file");
 }
 
-// Change the chain of a Molecule
-#[allow(dead_code)]
-fn change_chain(molecule: &mut Molecule, chain: char) {
-    for atom in &mut molecule.0 {
-        atom.chainid = chain;
-    }
-}
-
-#[allow(dead_code)]
 pub fn distance(atom1: &Atom, atom2: &Atom) -> f64 {
     let dx = atom1.x - atom2.x;
     let dy = atom1.y - atom2.y;
@@ -310,4 +300,191 @@ pub fn filter_by_resseq_vec(molecule: &Molecule, resseq_vec: &HashSet<i16>) -> M
         }
     }
     filtered_molecule
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::f64::consts::PI;
+
+    fn create_test_atom(x: f64, y: f64, z: f64) -> Atom {
+        Atom {
+            serial: 1,
+            name: "CA".to_string(),
+            altloc: ' ',
+            resname: "ALA".to_string(),
+            chainid: 'A',
+            resseq: 1,
+            icode: ' ',
+            x,
+            y,
+            z,
+            occupancy: 1.0,
+            tempfactor: 0.0,
+            element: "C".to_string(),
+            charge: 0.0,
+            vdw_radius: 1.7,
+            epsilon: 0.0,
+            rmin2: 0.0,
+            eps_1_4: 0.0,
+            rmin2_1_4: 0.0,
+        }
+    }
+
+    #[test]
+    fn test_molecule_new() {
+        let mol = Molecule::new();
+        assert_eq!(mol.0.len(), 0);
+    }
+
+    #[test]
+    fn test_molecule_default() {
+        let mol = Molecule::default();
+        assert_eq!(mol.0.len(), 0);
+    }
+
+    #[test]
+    fn test_center_of_mass_single_atom() {
+        let mut mol = Molecule::new();
+        mol.0.push(create_test_atom(1.0, 2.0, 3.0));
+
+        let (cx, cy, cz) = mol.center_of_mass();
+        assert_eq!(cx, 1.0);
+        assert_eq!(cy, 2.0);
+        assert_eq!(cz, 3.0);
+    }
+
+    #[test]
+    fn test_center_of_mass_multiple_atoms() {
+        let mut mol = Molecule::new();
+        mol.0.push(create_test_atom(0.0, 0.0, 0.0));
+        mol.0.push(create_test_atom(2.0, 0.0, 0.0));
+        mol.0.push(create_test_atom(0.0, 2.0, 0.0));
+        mol.0.push(create_test_atom(0.0, 0.0, 2.0));
+
+        let (cx, cy, cz) = mol.center_of_mass();
+        assert!((cx - 0.5).abs() < 1e-10);
+        assert!((cy - 0.5).abs() < 1e-10);
+        assert!((cz - 0.5).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_translate() {
+        let mut mol = Molecule::new();
+        mol.0.push(create_test_atom(1.0, 2.0, 3.0));
+        mol.0.push(create_test_atom(4.0, 5.0, 6.0));
+
+        mol.translate(1.0, -1.0, 2.0);
+
+        assert_eq!(mol.0[0].x, 2.0);
+        assert_eq!(mol.0[0].y, 1.0);
+        assert_eq!(mol.0[0].z, 5.0);
+        assert_eq!(mol.0[1].x, 5.0);
+        assert_eq!(mol.0[1].y, 4.0);
+        assert_eq!(mol.0[1].z, 8.0);
+    }
+
+    #[test]
+    fn test_displace() {
+        let mut mol = Molecule::new();
+        mol.0.push(create_test_atom(1.0, 2.0, 3.0));
+        mol.0.push(create_test_atom(4.0, 5.0, 6.0));
+
+        let mol = mol.displace(1.0, -1.0, 2.0);
+
+        assert_eq!(mol.0[0].x, 2.0);
+        assert_eq!(mol.0[0].y, 1.0);
+        assert_eq!(mol.0[0].z, 5.0);
+        assert_eq!(mol.0[1].x, 5.0);
+        assert_eq!(mol.0[1].y, 4.0);
+        assert_eq!(mol.0[1].z, 8.0);
+    }
+
+    #[test]
+    fn test_rotate_zero_angles() {
+        let mut mol = Molecule::new();
+        mol.0.push(create_test_atom(1.0, 0.0, 0.0));
+
+        let rotated = mol.rotate(0.0, 0.0, 0.0);
+
+        // With zero rotation, position should be unchanged
+        assert!((rotated.0[0].x - 1.0).abs() < 1e-10);
+        assert!((rotated.0[0].y - 0.0).abs() < 1e-10);
+        assert!((rotated.0[0].z - 0.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_rotate_around_center() {
+        let mut mol = Molecule::new();
+        // Create a molecule with center at origin
+        mol.0.push(create_test_atom(1.0, 0.0, 0.0));
+        mol.0.push(create_test_atom(-1.0, 0.0, 0.0));
+
+        // Rotate 90 degrees around z-axis
+        let rotated = mol.rotate(0.0, 0.0, PI / 2.0);
+
+        // After rotation, the center should still be at origin
+        let (cx, cy, cz) = rotated.center_of_mass();
+        assert!(cx.abs() < 1e-10);
+        assert!(cy.abs() < 1e-10);
+        assert!(cz.abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_atom_distance_to() {
+        let atom1 = create_test_atom(0.0, 0.0, 0.0);
+        let atom2 = create_test_atom(3.0, 4.0, 0.0);
+
+        let dist = atom1.distance_to(&atom2);
+        assert!((dist - 5.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_distance_function() {
+        let atom1 = create_test_atom(0.0, 0.0, 0.0);
+        let atom2 = create_test_atom(1.0, 1.0, 1.0);
+
+        let dist = distance(&atom1, &atom2);
+        assert!((dist - 3.0_f64.sqrt()).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_filter_by_resseq_vec() {
+        let mut mol = Molecule::new();
+
+        let mut atom1 = create_test_atom(0.0, 0.0, 0.0);
+        atom1.resseq = 1;
+        let mut atom2 = create_test_atom(1.0, 0.0, 0.0);
+        atom2.resseq = 2;
+        let mut atom3 = create_test_atom(2.0, 0.0, 0.0);
+        atom3.resseq = 3;
+        let mut atom4 = create_test_atom(3.0, 0.0, 0.0);
+        atom4.resseq = 4;
+
+        mol.0.push(atom1);
+        mol.0.push(atom2);
+        mol.0.push(atom3);
+        mol.0.push(atom4);
+
+        let mut filter_set = HashSet::new();
+        filter_set.insert(2);
+        filter_set.insert(4);
+
+        let filtered = filter_by_resseq_vec(&mol, &filter_set);
+
+        assert_eq!(filtered.0.len(), 2);
+        assert_eq!(filtered.0[0].resseq, 2);
+        assert_eq!(filtered.0[1].resseq, 4);
+    }
+
+    #[test]
+    fn test_filter_by_resseq_vec_empty() {
+        let mut mol = Molecule::new();
+        mol.0.push(create_test_atom(0.0, 0.0, 0.0));
+
+        let filter_set = HashSet::new();
+        let filtered = filter_by_resseq_vec(&mol, &filter_set);
+
+        assert_eq!(filtered.0.len(), 0);
+    }
 }

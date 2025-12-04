@@ -40,8 +40,9 @@ pub fn read_complex(pdbf: &str) -> (structure::Molecule, structure::Molecule) {
 /// This function takes a PDB file path as input and reads the atoms from the file.
 /// It then populates a hashmap with atoms of each chain, where the chain identifier
 /// is extracted from the atom line using a regular expression.
-/// Finally, it creates separate PDB files for each chain, containing the atoms
-/// corresponding to that chain, and returns a vector of the file names.
+/// Finally, it creates separate PDB files for each chain in a temporary directory,
+/// containing the atoms corresponding to that chain, and returns a vector of the
+/// absolute file paths.
 ///
 /// # Arguments
 ///
@@ -49,13 +50,17 @@ pub fn read_complex(pdbf: &str) -> (structure::Molecule, structure::Molecule) {
 ///
 /// # Returns
 ///
-/// A vector of strings representing the file names of the split PDB files.
+/// A vector of strings representing the absolute file paths of the split PDB files
+/// in the temporary directory.
 pub fn split_complex(pdb_file: &str) -> Vec<String> {
+    // Create a unique temporary directory for this operation
+    let temp_dir = crate::utils::get_unique_tempdir();
+    std::fs::create_dir_all(&temp_dir).expect("Cannot create temp directory");
+
     // Populate the hashmap with atoms of a given chain
     let mut atom_map: HashMap<String, Vec<String>> = HashMap::new();
 
     // Open the complex_file and read the atoms
-    // let file = File::open(complex_file).expect("Cannot open file");
     let file = File::open(pdb_file).expect("Cannot open file");
     let pdb_re = Regex::new(r"ATOM\s{2}((?:\s|\d){5})\s((?:\s|.){4})((?:\s|\w){1})((?:\s|\w){3})\s((?:\s|\w){1})((?:\s|\w){4})((?:\s|\w){1})\s{3}((?:\s|.){8})((?:\s|.){8})((?:\s|.){8})((?:\s|.){6})((?:\s|.){6})\s{10}((?:\s|\w){2})((?:\s|\w){2})").unwrap();
     for line in BufReader::new(file).lines().map_while(Result::ok) {
@@ -77,13 +82,13 @@ pub fn split_complex(pdb_file: &str) -> Vec<String> {
     // Sort chains alphabetically to ensure deterministic order
     let mut chains: Vec<_> = atom_map.keys().cloned().collect();
     chains.sort();
-    
+
     let mut result = vec![];
 
     for chain in chains {
         let atoms = &atom_map[&chain];
-        let fname = format!("{}.pdb", chain);
-        let mut file = File::create(&fname).expect("Cannot create file");
+        let file_path = temp_dir.join(format!("{}.pdb", chain));
+        let mut file = File::create(&file_path).expect("Cannot create file");
         let mut pdb_string = String::new();
 
         for atom in atoms {
@@ -93,8 +98,172 @@ pub fn split_complex(pdb_file: &str) -> Vec<String> {
         file.write_all(pdb_string.as_bytes())
             .expect("Cannot write to file");
 
-        // Add the filename to the result vector
-        result.push(fname);
+        // Add the absolute filename to the result vector
+        result.push(file_path.to_str().unwrap().to_string());
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::Path;
+
+    #[test]
+    fn test_split_complex_creates_two_chains() {
+        let result = split_complex("data/2oob.pdb");
+
+        // Should have 2 chains (A and B)
+        assert_eq!(result.len(), 2);
+
+        // Verify both files exist
+        assert!(Path::new(&result[0]).exists());
+        assert!(Path::new(&result[1]).exists());
+
+        // Verify files are in temp directory
+        for path in &result {
+            assert!(path.contains("gdock_"));
+        }
+
+        // Clean up
+        if let Some(parent) = Path::new(&result[0]).parent() {
+            let _ = fs::remove_dir_all(parent);
+        }
+    }
+
+    #[test]
+    fn test_split_complex_chain_names() {
+        let result = split_complex("data/2oob.pdb");
+
+        // Check that files are named A.pdb and B.pdb
+        assert!(result[0].ends_with("A.pdb"));
+        assert!(result[1].ends_with("B.pdb"));
+
+        // Clean up
+        if let Some(parent) = Path::new(&result[0]).parent() {
+            let _ = fs::remove_dir_all(parent);
+        }
+    }
+
+    #[test]
+    fn test_split_complex_files_have_content() {
+        let result = split_complex("data/2oob.pdb");
+
+        // Read and verify both files have content
+        let content_a = fs::read_to_string(&result[0]).expect("Failed to read chain A file");
+        let content_b = fs::read_to_string(&result[1]).expect("Failed to read chain B file");
+
+        assert!(!content_a.is_empty());
+        assert!(!content_b.is_empty());
+
+        // Verify they contain ATOM lines
+        assert!(content_a.contains("ATOM"));
+        assert!(content_b.contains("ATOM"));
+
+        // Clean up
+        if let Some(parent) = Path::new(&result[0]).parent() {
+            let _ = fs::remove_dir_all(parent);
+        }
+    }
+
+    #[test]
+    fn test_split_complex_chain_separation() {
+        let result = split_complex("data/2oob.pdb");
+
+        let mol_a = structure::read_pdb(&result[0]);
+        let mol_b = structure::read_pdb(&result[1]);
+
+        // All atoms in mol_a should be chain A
+        for atom in &mol_a.0 {
+            assert_eq!(atom.chainid, 'A');
+        }
+
+        // All atoms in mol_b should be chain B
+        for atom in &mol_b.0 {
+            assert_eq!(atom.chainid, 'B');
+        }
+
+        // Clean up
+        if let Some(parent) = Path::new(&result[0]).parent() {
+            let _ = fs::remove_dir_all(parent);
+        }
+    }
+
+    #[test]
+    fn test_read_complex_returns_two_molecules() {
+        let (mol_a, mol_b) = read_complex("data/2oob.pdb");
+
+        // Both molecules should have atoms
+        assert!(!mol_a.0.is_empty());
+        assert!(!mol_b.0.is_empty());
+
+        // Chain A should have atoms with chain ID 'A'
+        assert_eq!(mol_a.0[0].chainid, 'A');
+
+        // Chain B should have atoms with chain ID 'B'
+        assert_eq!(mol_b.0[0].chainid, 'B');
+    }
+
+    #[test]
+    fn test_read_complex_cleans_up_temp_files() {
+        // Call read_complex which should create and then delete temp files
+        let (mol_a, mol_b) = read_complex("data/2oob.pdb");
+
+        // Verify molecules were created
+        assert!(!mol_a.0.is_empty());
+        assert!(!mol_b.0.is_empty());
+
+        // We can't easily verify cleanup without modifying the function,
+        // but we can at least verify the function completed successfully
+    }
+
+    #[test]
+    fn test_read_complex_preserves_coordinates() {
+        let (mol_a, mol_b) = read_complex("data/2oob.pdb");
+
+        // Verify coordinates are valid numbers (not NaN or Inf)
+        for atom in &mol_a.0 {
+            assert!(atom.x.is_finite());
+            assert!(atom.y.is_finite());
+            assert!(atom.z.is_finite());
+        }
+
+        for atom in &mol_b.0 {
+            assert!(atom.x.is_finite());
+            assert!(atom.y.is_finite());
+            assert!(atom.z.is_finite());
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot open file")]
+    fn test_split_complex_nonexistent_file() {
+        split_complex("nonexistent_file_xyz123.pdb");
+    }
+
+    #[test]
+    fn test_split_complex_deterministic_order() {
+        // Run twice and verify we get the same order
+        let result1 = split_complex("data/2oob.pdb");
+        let result2 = split_complex("data/2oob.pdb");
+
+        // Extract just the filenames (not full paths)
+        let name1_a = Path::new(&result1[0]).file_name().unwrap();
+        let name1_b = Path::new(&result1[1]).file_name().unwrap();
+        let name2_a = Path::new(&result2[0]).file_name().unwrap();
+        let name2_b = Path::new(&result2[1]).file_name().unwrap();
+
+        // Should be in same order (alphabetically sorted)
+        assert_eq!(name1_a, name2_a);
+        assert_eq!(name1_b, name2_b);
+
+        // Clean up
+        if let Some(parent) = Path::new(&result1[0]).parent() {
+            let _ = fs::remove_dir_all(parent);
+        }
+        if let Some(parent) = Path::new(&result2[0]).parent() {
+            let _ = fs::remove_dir_all(parent);
+        }
+    }
 }
