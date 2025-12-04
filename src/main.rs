@@ -22,7 +22,12 @@ use constants::{
 use indicatif::{ProgressBar, ProgressStyle};
 use structure::read_pdb;
 
-fn score(receptor_file: String, ligand_file: String, restraint_pairs: Vec<(i32, i32)>) {
+fn score(
+    receptor_file: String,
+    ligand_file: String,
+    restraint_pairs: Vec<(i32, i32)>,
+    weights: constants::EnergyWeights,
+) {
     let receptor = read_pdb(&receptor_file);
     let ligand = read_pdb(&ligand_file);
 
@@ -33,10 +38,14 @@ fn score(receptor_file: String, ligand_file: String, restraint_pairs: Vec<(i32, 
     let desolv = fitness::desolv_energy(&receptor, &ligand);
     let air = fitness::air_energy(&restraints, &receptor, &ligand);
 
+    let total_score =
+        weights.vdw * vdw + weights.elec * elec + weights.desolv * desolv + weights.air * air;
+
     println!(
-        "vdw: {:.3} elec: {:.3} desolv: {:.3} air: {:.3} ",
-        vdw, elec, desolv, air,
+        "vdw: {:.3} (w={}) elec: {:.3} (w={}) desolv: {:.3} (w={}) air: {:.3} (w={})",
+        vdw, weights.vdw, elec, weights.elec, desolv, weights.desolv, air, weights.air,
     );
+    println!("total score: {:.3}", total_score);
 }
 
 fn run(
@@ -44,10 +53,7 @@ fn run(
     ligand_file: String,
     restraint_pairs: Vec<(i32, i32)>,
     reference_file: Option<String>,
-    w_vdw: f64,
-    w_elec: f64,
-    w_desolv: f64,
-    w_air: f64,
+    weights: constants::EnergyWeights,
 ) {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     println!(
@@ -92,13 +98,13 @@ fn run(
     println!(
         "  {}={:.2} │ {}={:.2} │ {}={:.2} │ {}={:.2}",
         "VDW".green(),
-        w_vdw,
+        weights.vdw,
         "Elec".green(),
-        w_elec,
+        weights.elec,
         "Desolv".green(),
-        w_desolv,
+        weights.desolv,
         "AIR".green(),
-        w_air
+        weights.air
     );
     println!(
         "{}\n",
@@ -157,17 +163,8 @@ fn run(
 
     // Start the GA
     // Create the initial population
-    let mut population = population::Population::new(
-        Vec::new(),
-        receptor,
-        ligand,
-        orig,
-        restraints,
-        w_vdw,
-        w_elec,
-        w_desolv,
-        w_air,
-    );
+    let mut population =
+        population::Population::new(Vec::new(), receptor, ligand, orig, restraints, weights);
     let mut rng = StdRng::seed_from_u64(constants::RANDOM_SEED);
     for _ in 0..POPULATION_SIZE {
         let c = chromosome::Chromosome::new(&mut rng);
@@ -184,11 +181,7 @@ fn run(
         population.eval_fitness();
 
         // Calculate metrics for all chromosomes (only if reference is available)
-        let metric_vec = if let Some(ref eval) = evaluator {
-            Some(population.eval_metrics(eval))
-        } else {
-            None
-        };
+        let metric_vec = evaluator.as_ref().map(|eval| population.eval_metrics(eval));
 
         // Find the best fitness chromosome and its corresponding RMSD
         let best_fitness_idx = population
@@ -390,166 +383,133 @@ fn main() {
     let matches = Command::new("gdock")
         .version(VERSION)
         .author("pending")
-        .about("pending")
-        .subcommand(
-            Command::new("run")
-                .about("Run the GA docking algorithm")
-                .arg(clap::Arg::new("receptor")
-                    .long("receptor")
-                    .short('r')
-                    .value_name("FILE")
-                    .help("Receptor PDB file")
-                    .required(true))
-                .arg(clap::Arg::new("ligand")
-                    .long("ligand")
-                    .short('l')
-                    .value_name("FILE")
-                    .help("Ligand PDB file")
-                    .required(true))
-                .arg(clap::Arg::new("restraints")
-                    .long("restraints")
-                    .value_name("PAIRS")
-                    .help("Comma-separated restraint pairs receptor:ligand (e.g., 10:45,15:50,20:55)")
-                    .required(true))
-                .arg(clap::Arg::new("reference")
-                    .long("reference")
-                    .value_name("FILE")
-                    .help("Reference PDB file for DockQ calculation (optional)"))
-                .arg(clap::Arg::new("w_vdw")
-                    .long("w_vdw")
-                    .value_name("WEIGHT")
-                    .help("Weight for VDW energy term (default: 1.0)")
-                    .value_parser(clap::value_parser!(f64)))
-                .arg(clap::Arg::new("w_elec")
-                    .long("w_elec")
-                    .value_name("WEIGHT")
-                    .help("Weight for electrostatic energy term (default: 0.5)")
-                    .value_parser(clap::value_parser!(f64)))
-                .arg(clap::Arg::new("w_desolv")
-                    .long("w_desolv")
-                    .value_name("WEIGHT")
-                    .help("Weight for desolvation energy term (default: 0.5)")
-                    .value_parser(clap::value_parser!(f64)))
-                .arg(clap::Arg::new("w_air")
-                    .long("w_air")
-                    .value_name("WEIGHT")
-                    .help("Weight for AIR restraint energy term (default: 100.0)")
-                    .value_parser(clap::value_parser!(f64)))
+        .about("Fast information-driven protein-protein docking using genetic algorithms")
+        .arg(
+            clap::Arg::new("receptor")
+                .long("receptor")
+                .short('r')
+                .value_name("FILE")
+                .help("Receptor PDB file")
+                .required(true),
         )
-        .subcommand(Command::new("score").about("Score the results")
-                .arg(clap::Arg::new("receptor")
-                    .long("receptor")
-                    .short('r')
-                    .value_name("FILE")
-                    .help("Receptor PDB file")
-                    .required(true))
-                .arg(clap::Arg::new("ligand")
-                    .long("ligand")
-                    .short('l')
-                    .value_name("FILE")
-                    .help("Ligand PDB file")
-                    .required(true))
-                .arg(clap::Arg::new("restraints")
-                    .long("restraints")
-                    .value_name("PAIRS")
-                    .help("Comma-separated restraint pairs receptor:ligand (e.g., 10:45,15:50,20:55)")
-                    .required(true))
-
-
+        .arg(
+            clap::Arg::new("ligand")
+                .long("ligand")
+                .short('l')
+                .value_name("FILE")
+                .help("Ligand PDB file")
+                .required(true),
+        )
+        .arg(
+            clap::Arg::new("restraints")
+                .long("restraints")
+                .value_name("PAIRS")
+                .help("Comma-separated restraint pairs receptor:ligand (e.g., 10:45,15:50,20:55)")
+                .required(true),
+        )
+        .arg(
+            clap::Arg::new("reference")
+                .long("reference")
+                .value_name("FILE")
+                .help("Reference PDB file for DockQ calculation (optional)"),
+        )
+        .arg(
+            clap::Arg::new("score")
+                .long("score")
+                .help("Score mode: only calculate energy without running GA")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            clap::Arg::new("w_vdw")
+                .long("w_vdw")
+                .value_name("WEIGHT")
+                .help("Weight for VDW energy term (default: 1.0)")
+                .value_parser(clap::value_parser!(f64)),
+        )
+        .arg(
+            clap::Arg::new("w_elec")
+                .long("w_elec")
+                .value_name("WEIGHT")
+                .help("Weight for electrostatic energy term (default: 0.5)")
+                .value_parser(clap::value_parser!(f64)),
+        )
+        .arg(
+            clap::Arg::new("w_desolv")
+                .long("w_desolv")
+                .value_name("WEIGHT")
+                .help("Weight for desolvation energy term (default: 0.5)")
+                .value_parser(clap::value_parser!(f64)),
+        )
+        .arg(
+            clap::Arg::new("w_air")
+                .long("w_air")
+                .value_name("WEIGHT")
+                .help("Weight for AIR restraint energy term (default: 100.0)")
+                .value_parser(clap::value_parser!(f64)),
         )
         .get_matches();
 
-    match matches.subcommand() {
-        Some(("run", sub_matches)) => {
-            let receptor_file = sub_matches.get_one::<String>("receptor").unwrap().clone();
-            let ligand_file = sub_matches.get_one::<String>("ligand").unwrap().clone();
+    // Parse common arguments
+    let receptor_file = matches.get_one::<String>("receptor").unwrap().clone();
+    let ligand_file = matches.get_one::<String>("ligand").unwrap().clone();
+    let reference_file = matches.get_one::<String>("reference").cloned();
+    let score_only = matches.get_flag("score");
 
-            // Parse restraint pairs (format: "rec1:lig1,rec2:lig2,...")
-            let restraint_pairs: Vec<(i32, i32)> = sub_matches
-                .get_one::<String>("restraints")
-                .unwrap()
-                .split(',')
-                .map(|pair| {
-                    let parts: Vec<&str> = pair.trim().split(':').collect();
-                    if parts.len() != 2 {
-                        panic!(
-                            "Invalid restraint format: '{}'. Expected format: 'receptor:ligand'",
-                            pair
-                        );
-                    }
-                    let rec = parts[0]
-                        .trim()
-                        .parse::<i32>()
-                        .expect(&format!("Invalid receptor residue number: '{}'", parts[0]));
-                    let lig = parts[1]
-                        .trim()
-                        .parse::<i32>()
-                        .expect(&format!("Invalid ligand residue number: '{}'", parts[1]));
-                    (rec, lig)
-                })
-                .collect();
+    // Parse restraint pairs (format: "rec1:lig1,rec2:lig2,...")
+    let restraint_pairs: Vec<(i32, i32)> = matches
+        .get_one::<String>("restraints")
+        .unwrap()
+        .split(',')
+        .map(|pair| {
+            let parts: Vec<&str> = pair.trim().split(':').collect();
+            if parts.len() != 2 {
+                panic!(
+                    "Invalid restraint format: '{}'. Expected format: 'receptor:ligand'",
+                    pair
+                );
+            }
+            let rec = parts[0]
+                .trim()
+                .parse::<i32>()
+                .unwrap_or_else(|_| panic!("Invalid receptor residue number: '{}'", parts[0]));
+            let lig = parts[1]
+                .trim()
+                .parse::<i32>()
+                .unwrap_or_else(|_| panic!("Invalid ligand residue number: '{}'", parts[1]));
+            (rec, lig)
+        })
+        .collect();
 
-            let reference_file = sub_matches.get_one::<String>("reference").cloned();
+    // Parse energy weights
+    let weights = constants::EnergyWeights::new(
+        matches
+            .get_one::<f64>("w_vdw")
+            .copied()
+            .unwrap_or(DEFAULT_W_VDW),
+        matches
+            .get_one::<f64>("w_elec")
+            .copied()
+            .unwrap_or(DEFAULT_W_ELEC),
+        matches
+            .get_one::<f64>("w_desolv")
+            .copied()
+            .unwrap_or(DEFAULT_W_DESOLV),
+        matches
+            .get_one::<f64>("w_air")
+            .copied()
+            .unwrap_or(DEFAULT_W_AIR),
+    );
 
-            let w_vdw = sub_matches
-                .get_one::<f64>("w_vdw")
-                .copied()
-                .unwrap_or(DEFAULT_W_VDW);
-            let w_elec = sub_matches
-                .get_one::<f64>("w_elec")
-                .copied()
-                .unwrap_or(DEFAULT_W_ELEC);
-            let w_desolv = sub_matches
-                .get_one::<f64>("w_desolv")
-                .copied()
-                .unwrap_or(DEFAULT_W_DESOLV);
-            let w_air = sub_matches
-                .get_one::<f64>("w_air")
-                .copied()
-                .unwrap_or(DEFAULT_W_AIR);
-
-            run(
-                receptor_file,
-                ligand_file,
-                restraint_pairs,
-                reference_file,
-                w_vdw,
-                w_elec,
-                w_desolv,
-                w_air,
-            );
-        }
-        Some(("score", sub_matches)) => {
-            let receptor_file = sub_matches.get_one::<String>("receptor").unwrap().clone();
-            let ligand_file = sub_matches.get_one::<String>("ligand").unwrap().clone();
-
-            // Parse restraint pairs (format: "rec1:lig1,rec2:lig2,...")
-            let restraint_pairs: Vec<(i32, i32)> = sub_matches
-                .get_one::<String>("restraints")
-                .unwrap()
-                .split(',')
-                .map(|pair| {
-                    let parts: Vec<&str> = pair.trim().split(':').collect();
-                    if parts.len() != 2 {
-                        panic!(
-                            "Invalid restraint format: '{}'. Expected format: 'receptor:ligand'",
-                            pair
-                        );
-                    }
-                    let rec = parts[0]
-                        .trim()
-                        .parse::<i32>()
-                        .expect(&format!("Invalid receptor residue number: '{}'", parts[0]));
-                    let lig = parts[1]
-                        .trim()
-                        .parse::<i32>()
-                        .expect(&format!("Invalid ligand residue number: '{}'", parts[1]));
-                    (rec, lig)
-                })
-                .collect();
-
-            score(receptor_file, ligand_file, restraint_pairs)
-        }
-        _ => eprintln!("Please specify a valid subcommand: run or score"),
+    // Execute based on mode
+    if score_only {
+        score(receptor_file, ligand_file, restraint_pairs, weights);
+    } else {
+        run(
+            receptor_file,
+            ligand_file,
+            restraint_pairs,
+            reference_file,
+            weights,
+        );
     }
 }
