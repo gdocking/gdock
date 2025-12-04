@@ -19,6 +19,37 @@ pub const DEFAULT_W_ELEC: f64 = 0.5;
 pub const DEFAULT_W_DESOLV: f64 = 0.1;
 pub const DEFAULT_W_AIR: f64 = 100.0;
 
+/// Energy function weights for scoring
+#[derive(Debug, Clone, Copy)]
+pub struct EnergyWeights {
+    pub vdw: f64,
+    pub elec: f64,
+    pub desolv: f64,
+    pub air: f64,
+}
+
+impl Default for EnergyWeights {
+    fn default() -> Self {
+        Self {
+            vdw: DEFAULT_W_VDW,
+            elec: DEFAULT_W_ELEC,
+            desolv: DEFAULT_W_DESOLV,
+            air: DEFAULT_W_AIR,
+        }
+    }
+}
+
+impl EnergyWeights {
+    pub fn new(vdw: f64, elec: f64, desolv: f64, air: f64) -> Self {
+        Self {
+            vdw,
+            elec,
+            desolv,
+            air,
+        }
+    }
+}
+
 // VdW radii
 // `https://en.wikipedia.org/wiki/Van_der_Waals_radius`
 pub const HYDROGEN_RADIUS: f64 = 1.2;

@@ -189,7 +189,7 @@ pub fn read_pdb(pdb_file: &String) -> Molecule {
     // Read the PDB file
     let file = File::open(pdb_file).expect("Cannot open file");
     let pdb_re = Regex::new(r"ATOM\s{2}((?:\s|\d){5})\s((?:\s|.){4})((?:\s|\w){1})((?:\s|\w){3})\s((?:\s|\w){1})((?:\s|\w){4})((?:\s|\w){1})\s{3}((?:\s|.){8})((?:\s|.){8})((?:\s|.){8})((?:\s|.){6})((?:\s|.){6})\s{10}((?:\s|\w){2})((?:\s|\w){2})").unwrap();
-    for line in BufReader::new(file).lines().flatten() {
+    for line in BufReader::new(file).lines().map_while(Result::ok) {
         if let Some(cap) = pdb_re.captures(&line) {
             let mut atom = Atom::new();
             atom.serial = cap[1].trim().parse().unwrap();

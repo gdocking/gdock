@@ -83,7 +83,7 @@ pub fn vdw_energy(receptor: &structure::Molecule, ligand: &structure::Molecule) 
                     // Use soft-core potential to prevent catastrophic energies
                     let vdw = softcore_lj_potential(atom1, atom2, dist, softcore_alpha);
                     // Still apply capping for extreme cases
-                    let capped_vdw = vdw.max(-50.0).min(500.0);
+                    let capped_vdw = vdw.clamp(-50.0, 500.0);
                     energy += capped_vdw;
                 }
             }

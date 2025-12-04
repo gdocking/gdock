@@ -19,10 +19,7 @@ pub struct Population {
     pub reference: Molecule,
     pub generation: u64,
     pub restraints: Vec<restraints::Restraint>,
-    pub w_vdw: f64,
-    pub w_elec: f64,
-    pub w_desolv: f64,
-    pub w_air: f64,
+    pub weights: constants::EnergyWeights,
 }
 
 impl Population {
@@ -32,10 +29,7 @@ impl Population {
         ligand: Molecule,
         reference: Molecule,
         restraints: Vec<restraints::Restraint>,
-        w_vdw: f64,
-        w_elec: f64,
-        w_desolv: f64,
-        w_air: f64,
+        weights: constants::EnergyWeights,
     ) -> Population {
         Population {
             chromosomes: individuals,
@@ -44,29 +38,15 @@ impl Population {
             reference,
             generation: 0,
             restraints,
-            w_vdw,
-            w_elec,
-            w_desolv,
-            w_air,
+            weights,
         }
     }
 
     pub fn eval_fitness(&mut self) {
         // Calculate the fitness in parallel
-        let w_vdw = self.w_vdw;
-        let w_elec = self.w_elec;
-        let w_desolv = self.w_desolv;
-        let w_air = self.w_air;
+        let weights = self.weights;
         self.chromosomes.par_iter_mut().for_each(|c| {
-            c.fitness(
-                &self.receptor,
-                &self.ligand,
-                &self.restraints,
-                w_vdw,
-                w_elec,
-                w_desolv,
-                w_air,
-            );
+            c.fitness(&self.receptor, &self.ligand, &self.restraints, &weights);
         });
     }
 
@@ -138,10 +118,7 @@ impl Population {
             self.ligand.clone(),
             self.reference.clone(),
             self.restraints.clone(),
-            self.w_vdw,
-            self.w_elec,
-            self.w_desolv,
-            self.w_air,
+            self.weights,
         );
 
         offspring.generation = self.generation + 1;
@@ -189,7 +166,7 @@ impl Population {
     /// Get the mean fitness of the population
     pub fn get_mean_fitness(&self) -> f64 {
         if self.chromosomes.is_empty() {
-            return std::f64::NAN;
+            return f64::NAN;
         }
         let total_fitness: f64 = self.chromosomes.iter().map(|c| c.fitness).sum();
         total_fitness / self.chromosomes.len() as f64
@@ -198,7 +175,7 @@ impl Population {
     /// Get the mean fitness of the population
     pub fn get_mean_rmsd(&self) -> f64 {
         if self.chromosomes.is_empty() {
-            return std::f64::NAN;
+            return f64::NAN;
         }
         let total_rmsd: f64 = self.chromosomes.iter().map(|c| c.rmsd).sum();
         total_rmsd / self.chromosomes.len() as f64
