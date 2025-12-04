@@ -248,7 +248,6 @@ pub fn read_pdb(pdb_file: &String) -> Molecule {
 }
 
 // Output a Molecule in PDB format
-#[allow(dead_code)]
 pub fn write_pdb(molecule: &Molecule, output_file: &String) {
     // let data = "Some data!";
     // fs::write("/tmp/foo", data).expect("Unable to write file");
@@ -270,15 +269,6 @@ pub fn write_pdb(molecule: &Molecule, output_file: &String) {
     fs::write(output_file, pdb_string).expect("Unable to write file");
 }
 
-// Change the chain of a Molecule
-#[allow(dead_code)]
-fn change_chain(molecule: &mut Molecule, chain: char) {
-    for atom in &mut molecule.0 {
-        atom.chainid = chain;
-    }
-}
-
-#[allow(dead_code)]
 pub fn distance(atom1: &Atom, atom2: &Atom) -> f64 {
     let dx = atom1.x - atom2.x;
     let dy = atom1.y - atom2.y;

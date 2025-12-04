@@ -215,7 +215,13 @@ mod tests {
     use super::*;
     use rand::SeedableRng;
 
-    fn create_test_atom(x: f64, y: f64, z: f64, resseq: i16, chainid: char) -> crate::structure::Atom {
+    fn create_test_atom(
+        x: f64,
+        y: f64,
+        z: f64,
+        resseq: i16,
+        chainid: char,
+    ) -> crate::structure::Atom {
         crate::structure::Atom {
             serial: 1,
             name: "CA".to_string(),

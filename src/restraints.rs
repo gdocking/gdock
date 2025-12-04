@@ -66,7 +66,10 @@ pub fn create_restraints_from_pairs(
             let restraint = Restraint::new(atom1.clone(), atom2.clone());
             restraints.push(restraint);
         } else {
-            eprintln!("Warning: Restraint pair {}:{} not found in structures", res1, res2);
+            eprintln!(
+                "Warning: Restraint pair {}:{} not found in structures",
+                res1, res2
+            );
         }
     }
 

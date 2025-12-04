@@ -115,8 +115,7 @@ mod tests {
         // Count how many genes were swapped
         let mut swapped_count = 0;
         for i in 0..6 {
-            if offspring1.genes[i] == parent2.genes[i] && offspring2.genes[i] == parent1.genes[i]
-            {
+            if offspring1.genes[i] == parent2.genes[i] && offspring2.genes[i] == parent1.genes[i] {
                 swapped_count += 1;
             }
         }

@@ -188,7 +188,10 @@ mod tests {
             }
         }
 
-        assert!(changed_count > 0, "Mutation should change at least one gene");
+        assert!(
+            changed_count > 0,
+            "Mutation should change at least one gene"
+        );
     }
 
     #[test]
@@ -281,9 +284,7 @@ mod tests {
     fn test_fitness_calculation() {
         // Create simple test molecules
         let mut receptor = structure::Molecule::new();
-        receptor
-            .0
-            .push(create_test_atom("CA", 0.0, 0.0, 0.0));
+        receptor.0.push(create_test_atom("CA", 0.0, 0.0, 0.0));
 
         let mut ligand = structure::Molecule::new();
         ligand.0.push(create_test_atom("CA", 5.0, 0.0, 0.0));
@@ -316,9 +317,7 @@ mod tests {
     #[test]
     fn test_fitness_stores_energy_components() {
         let mut receptor = structure::Molecule::new();
-        receptor
-            .0
-            .push(create_test_atom("CA", 0.0, 0.0, 0.0));
+        receptor.0.push(create_test_atom("CA", 0.0, 0.0, 0.0));
 
         let mut ligand = structure::Molecule::new();
         ligand.0.push(create_test_atom("CA", 3.0, 0.0, 0.0));

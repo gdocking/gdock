@@ -3,7 +3,6 @@ pub mod constants;
 pub mod evaluator;
 pub mod fitness;
 pub mod ga;
-pub mod metrics;
 pub mod population;
 pub mod restraints;
 pub mod scoring;
