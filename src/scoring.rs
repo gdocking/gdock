@@ -77,7 +77,7 @@ pub fn split_complex(pdb_file: &str) -> Vec<String> {
     // Sort chains alphabetically to ensure deterministic order
     let mut chains: Vec<_> = atom_map.keys().cloned().collect();
     chains.sort();
-    
+
     let mut result = vec![];
 
     for chain in chains {

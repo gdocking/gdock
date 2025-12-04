@@ -114,3 +114,244 @@ impl Chromosome {
         self.fitness
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::SeedableRng;
+    use std::f64::consts::PI;
+
+    fn create_test_atom(name: &str, x: f64, y: f64, z: f64) -> structure::Atom {
+        structure::Atom {
+            serial: 1,
+            name: name.to_string(),
+            altloc: ' ',
+            resname: "ALA".to_string(),
+            chainid: 'A',
+            resseq: 1,
+            icode: ' ',
+            x,
+            y,
+            z,
+            occupancy: 1.0,
+            tempfactor: 0.0,
+            element: "C".to_string(),
+            charge: 0.0,
+            vdw_radius: 1.7,
+            epsilon: -0.1,
+            rmin2: 2.0,
+            eps_1_4: -0.1,
+            rmin2_1_4: 1.9,
+        }
+    }
+
+    #[test]
+    fn test_chromosome_new() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let chromosome = Chromosome::new(&mut rng);
+
+        // Should have 6 genes (3 rotations + 3 translations)
+        assert_eq!(chromosome.genes.len(), 6);
+
+        // Rotation angles should be in range [0, 2π]
+        for i in 0..3 {
+            assert!(chromosome.genes[i] >= 0.0);
+            assert!(chromosome.genes[i] <= 2.0 * PI);
+        }
+
+        // Translations should be in range [-MAX_DISPLACEMENT, MAX_DISPLACEMENT]
+        for i in 3..6 {
+            assert!(chromosome.genes[i] >= -MAX_DISPLACEMENT);
+            assert!(chromosome.genes[i] <= MAX_DISPLACEMENT);
+        }
+
+        // Initial fitness values should be zero
+        assert_eq!(chromosome.fitness, 0.0);
+        assert_eq!(chromosome.vdw, 0.0);
+        assert_eq!(chromosome.elec, 0.0);
+    }
+
+    #[test]
+    fn test_chromosome_mutate_changes_genes() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let mut chromosome = Chromosome::new(&mut rng);
+        let original_genes = chromosome.genes.clone();
+
+        // Mutate with high rate to ensure some changes
+        chromosome.mutate(&mut rng, 1.0); // 100% mutation rate
+
+        // At least some genes should have changed
+        let mut changed_count = 0;
+        for i in 0..6 {
+            if (chromosome.genes[i] - original_genes[i]).abs() > 1e-10 {
+                changed_count += 1;
+            }
+        }
+
+        assert!(changed_count > 0, "Mutation should change at least one gene");
+    }
+
+    #[test]
+    fn test_chromosome_mutate_keeps_bounds() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let mut chromosome = Chromosome::new(&mut rng);
+
+        // Mutate many times
+        for _ in 0..100 {
+            chromosome.mutate(&mut rng, 0.5);
+
+            // Check rotation bounds [0, 2π]
+            for i in 0..3 {
+                assert!(
+                    chromosome.genes[i] >= 0.0 && chromosome.genes[i] <= 2.0 * PI,
+                    "Rotation gene {} out of bounds: {}",
+                    i,
+                    chromosome.genes[i]
+                );
+            }
+
+            // Check translation bounds [-MAX_DISPLACEMENT, MAX_DISPLACEMENT]
+            for i in 3..6 {
+                assert!(
+                    chromosome.genes[i] >= -MAX_DISPLACEMENT
+                        && chromosome.genes[i] <= MAX_DISPLACEMENT,
+                    "Translation gene {} out of bounds: {}",
+                    i,
+                    chromosome.genes[i]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_chromosome_mutate_with_zero_rate() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let mut chromosome = Chromosome::new(&mut rng);
+        let original_genes = chromosome.genes.clone();
+
+        chromosome.mutate(&mut rng, 0.0); // 0% mutation rate
+
+        // Genes should be unchanged
+        for i in 0..6 {
+            assert_eq!(chromosome.genes[i], original_genes[i]);
+        }
+    }
+
+    #[test]
+    fn test_apply_genes_translation_only() {
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom("CA", 0.0, 0.0, 0.0));
+
+        let chromosome = Chromosome {
+            genes: vec![0.0, 0.0, 0.0, 5.0, 10.0, 15.0], // No rotation, just translation
+            fitness: 0.0,
+            vdw: 0.0,
+            elec: 0.0,
+            desolv: 0.0,
+            air: 0.0,
+            restraint_penalty: 0.0,
+            rmsd: 0.0,
+            fnat: 0.0,
+        };
+
+        let transformed = chromosome.apply_genes(&ligand);
+
+        // Position should be translated by (5, 10, 15)
+        assert!((transformed.0[0].x - 5.0).abs() < 1e-6);
+        assert!((transformed.0[0].y - 10.0).abs() < 1e-6);
+        assert!((transformed.0[0].z - 15.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_apply_genes_preserves_molecule_size() {
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom("CA", 0.0, 0.0, 0.0));
+        ligand.0.push(create_test_atom("CB", 1.0, 0.0, 0.0));
+        ligand.0.push(create_test_atom("C", 2.0, 0.0, 0.0));
+
+        let mut rng = StdRng::seed_from_u64(42);
+        let chromosome = Chromosome::new(&mut rng);
+
+        let transformed = chromosome.apply_genes(&ligand);
+
+        assert_eq!(transformed.0.len(), ligand.0.len());
+    }
+
+    #[test]
+    fn test_fitness_calculation() {
+        // Create simple test molecules
+        let mut receptor = structure::Molecule::new();
+        receptor
+            .0
+            .push(create_test_atom("CA", 0.0, 0.0, 0.0));
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom("CA", 5.0, 0.0, 0.0));
+
+        let restraints = vec![]; // No restraints
+        let weights = constants::EnergyWeights::default();
+
+        let mut chromosome = Chromosome {
+            genes: vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0], // Identity transformation
+            fitness: 0.0,
+            vdw: 0.0,
+            elec: 0.0,
+            desolv: 0.0,
+            air: 0.0,
+            restraint_penalty: 0.0,
+            rmsd: 0.0,
+            fnat: 0.0,
+        };
+
+        let fitness = chromosome.fitness(&receptor, &ligand, &restraints, &weights);
+
+        // Fitness should be calculated (non-zero for this setup)
+        assert!(fitness.is_finite(), "Fitness should be a finite number");
+        assert_eq!(
+            chromosome.fitness, fitness,
+            "Fitness should be stored in chromosome"
+        );
+    }
+
+    #[test]
+    fn test_fitness_stores_energy_components() {
+        let mut receptor = structure::Molecule::new();
+        receptor
+            .0
+            .push(create_test_atom("CA", 0.0, 0.0, 0.0));
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom("CA", 3.0, 0.0, 0.0));
+
+        let restraints = vec![];
+        let weights = constants::EnergyWeights::default();
+
+        let mut chromosome = Chromosome {
+            genes: vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            fitness: 0.0,
+            vdw: 0.0,
+            elec: 0.0,
+            desolv: 0.0,
+            air: 0.0,
+            restraint_penalty: 0.0,
+            rmsd: 0.0,
+            fnat: 0.0,
+        };
+
+        chromosome.fitness(&receptor, &ligand, &restraints, &weights);
+
+        // Energy components should be calculated and stored
+        assert!(
+            chromosome.vdw.is_finite(),
+            "VDW energy should be calculated"
+        );
+        assert!(
+            chromosome.elec.is_finite(),
+            "Electrostatic energy should be calculated"
+        );
+        assert!(
+            chromosome.desolv.is_finite(),
+            "Desolvation energy should be calculated"
+        );
+    }
+}
