@@ -39,20 +39,19 @@ The binary will be available at `./target/release/gdock`.
 
 ## Usage
 
-### Basic Usage (Score-only Mode)
+### Basic Usage (Docking Mode)
 
-When you don't have a reference structure:
+Run the full genetic algorithm docking:
 
 ```bash
-gdock run \
+gdock \
   --receptor data/A.pdb \
   --ligand data/B.pdb \
-  --restraints 933:6,936:8,940:42,941:44,946:45,950:46 \
-  --reference data/2oob.pdb
+  --restraints 933:6,936:8,940:42,941:44,946:45,950:46
 ```
 
 This will:
-- Dock the ligand onto the receptor
+- Dock the ligand onto the receptor using the genetic algorithm
 - Use the specified residues to create restraints
 - Optimize based on energy scoring
 - Output `best_by_score.pdb`
@@ -65,7 +64,7 @@ When you have a reference/native structure for validation:
 >  Since in a real scenario you will not have the actual reference.
 
 ```bash
-gdock run \
+gdock \
   --receptor data/A.pdb \
   --ligand data/B.pdb \
   --restraints 933:6,936:8,940:42,941:44,946:45,950:46 \
@@ -76,16 +75,30 @@ This will:
 - Calculate DockQ, RMSD, iRMSD, and FNAT during optimization
 - Output both `best_by_score.pdb` and `best_by_dockq.pdb`
 
-### Advanced: Custom Energy Weights
+### Score-Only Mode
+
+Calculate energy components without running the GA:
 
 ```bash
-gdock run \
+gdock \
+  --receptor data/A.pdb \
+  --ligand data/B.pdb \
+  --restraints 933:6,936:8,940:42,941:44,946:45,950:46 \
+  --score
+```
+
+This will quickly compute VDW, electrostatic, desolvation, and AIR energies for the given complex.
+
+### Custom Energy Weights
+
+```bash
+gdock \
   --receptor data/A.pdb \
   --ligand data/B.pdb \
   --restraints 933:6,936:8,940:42,941:44,946:45,950:46 \
   --w_vdw 1.0 \
   --w_elec 0.5 \
-  --w_desolv 0.5 \
+  --w_desolv 0.1 \
   --w_air 100.0
 ```
 

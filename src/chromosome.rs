@@ -1,3 +1,4 @@
+use super::constants;
 use super::constants::MAX_DISPLACEMENT;
 use crate::fitness;
 use crate::restraints;
@@ -86,10 +87,7 @@ impl Chromosome {
         receptor: &structure::Molecule,
         ligand: &structure::Molecule,
         restraints: &[restraints::Restraint],
-        w_vdw: f64,
-        w_elec: f64,
-        w_desolv: f64,
-        w_air: f64,
+        weights: &constants::EnergyWeights,
     ) -> f64 {
         let target_ligand = self.apply_genes(ligand);
 
@@ -107,8 +105,10 @@ impl Chromosome {
         self.restraint_penalty = (1.0 - restraints_ratio) * restraints.len() as f64;
 
         // Information-driven docking score with configurable weights
-        let score =
-            w_vdw * self.vdw + w_elec * self.elec + w_desolv * self.desolv + w_air * self.air;
+        let score = weights.vdw * self.vdw
+            + weights.elec * self.elec
+            + weights.desolv * self.desolv
+            + weights.air * self.air;
 
         self.fitness = score;
         self.fitness
