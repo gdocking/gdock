@@ -195,8 +195,8 @@ mod tests {
         let (mol_a, mol_b) = read_complex("data/2oob.pdb");
 
         // Both molecules should have atoms
-        assert!(mol_a.0.len() > 0);
-        assert!(mol_b.0.len() > 0);
+        assert!(!mol_a.0.is_empty());
+        assert!(!mol_b.0.is_empty());
 
         // Chain A should have atoms with chain ID 'A'
         assert_eq!(mol_a.0[0].chainid, 'A');
@@ -211,8 +211,8 @@ mod tests {
         let (mol_a, mol_b) = read_complex("data/2oob.pdb");
 
         // Verify molecules were created
-        assert!(mol_a.0.len() > 0);
-        assert!(mol_b.0.len() > 0);
+        assert!(!mol_a.0.is_empty());
+        assert!(!mol_b.0.is_empty());
 
         // We can't easily verify cleanup without modifying the function,
         // but we can at least verify the function completed successfully

@@ -181,12 +181,12 @@ mod tests {
         chromosome.mutate(&mut rng, 1.0); // 100% mutation rate
 
         // At least some genes should have changed
-        let mut changed_count = 0;
-        for i in 0..6 {
-            if (chromosome.genes[i] - original_genes[i]).abs() > 1e-10 {
-                changed_count += 1;
-            }
-        }
+        let changed_count = chromosome
+            .genes
+            .iter()
+            .zip(original_genes.iter())
+            .filter(|(new_gene, old_gene)| (*new_gene - *old_gene).abs() > 1e-10)
+            .count();
 
         assert!(
             changed_count > 0,
@@ -235,8 +235,8 @@ mod tests {
         chromosome.mutate(&mut rng, 0.0); // 0% mutation rate
 
         // Genes should be unchanged
-        for i in 0..6 {
-            assert_eq!(chromosome.genes[i], original_genes[i]);
+        for (new_gene, old_gene) in chromosome.genes.iter().zip(original_genes.iter()) {
+            assert_eq!(new_gene, old_gene);
         }
     }
 

@@ -100,7 +100,7 @@ mod tests {
     #[test]
     fn test_energy_weights_clone() {
         let weights1 = EnergyWeights::new(1.0, 0.5, 0.1, 100.0);
-        let weights2 = weights1.clone();
+        let weights2 = weights1; // EnergyWeights implements Copy
         assert_eq!(weights2.vdw, 1.0);
         assert_eq!(weights2.elec, 0.5);
     }
