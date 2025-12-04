@@ -1,5 +1,6 @@
 use crate::structure;
 use rand::distributions::{Alphanumeric, DistString};
+use std::path::PathBuf;
 
 pub fn generate_restraints(
     molecule1: &structure::Molecule,
@@ -41,6 +42,36 @@ pub fn generate_restraints(
 // Generate a unique string
 pub fn unique_str() -> String {
     Alphanumeric.sample_string(&mut rand::thread_rng(), 16)
+}
+
+/// Creates a unique temporary directory path.
+///
+/// This function generates a unique temporary directory path using the system's
+/// temporary directory, the process ID, and a high-resolution timestamp. The directory
+/// is not created by this function - the caller is responsible for creating it.
+///
+/// # Returns
+///
+/// A `PathBuf` representing the unique temporary directory path.
+///
+/// # Example
+///
+/// ```
+/// let temp_dir = gdock::utils::get_unique_tempdir();
+/// std::fs::create_dir_all(&temp_dir).expect("Failed to create temp dir");
+/// // ... use the temp directory ...
+/// std::fs::remove_dir_all(&temp_dir).ok();
+/// ```
+pub fn get_unique_tempdir() -> PathBuf {
+    use std::env;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .subsec_nanos();
+
+    env::temp_dir().join(format!("gdock_{}_{}", std::process::id(), nanos))
 }
 
 // pub fn is_converging(arr: &Vec<f64>) -> bool {
@@ -118,6 +149,28 @@ mod tests {
         let s2 = unique_str();
         // With very high probability, two random 16-char strings will be different
         assert_ne!(s1, s2);
+    }
+
+    #[test]
+    fn test_get_unique_tempdir() {
+        let temp_dir = get_unique_tempdir();
+
+        // Should be under system temp directory
+        assert!(temp_dir.starts_with(std::env::temp_dir()));
+
+        // Should contain "gdock_" and process ID
+        let path_str = temp_dir.to_str().unwrap();
+        assert!(path_str.contains("gdock_"));
+        assert!(path_str.contains(&std::process::id().to_string()));
+    }
+
+    #[test]
+    fn test_get_unique_tempdir_unique() {
+        let temp_dir1 = get_unique_tempdir();
+        let temp_dir2 = get_unique_tempdir();
+
+        // Two consecutive calls should generate different paths
+        assert_ne!(temp_dir1, temp_dir2);
     }
 
     #[test]
