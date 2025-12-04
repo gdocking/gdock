@@ -25,6 +25,7 @@ fn score(
     receptor_file: String,
     ligand_file: String,
     restraint_pairs: Vec<(i32, i32)>,
+    reference_file: Option<String>,
     weights: constants::EnergyWeights,
 ) {
     let receptor = read_pdb(&receptor_file);
@@ -45,6 +46,19 @@ fn score(
         vdw, weights.vdw, elec, weights.elec, desolv, weights.desolv, air, weights.air,
     );
     println!("total score: {:.3}", total_score);
+
+    // Calculate DockQ metrics if reference is provided
+    if let Some(ref_file) = reference_file {
+        let (_, reference_ligand) = scoring::read_complex(&ref_file);
+        let evaluator = evaluator::Evaluator::new(receptor.clone(), reference_ligand);
+        let metrics = evaluator.calc_metrics(&ligand);
+
+        println!("\n{}", "📊 DockQ Metrics".bold().cyan());
+        println!("  DockQ: {:.3} ({})", metrics.dockq, metrics.rank());
+        println!("  L-RMSD: {:.2} Å", metrics.rmsd);
+        println!("  i-RMSD: {:.2} Å", metrics.irmsd);
+        println!("  FNAT: {:.3}", metrics.fnat);
+    }
 }
 
 fn run(
@@ -566,7 +580,7 @@ fn main() {
 
     // Execute based on mode
     if score_only {
-        score(receptor_file, ligand_file, restraint_pairs, weights);
+        score(receptor_file, ligand_file, restraint_pairs, reference_file, weights);
     } else {
         run(
             receptor_file,
