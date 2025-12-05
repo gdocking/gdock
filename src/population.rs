@@ -50,7 +50,13 @@ impl Population {
         let weights = self.weights;
         let evaluator_ref = self.debug_evaluator.as_ref();
         self.chromosomes.par_iter_mut().for_each(|c| {
-            c.fitness(&self.receptor, &self.ligand, &self.restraints, &weights, evaluator_ref);
+            c.fitness(
+                &self.receptor,
+                &self.ligand,
+                &self.restraints,
+                &weights,
+                evaluator_ref,
+            );
         });
     }
 

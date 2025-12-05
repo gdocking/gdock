@@ -25,6 +25,7 @@ fn score(
     receptor_file: String,
     ligand_file: String,
     restraint_pairs: Vec<(i32, i32)>,
+    reference_file: Option<String>,
     weights: constants::EnergyWeights,
 ) {
     let receptor = read_pdb(&receptor_file);
@@ -45,6 +46,19 @@ fn score(
         vdw, weights.vdw, elec, weights.elec, desolv, weights.desolv, air, weights.air,
     );
     println!("total score: {:.3}", total_score);
+
+    // Calculate DockQ metrics if reference is provided
+    if let Some(ref_file) = reference_file {
+        let (_, reference_ligand) = scoring::read_complex(&ref_file);
+        let evaluator = evaluator::Evaluator::new(receptor.clone(), reference_ligand);
+        let metrics = evaluator.calc_metrics(&ligand);
+
+        println!("\n{}", "📊 DockQ Metrics".bold().cyan());
+        println!("  DockQ: {:.3} ({})", metrics.dockq, metrics.rank());
+        println!("  L-RMSD: {:.2} Å", metrics.rmsd);
+        println!("  i-RMSD: {:.2} Å", metrics.irmsd);
+        println!("  FNAT: {:.3}", metrics.fnat);
+    }
 }
 
 fn run(
@@ -68,7 +82,9 @@ fn run(
     if debug_mode {
         println!(
             "{}",
-            "   ⚠️  DEBUG MODE: Using DockQ as fitness function".yellow().bold()
+            "   ⚠️  DEBUG MODE: Using DockQ as fitness function"
+                .yellow()
+                .bold()
         );
     }
     println!(
@@ -155,11 +171,7 @@ fn run(
     };
 
     // In debug mode, we use the evaluator as the fitness function
-    let debug_evaluator = if debug_mode {
-        evaluator.clone()
-    } else {
-        None
-    };
+    let debug_evaluator = if debug_mode { evaluator.clone() } else { None };
 
     // Clone molecules before moving them into population (needed for PDB output later)
     let receptor_clone = receptor.clone();
@@ -176,8 +188,15 @@ fn run(
 
     // Start the GA
     // Create the initial population
-    let mut population =
-        population::Population::new(Vec::new(), receptor, ligand, orig, restraints, weights, debug_evaluator);
+    let mut population = population::Population::new(
+        Vec::new(),
+        receptor,
+        ligand,
+        orig,
+        restraints,
+        weights,
+        debug_evaluator,
+    );
     let mut rng = StdRng::seed_from_u64(constants::RANDOM_SEED);
     for _ in 0..POPULATION_SIZE {
         let c = chromosome::Chromosome::new(&mut rng);
@@ -190,7 +209,11 @@ fn run(
     let mut generations_without_improvement = 0;
     let mut last_best_score = f64::MAX;
 
-    println!("{} Starting evolution for {} generations", "🧬".bold(), MAX_GENERATIONS);
+    println!(
+        "{} Starting evolution for {} generations",
+        "🧬".bold(),
+        MAX_GENERATIONS
+    );
     while generation_count < MAX_GENERATIONS {
         population.eval_fitness();
 
@@ -224,9 +247,10 @@ fn run(
         // Check for early stopping
         if ENABLE_EARLY_STOPPING && generations_without_improvement >= CONVERGENCE_WINDOW {
             progress.finish_with_message(format!(
-                "{} Converged at generation {} (no improvement for {} gens)",
+                "{} Converged at generation {} (no improvement larger than {}% for {} gens)",
                 "✓".green(),
                 generation_count,
+                CONVERGENCE_THRESHOLD * 100.0,
                 CONVERGENCE_WINDOW
             ));
             println!();
@@ -272,14 +296,26 @@ fn run(
             };
 
             let score_label = if debug_mode { "DockQ" } else { "Score" };
-            let score_value = if debug_mode { -best_fitness } else { best_fitness };
+            let score_value = if debug_mode {
+                -best_fitness
+            } else {
+                best_fitness
+            };
             progress.set_message(format!(
                 "DockQ: {:.3} | {}: {:.3}",
                 best_metrics.dockq, score_label, score_value
             ));
 
-            let mean_score_display = if debug_mode { -mean_fitness } else { mean_fitness };
-            let best_score_display = if debug_mode { -best_fitness } else { best_fitness };
+            let mean_score_display = if debug_mode {
+                -mean_fitness
+            } else {
+                mean_fitness
+            };
+            let best_score_display = if debug_mode {
+                -best_fitness
+            } else {
+                best_fitness
+            };
             progress.println(format!("  [{}] {} score={:>8.3} dockq={} rest={}% │ {} score={:>8.3} dockq={} rest={}% rmsd={:.2}Å fnat={:.3} irmsd={:.2}Å │ Δ={}%",
                 format!("{:>3}", generation_count).bright_black(),
                 "📊".bright_blue(),
@@ -361,14 +397,16 @@ fn run(
         let best_dockq_metrics = &final_metrics[best_dockq_idx];
 
         println!("\n{}", "📊 Final Metrics".bold().cyan());
-        println!("  {} DockQ={:.3} RMSD={:.2}Å iRMSD={:.2}Å FNAT={:.3}",
+        println!(
+            "  {} DockQ={:.3} RMSD={:.2}Å iRMSD={:.2}Å FNAT={:.3}",
             "Best by score:".green(),
             best_score_metrics.dockq,
             best_score_metrics.rmsd,
             best_score_metrics.irmsd,
             best_score_metrics.fnat
         );
-        println!("  {} DockQ={:.3} RMSD={:.2}Å iRMSD={:.2}Å FNAT={:.3}",
+        println!(
+            "  {} DockQ={:.3} RMSD={:.2}Å iRMSD={:.2}Å FNAT={:.3}",
             "Best by DockQ:".green(),
             best_dockq_metrics.dockq,
             best_dockq_metrics.rmsd,
@@ -566,7 +604,13 @@ fn main() {
 
     // Execute based on mode
     if score_only {
-        score(receptor_file, ligand_file, restraint_pairs, weights);
+        score(
+            receptor_file,
+            ligand_file,
+            restraint_pairs,
+            reference_file,
+            weights,
+        );
     } else {
         run(
             receptor_file,

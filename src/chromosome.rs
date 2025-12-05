@@ -92,6 +92,22 @@ impl Chromosome {
     ) -> f64 {
         let target_ligand = self.apply_genes(ligand);
 
+        // Debug mode: use ONLY negative DockQ as fitness (lower is better, so we negate)
+        // This validates that the sampling strategy can find the native structure
+        // WITHOUT using restraints or energy terms - pure quality metric optimization
+        if let Some(eval) = evaluator {
+            let metrics = eval.calc_metrics(&target_ligand);
+            self.fitness = -metrics.dockq; // Negate because GA minimizes fitness
+                                           // Set energy components to zero since they're not used in debug mode
+            self.vdw = 0.0;
+            self.elec = 0.0;
+            self.desolv = 0.0;
+            self.air = 0.0;
+            self.restraint_penalty = 0.0;
+            return self.fitness;
+        }
+
+        // Normal mode: calculate all energy components
         // vdw 1.0 - prevent clashes and guide packing
         // elec 0.5 - moderate electrostatic influence
         // desolv 0.5 - burial
@@ -104,14 +120,6 @@ impl Chromosome {
         // Calculate restraint satisfaction for monitoring
         let restraints_ratio = fitness::satisfaction_ratio(restraints, receptor, &target_ligand);
         self.restraint_penalty = (1.0 - restraints_ratio) * restraints.len() as f64;
-
-        // Debug mode: use negative DockQ as fitness (lower is better, so we negate)
-        // This validates that the sampling strategy can find the native structure
-        if let Some(eval) = evaluator {
-            let metrics = eval.calc_metrics(&target_ligand);
-            self.fitness = -metrics.dockq; // Negate because GA minimizes fitness
-            return self.fitness;
-        }
 
         // Information-driven docking score with configurable weights
         let score = weights.vdw * self.vdw
