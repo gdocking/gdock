@@ -1,7 +1,7 @@
 # gdock 🦀
 **Information-driven protein-protein docking using a genetic algorithm**
 
-![ci](https://github.com/rodrigovrgs/gdock/workflows/ci/badge.svg)
+[![ci](https://github.com/gdocking/gdock/actions/workflows/ci.yml/badge.svg)](https://github.com/gdocking/gdock/actions/workflows/ci.yml)
 ![Crates.io License](https://img.shields.io/crates/l/gdock)
 ![Crates.io Version](https://img.shields.io/crates/v/gdock)
 ![Crates.io Total Downloads](https://img.shields.io/crates/d/gdock)
