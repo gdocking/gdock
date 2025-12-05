@@ -2,9 +2,11 @@
 **Information-driven protein-protein docking using a genetic algorithm**
 
 [![ci](https://github.com/gdocking/gdock/actions/workflows/ci.yml/badge.svg)](https://github.com/gdocking/gdock/actions/workflows/ci.yml)
+
 ![Crates.io License](https://img.shields.io/crates/l/gdock)
 ![Crates.io Version](https://img.shields.io/crates/v/gdock)
 ![Crates.io Total Downloads](https://img.shields.io/crates/d/gdock)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/23671025da8a4334a754d8d5af76a34a)](https://app.codacy.com/gh/gdocking/gdock/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
 ## IMPORTANT
 
