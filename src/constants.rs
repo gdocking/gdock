@@ -5,7 +5,9 @@ pub const CROSSOVER_RATE: f64 = 0.6;
 pub const TOURNAMENT_SIZE: u64 = 3;
 pub const ELITISM_COUNT: usize = 5; // Preserve top 5 individuals (2%)
 pub const MAX_GENERATIONS: u64 = 250;
-pub const MAX_DISPLACEMENT: f64 = 15.0; // Keep molecules within interaction range!
+// NOTE: Changing the MAX_DISPLACEMENT from 15 to 50 greatly increased the score in debug from 0.7
+// to 0.9!!
+pub const MAX_DISPLACEMENT: f64 = 50.0; // Keep molecules within interaction range!
 pub const RANDOM_SEED: u64 = 42;
 
 // Early stopping parameters

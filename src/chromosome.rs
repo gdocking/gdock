@@ -98,7 +98,7 @@ impl Chromosome {
         if let Some(eval) = evaluator {
             let metrics = eval.calc_metrics(&target_ligand);
             self.fitness = -metrics.dockq; // Negate because GA minimizes fitness
-            // Set energy components to zero since they're not used in debug mode
+                                           // Set energy components to zero since they're not used in debug mode
             self.vdw = 0.0;
             self.elec = 0.0;
             self.desolv = 0.0;
