@@ -24,40 +24,73 @@ use structure::read_pdb;
 fn score(
     receptor_file: String,
     ligand_file: String,
-    restraint_pairs: Vec<(i32, i32)>,
+    restraint_pairs: Option<Vec<(i32, i32)>>,
     reference_file: Option<String>,
     weights: constants::EnergyWeights,
 ) {
-    let receptor = read_pdb(&receptor_file);
-    let ligand = read_pdb(&ligand_file);
+    let receptor_model = read_pdb(&receptor_file);
+    let ligand_model = read_pdb(&ligand_file);
 
-    let restraints = restraints::create_restraints_from_pairs(&receptor, &ligand, &restraint_pairs);
+    let receptor = receptor_model.0[0].clone();
 
-    let vdw = fitness::vdw_energy(&receptor, &ligand);
-    let elec = fitness::elec_energy(&receptor, &ligand);
-    let desolv = fitness::desolv_energy(&receptor, &ligand);
-    let air = fitness::air_energy(&restraints, &receptor, &ligand);
+    // Print header line for parser-friendly output
+    if restraint_pairs.is_some() && reference_file.is_some() {
+        println!("model\tscore\tvdw\telec\tdesolv\tair\tw_vdw\tw_elec\tw_desolv\tw_air\tdockq\tlrmsd\tirmsd\tfnat");
+    } else if restraint_pairs.is_some() {
+        println!("model\tscore\tvdw\telec\tdesolv\tair\tw_vdw\tw_elec\tw_desolv\tw_air");
+    } else if reference_file.is_some() {
+        println!("model\tscore\tvdw\telec\tdesolv\tw_vdw\tw_elec\tw_desolv\tw_air\tdockq\tlrmsd\tirmsd\tfnat");
+    } else {
+        println!("model\tscore\tvdw\telec\tdesolv\tw_vdw\tw_elec\tw_desolv\tw_air");
+    }
 
-    let total_score =
-        weights.vdw * vdw + weights.elec * elec + weights.desolv * desolv + weights.air * air;
+    for (model_idx, ligand) in ligand_model.0.iter().enumerate() {
+        let model_number = model_idx + 1;
 
-    println!(
-        "vdw: {:.3} (w={}) elec: {:.3} (w={}) desolv: {:.3} (w={}) air: {:.3} (w={})",
-        vdw, weights.vdw, elec, weights.elec, desolv, weights.desolv, air, weights.air,
-    );
-    println!("total score: {:.3}", total_score);
+        let vdw = fitness::vdw_energy(&receptor, ligand);
+        let elec = fitness::elec_energy(&receptor, ligand);
+        let desolv = fitness::desolv_energy(&receptor, ligand);
 
-    // Calculate DockQ metrics if reference is provided
-    if let Some(ref_file) = reference_file {
-        let (_, reference_ligand) = scoring::read_complex(&ref_file);
-        let evaluator = evaluator::Evaluator::new(receptor.clone(), reference_ligand);
-        let metrics = evaluator.calc_metrics(&ligand);
+        // Calculate AIR energy only if restraints are provided
+        let air = match &restraint_pairs {
+            Some(pairs) => {
+                let restraints = restraints::create_restraints_from_pairs(&receptor, ligand, pairs);
+                fitness::air_energy(&restraints, &receptor, ligand)
+            }
+            None => 0.0,
+        };
 
-        println!("\n{}", "📊 DockQ Metrics".bold().cyan());
-        println!("  DockQ: {:.3} ({})", metrics.dockq, metrics.rank());
-        println!("  L-RMSD: {:.2} Å", metrics.rmsd);
-        println!("  i-RMSD: {:.2} Å", metrics.irmsd);
-        println!("  FNAT: {:.3}", metrics.fnat);
+        let total_score =
+            weights.vdw * vdw + weights.elec * elec + weights.desolv * desolv + weights.air * air;
+
+        // Build output line with model number, score, energy terms, then weights
+        let mut output = format!(
+            "{}\t{:.3}\t{:.3}\t{:.3}\t{:.3}",
+            model_number, total_score, vdw, elec, desolv
+        );
+
+        if restraint_pairs.is_some() {
+            output.push_str(&format!("\t{:.3}", air));
+        }
+
+        output.push_str(&format!(
+            "\t{}\t{}\t{}\t{}",
+            weights.vdw, weights.elec, weights.desolv, weights.air
+        ));
+
+        // Calculate DockQ metrics if reference is provided
+        if let Some(ref_file) = &reference_file {
+            let (_, reference_ligand) = scoring::read_complex(ref_file);
+            let evaluator = evaluator::Evaluator::new(receptor.clone(), reference_ligand);
+            let metrics = evaluator.calc_metrics(ligand);
+
+            output.push_str(&format!(
+                "\t{:.3}\t{:.2}\t{:.2}\t{:.3}",
+                metrics.dockq, metrics.rmsd, metrics.irmsd, metrics.fnat
+            ));
+        }
+
+        println!("{}", output);
     }
 }
 
@@ -142,8 +175,12 @@ fn run(
     //     .unwrap();
     // --------------------------------------------------------------------------------
 
-    let receptor = read_pdb(&receptor_file);
-    let ligand = read_pdb(&ligand_file);
+    let receptor_model = read_pdb(&receptor_file);
+    let ligand_model = read_pdb(&ligand_file);
+
+    // For docking mode, use the first model - in the future this can be expanded to use ensembles
+    let receptor = receptor_model.0[0].clone();
+    let ligand = ligand_model.0[0].clone();
 
     // Create restraints from user-specified residue pairs
     let restraints = restraints::create_restraints_from_pairs(&receptor, &ligand, &restraint_pairs);
@@ -489,8 +526,8 @@ fn main() {
             clap::Arg::new("restraints")
                 .long("restraints")
                 .value_name("PAIRS")
-                .help("Comma-separated restraint pairs receptor:ligand (e.g., 10:45,15:50,20:55)")
-                .required(true),
+                .help("Comma-separated restraint pairs receptor:ligand (e.g., 10:45,15:50,20:55). Required for docking mode, optional for score mode.")
+                .required(false),
         )
         .arg(
             clap::Arg::new("reference")
@@ -508,28 +545,28 @@ fn main() {
             clap::Arg::new("w_vdw")
                 .long("w_vdw")
                 .value_name("WEIGHT")
-                .help("Weight for VDW energy term (default: 1.0)")
+                .help("Weight for VDW energy term")
                 .value_parser(clap::value_parser!(f64)),
         )
         .arg(
             clap::Arg::new("w_elec")
                 .long("w_elec")
                 .value_name("WEIGHT")
-                .help("Weight for electrostatic energy term (default: 0.5)")
+                .help("Weight for electrostatic energy term")
                 .value_parser(clap::value_parser!(f64)),
         )
         .arg(
             clap::Arg::new("w_desolv")
                 .long("w_desolv")
                 .value_name("WEIGHT")
-                .help("Weight for desolvation energy term (default: 0.5)")
+                .help("Weight for desolvation energy term")
                 .value_parser(clap::value_parser!(f64)),
         )
         .arg(
             clap::Arg::new("w_air")
                 .long("w_air")
                 .value_name("WEIGHT")
-                .help("Weight for AIR restraint energy term (default: 100.0)")
+                .help("Weight for AIR restraint energy term")
                 .value_parser(clap::value_parser!(f64)),
         )
         .arg(
@@ -558,29 +595,37 @@ fn main() {
     }
 
     // Parse restraint pairs (format: "rec1:lig1,rec2:lig2,...")
-    let restraint_pairs: Vec<(i32, i32)> = matches
-        .get_one::<String>("restraints")
-        .unwrap()
-        .split(',')
-        .map(|pair| {
-            let parts: Vec<&str> = pair.trim().split(':').collect();
-            if parts.len() != 2 {
-                panic!(
-                    "Invalid restraint format: '{}'. Expected format: 'receptor:ligand'",
-                    pair
-                );
-            }
-            let rec = parts[0]
-                .trim()
-                .parse::<i32>()
-                .unwrap_or_else(|_| panic!("Invalid receptor residue number: '{}'", parts[0]));
-            let lig = parts[1]
-                .trim()
-                .parse::<i32>()
-                .unwrap_or_else(|_| panic!("Invalid ligand residue number: '{}'", parts[1]));
-            (rec, lig)
-        })
-        .collect();
+    let restraint_pairs: Option<Vec<(i32, i32)>> =
+        matches
+            .get_one::<String>("restraints")
+            .map(|restraints_str| {
+                restraints_str
+                    .split(',')
+                    .map(|pair| {
+                        let parts: Vec<&str> = pair.trim().split(':').collect();
+                        if parts.len() != 2 {
+                            panic!(
+                            "Invalid restraint format: '{}'. Expected format: 'receptor:ligand'",
+                            pair
+                        );
+                        }
+                        let rec = parts[0].trim().parse::<i32>().unwrap_or_else(|_| {
+                            panic!("Invalid receptor residue number: '{}'", parts[0])
+                        });
+                        let lig = parts[1].trim().parse::<i32>().unwrap_or_else(|_| {
+                            panic!("Invalid ligand residue number: '{}'", parts[1])
+                        });
+                        (rec, lig)
+                    })
+                    .collect()
+            });
+
+    // Validate restraints requirement
+    if !score_only && restraint_pairs.is_none() {
+        eprintln!("Error: --restraints are required for docking mode");
+        eprintln!("Use --score mode if you want to score without restraints");
+        std::process::exit(1);
+    }
 
     // Parse energy weights
     let weights = constants::EnergyWeights::new(
@@ -612,10 +657,11 @@ fn main() {
             weights,
         );
     } else {
+        // For docking mode, restraints are mandatory (validated above)
         run(
             receptor_file,
             ligand_file,
-            restraint_pairs,
+            restraint_pairs.unwrap(),
             reference_file,
             weights,
             debug_mode,

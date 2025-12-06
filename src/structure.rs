@@ -1,11 +1,25 @@
 use crate::constants;
 use crate::toppar;
-use regex::Regex;
 
 use std::collections::HashSet;
 use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+
+#[derive(Debug, Clone)]
+pub struct Model(pub Vec<Molecule>);
+
+impl Default for Model {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Model {
+    pub fn new() -> Model {
+        Model(Vec::new())
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Molecule(pub Vec<Atom>);
@@ -174,97 +188,128 @@ impl Atom {
     }
 }
 
-/// Reads a PDB file and returns a `Molecule` struct.
-///
-/// # Arguments
-///
-/// * `pdb_file` - A reference to a `String` containing the path to the PDB file.
-///
-/// # Returns
-///
-/// A `Molecule` struct containing the atoms parsed from the PDB file.
-pub fn read_pdb(pdb_file: &String) -> Molecule {
+/// Parse an ATOM line from a PDB file using fixed-column format
+fn process_atom_line(line: &str) -> Option<Atom> {
+    // ATOM lines must be at least 54 characters (up to Z coordinate)
+    if !line.starts_with("ATOM") || line.len() < 54 {
+        return None;
+    }
+
+    // Helper to safely extract and parse a substring
+    let get_str = |start: usize, end: usize| -> &str {
+        if line.len() >= end {
+            &line[start..end]
+        } else {
+            ""
+        }
+    };
+
+    // Parse using PDB fixed-column positions (1-indexed in spec, 0-indexed in code)
+    let mut atom = Atom::new();
+
+    // Columns 7-11: Atom serial number
+    atom.serial = get_str(6, 11).trim().parse().ok()?;
+
+    // Columns 13-16: Atom name
+    atom.name = get_str(12, 16).trim().to_string();
+
+    // Column 17: Alternate location indicator
+    atom.altloc = get_str(16, 17).chars().next().unwrap_or(' ');
+
+    // Columns 18-20: Residue name
+    atom.resname = get_str(17, 20).trim().to_string();
+
+    // Column 22: Chain identifier
+    atom.chainid = get_str(21, 22).chars().next().unwrap_or(' ');
+
+    // Columns 23-26: Residue sequence number
+    atom.resseq = get_str(22, 26).trim().parse().ok()?;
+
+    // Column 27: Code for insertions
+    atom.icode = get_str(26, 27).chars().next().unwrap_or(' ');
+
+    // Columns 31-38: X coordinate
+    atom.x = get_str(30, 38).trim().parse().ok()?;
+
+    // Columns 39-46: Y coordinate
+    atom.y = get_str(38, 46).trim().parse().ok()?;
+
+    // Columns 47-54: Z coordinate
+    atom.z = get_str(46, 54).trim().parse().ok()?;
+
+    // Columns 55-60: Occupancy (optional)
+    atom.occupancy = get_str(54, 60).trim().parse().unwrap_or(1.0);
+
+    // Columns 61-66: Temperature factor (optional)
+    atom.tempfactor = get_str(60, 66).trim().parse().unwrap_or(0.0);
+
+    // Columns 77-78: Element symbol (optional)
+    atom.element = get_str(76, 78).trim().to_string();
+
+    // If element is not specified, infer from atom name
+    if atom.element.is_empty() {
+        atom.element = atom.name.chars().next().unwrap_or(' ').to_string();
+    }
+
+    // Set VDW radius based on element
+    atom.vdw_radius = match atom.element.trim() {
+        "H" => constants::HYDROGEN_RADIUS,
+        "C" => constants::CARBON_RADIUS,
+        "N" => constants::NITROGEN_RADIUS,
+        "O" => constants::OXYGEN_RADIUS,
+        _ => 1.0,
+    };
+
+    // Get force field parameters from topology
+    let atom_type = toppar::get_atom(atom.resname.as_str(), atom.name.as_str());
+
+    if let Some(v) = atom_type {
+        atom.epsilon = toppar::get_epsilon(v).unwrap_or(0.0);
+        atom.rmin2 = toppar::get_rmin2(v).unwrap_or(0.0);
+        atom.eps_1_4 = toppar::get_eps_1_4(v).unwrap_or(0.0);
+        atom.rmin2_1_4 = toppar::get_rmin2_1_4(v).unwrap_or(0.0);
+        atom.charge = toppar::get_charge(v).unwrap_or(0.0);
+    }
+
+    Some(atom)
+}
+
+// Reads a PDB file and returns a `Model` struct.
+pub fn read_pdb(pdb_file: &String) -> Model {
+    let mut model = Model::new();
     let mut molecule = Molecule::new();
+    let mut has_model_records = false;
 
-    // Read the PDB file
     let file = File::open(pdb_file).expect("Cannot open file");
-    let pdb_re = Regex::new(r"ATOM\s{2}((?:\s|\d){5})\s((?:\s|.){4})((?:\s|\w){1})((?:\s|\w){3})\s((?:\s|\w){1})((?:\s|\w){4})((?:\s|\w){1})\s{3}((?:\s|.){8})((?:\s|.){8})((?:\s|.){8})((?:\s|.){6})((?:\s|.){6})\s{10}((?:\s|\w){2})((?:\s|\w){2})").unwrap();
+
     for line in BufReader::new(file).lines().map_while(Result::ok) {
-        if let Some(cap) = pdb_re.captures(&line) {
-            let mut atom = Atom::new();
-            atom.serial = cap[1].trim().parse().unwrap();
-            atom.name = cap[2].trim().to_string();
-            atom.altloc = cap[3].parse().unwrap();
-            atom.resname = cap[4].trim().to_string();
-            atom.chainid = cap[5].trim().parse().unwrap();
-            atom.resseq = cap[6].trim().parse().unwrap();
-            atom.icode = cap[7].parse().unwrap();
-            atom.x = cap[8].trim().parse().unwrap();
-            atom.y = cap[9].trim().parse().unwrap();
-            atom.z = cap[10].trim().parse().unwrap();
-            atom.occupancy = cap[11].trim().parse().unwrap();
-            atom.tempfactor = cap[12].trim().parse().unwrap();
-            atom.element = cap[13].trim().to_string();
-            // atom.charge = cap[14].trim().to_string();
-            atom.vdw_radius = match atom.element.as_str() {
-                "H" => constants::HYDROGEN_RADIUS,
-                "C" => constants::CARBON_RADIUS,
-                "N" => constants::NITROGEN_RADIUS,
-                "O" => constants::OXYGEN_RADIUS,
-                _ => 1.0,
-            };
-
-            let atom_type = toppar::get_atom(atom.resname.as_str(), atom.name.as_str());
-
-            match atom_type {
-                Some(v) => {
-                    atom.epsilon = toppar::get_epsilon(v).unwrap();
-                    atom.rmin2 = toppar::get_rmin2(v).unwrap();
-                    atom.eps_1_4 = toppar::get_eps_1_4(v).unwrap();
-                    atom.rmin2_1_4 = toppar::get_rmin2_1_4(v).unwrap();
-                    atom.charge = toppar::get_charge(v).unwrap();
-                }
-                None => continue,
-            }
-
-            // let charge = toppar::get_charge(atom_type);
-
+        if line.starts_with("MODEL") {
+            has_model_records = true;
+            // Start a new molecule for this MODEL
+            molecule = Molecule::new();
+        } else if line.starts_with("ENDMDL") {
+            // End of current model - push it to the model list
+            model.0.push(molecule.clone());
+            molecule = Molecule::new();
+        } else if let Some(atom) = process_atom_line(&line) {
             molecule.0.push(atom);
         }
     }
 
-    // // Read the restraint file and add the restraints to the molecule
-    // let file = File::open(restraint_file).expect("Cannot open file");
-    // let restraint_re = Regex::new(r"^(\d+)").unwrap();
-    // for line in BufReader::new(file).lines().flatten() {
-    //     if let Some(cap) = restraint_re.captures(&line) {
-    //         let mut restraint = Restraint::new();
-    //         restraint.resnum = cap[1].trim().parse().unwrap();
-    //         molecule.1.push(restraint);
-    //     }
-    // }
+    // If no MODEL records were found, push the single molecule
+    if !has_model_records {
+        model.0.push(molecule);
+    }
 
-    molecule
+    model
 }
 
 // Output a Molecule in PDB format
 pub fn write_pdb(molecule: &Molecule, output_file: &String) {
-    // let data = "Some data!";
-    // fs::write("/tmp/foo", data).expect("Unable to write file");
-    // }
-
-    // let mut file = File::create(output_file).expect("Cannot create file");
-
     // Write the output string to the file
     let mut pdb_string = String::new();
     for atom in &molecule.0 {
         pdb_string.push_str(&atom.to_pdb_string());
-        // let s = format!(
-        //     "ATOM  {:>5} {:<4}{:>1}{:<3} {:>1}{:>4}{:>1}   {:>8.3} {:>8.3} {:>8.3}{:>6.2}{:>6.2}          {:>2}{:>2}\n",
-        //     atom.serial, atom.name, atom.altloc, atom.resname, atom.chainud, atom.resseq, atom.icode, atom.x, atom.y, atom.z, atom.occupancy, atom.tempfactor, atom.element, atom.charge
-        // );
-        // file.write_all(pdb_string.as_bytes())
-        //     .expect("Cannot write to file");
     }
     fs::write(output_file, pdb_string).expect("Unable to write file");
 }
@@ -275,22 +320,6 @@ pub fn distance(atom1: &Atom, atom2: &Atom) -> f64 {
     let dz = atom1.z - atom2.z;
     (dx * dx + dy * dy + dz * dz).sqrt()
 }
-
-// fn generate_random_rotation() -> (f64, f64, f64) {
-//     let mut rng = thread_rng();
-//     let rotation_x = rng.gen_range(0.0..=2.0 * PI);
-//     let rotation_y = rng.gen_range(0.0..=2.0 * PI);
-//     let rotation_z = rng.gen_range(0.0..=2.0 * PI);
-//     (rotation_x, rotation_y, rotation_z)
-// }
-
-// fn generate_random_displacement(max_displacement: f64) -> (f64, f64, f64) {
-//     let mut rng = thread_rng();
-//     let displacement_x = rng.gen_range(-max_displacement..=max_displacement);
-//     let displacement_y = rng.gen_range(-max_displacement..=max_displacement);
-//     let displacement_z = rng.gen_range(-max_displacement..=max_displacement);
-//     (displacement_x, displacement_y, displacement_z)
-// }
 
 pub fn filter_by_resseq_vec(molecule: &Molecule, resseq_vec: &HashSet<i16>) -> Molecule {
     let mut filtered_molecule = Molecule::new();
@@ -329,6 +358,12 @@ mod tests {
             eps_1_4: 0.0,
             rmin2_1_4: 0.0,
         }
+    }
+
+    #[test]
+    fn test_read_pdb() {
+        let molecule = read_pdb(&"data/2oob.pdb".to_string());
+        assert!(!molecule.0.is_empty())
     }
 
     #[test]
@@ -486,5 +521,103 @@ mod tests {
         let filtered = filter_by_resseq_vec(&mol, &filter_set);
 
         assert_eq!(filtered.0.len(), 0);
+    }
+
+    #[test]
+    fn test_read_pdb_single_model_no_model_record() {
+        // Test with the actual single-model file in the data directory
+        let pdb_path = "data/1h590A_0A.pdb".to_string();
+
+        if !std::path::Path::new(&pdb_path).exists() {
+            println!("Skipping test: {} not found", pdb_path);
+            return;
+        }
+
+        let model = read_pdb(&pdb_path);
+
+        // Should have exactly 1 molecule (no MODEL records)
+        assert_eq!(model.0.len(), 1, "Single-model PDB should have 1 molecule");
+
+        // The molecule should have many atoms
+        assert!(
+            !model.0[0].0.is_empty(),
+            "Single molecule should have atoms"
+        );
+
+        println!("Single-model file has {} atoms", model.0[0].0.len());
+    }
+
+    #[test]
+    fn test_read_pdb_multi_model_with_model_records() {
+        // Test with the actual multi-model file in the data directory
+        let pdb_path = "data/1h590B_0A_poses.pdb".to_string();
+
+        if !std::path::Path::new(&pdb_path).exists() {
+            println!("Skipping test: {} not found", pdb_path);
+            return;
+        }
+
+        let model = read_pdb(&pdb_path);
+
+        // Should have multiple molecules (has MODEL records)
+        assert!(
+            model.0.len() > 1,
+            "Multi-model PDB should have more than 1 molecule, found {}",
+            model.0.len()
+        );
+
+        // Each model should have atoms
+        for (i, molecule) in model.0.iter().enumerate() {
+            println!("Model {} has {} atoms", i + 1, molecule.0.len());
+            assert!(
+                !molecule.0.is_empty(),
+                "Model {} should have atoms (total models: {})",
+                i + 1,
+                model.0.len()
+            );
+        }
+
+        // All models should have the same number of atoms (same protein, different poses)
+        let first_model_atoms = model.0[0].0.len();
+        for (i, molecule) in model.0.iter().enumerate() {
+            assert_eq!(
+                molecule.0.len(),
+                first_model_atoms,
+                "Model {} has {} atoms, expected {}",
+                i + 1,
+                molecule.0.len(),
+                first_model_atoms
+            );
+        }
+
+        println!(
+            "Multi-model file has {} models with {} atoms each",
+            model.0.len(),
+            first_model_atoms
+        );
+    }
+
+    #[test]
+    fn test_read_pdb_backward_compatibility() {
+        // Verify that the test file used in other tests (data/2oob.pdb) works correctly
+        let pdb_path = "data/2oob.pdb".to_string();
+
+        if !std::path::Path::new(&pdb_path).exists() {
+            println!("Skipping test: {} not found", pdb_path);
+            return;
+        }
+
+        let model = read_pdb(&pdb_path);
+
+        // This is a reference complex file - should be single model
+        assert_eq!(model.0.len(), 1, "Reference complex should be single model");
+
+        // Should have atoms
+        assert!(
+            !model.0[0].0.is_empty(),
+            "Reference complex should have atoms"
+        );
+
+        println!("Reference complex file has {} atoms", model.0[0].0.len());
     }
 }
