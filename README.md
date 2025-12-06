@@ -1,4 +1,5 @@
 # gdock 🦀
+
 **Information-driven protein-protein docking using a genetic algorithm**
 
 [![ci](https://github.com/gdocking/gdock/actions/workflows/ci.yml/badge.svg)](https://github.com/gdocking/gdock/actions/workflows/ci.yml)
@@ -54,6 +55,7 @@ gdock \
 ```
 
 This will:
+
 - Dock the ligand onto the receptor using the genetic algorithm
 - Use the specified residues to create restraints
 - Optimize based on energy scoring
@@ -64,7 +66,7 @@ This will:
 When you have a reference/native structure for validation:
 
 > This is only useful in parametrization scenarios or when you are comparing `gdock`.
->  Since in a real scenario you will not have the actual reference.
+> Since in a real scenario you will not have the actual reference.
 
 ```bash
 gdock \
@@ -75,6 +77,7 @@ gdock \
 ```
 
 This will:
+
 - Calculate DockQ, RMSD, iRMSD, and FNAT during optimization
 - Output both `best_by_score.pdb` and `best_by_dockq.pdb`
 
@@ -108,11 +111,13 @@ gdock \
 ## Input Format
 
 ### PDB Files
+
 - **Receptor**: PDB file containing the receptor protein (single chain)
 - **Ligand**: PDB file containing the ligand protein (single chain)
 - **Reference** (optional): PDB file containing the native complex (both chains)
 
 ### Restraints
+
 - Colon-separated list of pairs of residue numbers in `receptor:ligand` format: `933:6,936:8`, etc
 - Indicates which residues should be part of the interaction, based on experimental data or other information source
 - Creates all pairwise restraints between receptor and ligand residues
@@ -126,6 +131,7 @@ gdock \
 ## Algorithm
 
 gdock uses:
+
 - **Genetic Algorithm**: Population of 150, elitism (top 5), tournament selection
 - **Energy Function**: VDW + Electrostatics + Desolvation + AIR restraints
 - **Restraints**: Flat-bottom potential (0-7Å) for specified residue pairs
