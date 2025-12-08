@@ -21,6 +21,8 @@ use constants::{
 use indicatif::{ProgressBar, ProgressStyle};
 use structure::read_pdb;
 
+// TODO: ADD A BIN TO IDENTIFY THE TRUE INTERFACE OF A COMPLEX
+
 fn score(
     receptor_file: String,
     ligand_file: String,
