@@ -1,0 +1,111 @@
+\documentclass[11pt,a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{natbib}
+\usepackage[margin=2.5cm]{geometry}
+
+% Title and authors
+\title{gdock: A Fast Genetic Algorithm-Based Protein-Protein Docking Tool with Information-Driven Restraints}
+
+\author{
+  Someone\textsuperscript{1,*} \\
+  \small \textsuperscript{1}Somewhere \\
+  \small \texttt{email@institution.edu}
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris enim turpis, sagittis at dolor eget, feugiat pretium orci. Nulla dapibus a neque vitae commodo. Nunc a ultricies mauris. Nulla accumsan sodales enim lacinia gravida. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Duis scelerisque neque nec metus venenatis ullamcorper. Suspendisse vel leo rhoncus, ornare ipsum a, eleifend erat.
+
+\end{abstract}
+
+\section{Introduction}
+Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Nam condimentum sit amet quam rutrum iaculis. Proin vitae mauris ac lectus aliquet faucibus a in quam. Morbi neque massa, suscipit vitae convallis at, aliquet quis mi. Ut ultricies nec risus ac pellentesque. Donec eget facilisis velit. Suspendisse placerat nulla ut efficitur venenatis. Integer scelerisque, turpis vitae volutpat aliquet, lorem metus eleifend odio, sed finibus ante ante sed urna. 
+
+\section{Methods}
+
+\subsection{Algorithm Overview}
+
+ Donec non tortor auctor, ornare orci at, varius augue. Nulla fringilla luctus ligula, sed mollis erat convallis a. Proin vel magna posuere odio maximus posuere. Donec convallis odio ut vulputate tempor. Quisque suscipit nunc et semper congue. Vivamus est purus, tempus at dui vel, placerat viverra nisl. Nulla sit amet lobortis lacus.
+
+Nulla efficitur urna vel magna sagittis ornare. Fusce in diam ac arcu sagittis aliquet hendrerit non sapien. Etiam fermentum bibendum erat eu rutrum. Integer faucibus, odio sit amet suscipit vulputate, massa erat fringilla sem, eu fermentum tortor metus non nisi. Nam vitae erat et elit accumsan fermentum. Donec non turpis consequat, sollicitudin nibh eu, lobortis libero. Quisque fringilla lacus eget nisi lobortis, nec consectetur nisi vehicula. Vivamus interdum tellus ut lectus imperdiet tempus.
+
+\subsection{Scoring Function}
+
+The fitness function combines multiple energy terms:
+
+\begin{equation}
+E_{total} = w_{vdw} \cdot E_{vdw} + w_{elec} \cdot E_{elec} + w_{desolv} \cdot E_{desolv} + w_{air} \cdot E_{air}
+\end{equation}
+
+
+where $w_i$ are empirically calibrated weights and $E_i$ represent individual energy components.
+
+Donec mattis nibh ac ligula consectetur molestie. Vestibulum tincidunt varius risus, non ornare massa faucibus ut. Proin volutpat ex mi, et varius nisl tempus bibendum. Praesent ultricies, orci a molestie vehicula, nisi libero eleifend velit, aliquet consequat metus leo ut elit. Sed nec leo justo. Mauris fermentum ex lacus, vel rhoncus felis pulvinar sit amet. Phasellus eu elementum ipsum, sed tincidunt velit. Donec vitae mi varius, egestas ligula non, dapibus tortor. Nunc ultricies orci nisl, a fermentum orci ultrices eu. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Integer rutrum cursus lectus, vel iaculis est pellentesque eu. In hac habitasse platea dictumst. Donec porttitor malesuada turpis sit amet lobortis.
+
+
+\subsection{Weight Calibration}
+
+Nunc eget leo eu justo vulputate tristique quis non enim. Morbi in maximus ex. Suspendisse finibus luctus efficitur. Quisque quis ultricies tellus. Aliquam commodo metus consectetur euismod tristique. Fusce est neque, pellentesque non molestie id, interdum quis lorem. Mauris sit amet justo vel lectus condimentum dignissim. Pellentesque quam erat, auctor eu volutpat ac, aliquet id felis. Nulla mi dui, feugiat at fringilla eu, interdum sit amet tellus. Maecenas vitae quam id metus tempus lobortis. Quisque non ex a velit scelerisque consequat.
+
+
+\begin{table}[h]
+\centering
+\caption{Calibrated energy function weights}
+\label{tab:weights}
+\begin{tabular}{lc}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+$w_{vdw}$ & 0.3 \\
+$w_{elec}$ & 0.01 \\
+$w_{desolv}$ & 0.55 \\
+$w_{air}$ & 1.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Implementation}
+
+Nulla aliquam commodo nisl, ac congue ex. Nullam leo lectus, tincidunt eget dictum at, vestibulum nec turpis. Nam ullamcorper libero ligula, nec maximus orci efficitur pellentesque. Nullam quis sem in felis blandit dapibus. Cras urna justo, ultricies eu ultrices sed, hendrerit quis ipsum. Ut eu lectus eros. Etiam in nisl posuere, sollicitudin augue sed, vehicula lectus. Aliquam purus sem, elementum sit amet ipsum vitae, pellentesque malesuada sem. Aenean ac tincidunt augue. Proin posuere, lectus at porta tincidunt, est risus iaculis ipsum, eu luctus lacus elit finibus lectus. Curabitur eu ex nulla. Quisque a dolor id enim consequat semper. Vivamus et massa lorem. Curabitur eu efficitur mi. Sed tortor turpis, aliquet ut metus eu, aliquet auctor augue.
+
+
+\section{Results}
+
+\subsection{Benchmark Performance}
+
+ Etiam eu nisi sed lorem laoreet aliquam. Sed sagittis mauris at urna cursus tristique. Etiam a libero sed eros sagittis ultricies. Praesent ullamcorper tortor at erat egestas, a facilisis nunc rhoncus. Duis dapibus risus vitae turpis aliquet venenatis. Duis porttitor odio et eros volutpat facilisis. Etiam fringilla a quam sit amet mollis. Nam sed ultrices odio, nec porttitor odio. Nunc quis volutpat nulla, in pharetra metus. Donec varius odio vel tincidunt feugiat. Maecenas sed ipsum elementum, hendrerit libero nec, fermentum arcu. Cras ut ipsum neque. Nunc consectetur purus id efficitur blandit. Morbi tempus diam tellus, et volutpat justo tristique at. Proin nunc massa, eleifend non ex vel, gravida fermentum libero.
+
+\subsection{Case Studies}
+
+
+\section{Discussion}
+
+
+\section{Conclusion}
+
+
+\section{Availability}
+
+gdock is freely available as open-source software under the BSD Zero Clause License at
+\url{https://github.com/rvhonorato/gdock}. Documentation and tutorials are provided
+in the repository.
+
+\section*{Acknowledgments}
+
+
+\bibliographystyle{unsrtnat}
+\bibliography{references}
+
+\end{document}
