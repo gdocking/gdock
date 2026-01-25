@@ -3,11 +3,11 @@ pub const POPULATION_SIZE: u64 = 150;
 pub const MUTATION_RATE: f64 = 0.1;
 pub const CROSSOVER_RATE: f64 = 0.6;
 pub const TOURNAMENT_SIZE: u64 = 3;
-pub const ELITISM_COUNT: usize = 5; // Preserve top 5 individuals (2%)
+pub const ELITISM_COUNT: usize = 5; // Preserve top 5 individuals
 pub const MAX_GENERATIONS: u64 = 250;
 // NOTE: Changing the MAX_DISPLACEMENT from 15 to 50 greatly increased the score in debug from 0.7
 // to 0.9!!
-pub const MAX_DISPLACEMENT: f64 = 50.0; // Keep molecules within interaction range!
+pub const MAX_DISPLACEMENT: f64 = 50.0;
 pub const RANDOM_SEED: u64 = 42;
 
 // Early stopping parameters
@@ -15,11 +15,14 @@ pub const ENABLE_EARLY_STOPPING: bool = true;
 pub const CONVERGENCE_THRESHOLD: f64 = 0.001; // 0.1% improvement threshold
 pub const CONVERGENCE_WINDOW: u64 = 10; // Stop if no improvement for this many generations
 
-// Default weights (based on a score sweep)
-pub const DEFAULT_W_VDW: f64 = 1.0;
-pub const DEFAULT_W_ELEC: f64 = 0.5;
+// Default weights
+//  These defaults are based on a score calibration,
+//   check the `calibration/` directory of the base
+//   repository for more information
+pub const DEFAULT_W_VDW: f64 = 4.9;
+pub const DEFAULT_W_ELEC: f64 = 0.010;
 pub const DEFAULT_W_DESOLV: f64 = 0.1;
-pub const DEFAULT_W_AIR: f64 = 100.0;
+pub const DEFAULT_W_AIR: f64 = 1.0;
 
 /// Energy function weights for scoring
 #[derive(Debug, Clone, Copy)]
