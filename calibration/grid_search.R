@@ -100,9 +100,13 @@ cat(sprintf("Loaded %d rows for %d complexes\n", nrow(df), length(complexes)))
 #===========================================================================#
 # Define grid
 #===========================================================================#
-w_vdw_values <- seq(0.1, 5.0, by = 0.1)
-w_elec_values <- seq(0.01, 0.3, by = 0.005)
-w_desolv_values <- seq(0.1, 3.0, by = 0.05)
+# Focused on low-VDW, high-desolv region to minimize clashes
+# Based on correlation analysis:
+#   - Higher w_vdw correlates with MORE clashes (+0.414)
+#   - Higher w_desolv correlates with FEWER clashes (-0.472)
+w_vdw_values <- seq(0.1, 1.5, by = 0.05)      # Low VDW range (was 0.1-5.0)
+w_elec_values <- seq(0.01, 0.3, by = 0.01)    # Keep similar
+w_desolv_values <- seq(1.0, 4.0, by = 0.1)    # High desolv range (was 0.1-3.0)
 
 weights_grid <- expand.grid(
   w_vdw = w_vdw_values,
