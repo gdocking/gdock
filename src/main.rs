@@ -21,6 +21,7 @@ use std::io::prelude::*;
 fn parse_restraints(restraints_str: &str) -> Vec<(i32, i32)> {
     restraints_str
         .split(',')
+        .filter(|pair| !pair.trim().is_empty())
         .map(|pair| {
             let parts: Vec<&str> = pair.trim().split(':').collect();
             if parts.len() != 2 {
@@ -128,6 +129,12 @@ fn main() {
                         .value_name("DIR")
                         .help("Output directory for results (default: current directory)"),
                 )
+                .arg(
+                    clap::Arg::new("no-clust")
+                        .long("no-clust")
+                        .help("Disable clustering, output best_by_score and best_by_dockq only")
+                        .action(clap::ArgAction::SetTrue),
+                )
                 .args(weight_args.clone()),
         )
         .subcommand(
@@ -204,6 +211,7 @@ fn main() {
             );
 
             let output_dir = sub_m.get_one::<String>("output-dir").cloned();
+            let no_clustering = sub_m.get_flag("no-clust");
 
             commands::run::run(
                 receptor_file,
@@ -213,6 +221,7 @@ fn main() {
                 weights,
                 debug_mode,
                 output_dir,
+                no_clustering,
             );
         }
         Some(("score", sub_m)) => {

@@ -6,12 +6,21 @@
 #   near-native structures (model #1) across a benchmark dataset of
 #   protein-protein docking decoys.
 #
+#  IMPORTANT: Weight combinations are rejected if top-ranked models
+#   exceed the clash threshold. This ensures the scoring function
+#   produces physically reasonable structures.
+#
 #===========================================================================#
+
+#===========================================================================#
+# Configuration
+#===========================================================================#
+MAX_CLASH_PCT <- 1.0  # Maximum allowed clash % for top-ranked models
 
 #===========================================================================#
 # Grid search function
 #===========================================================================#
-evaluate_weights <- function(df, complexes, w_vdw, w_elec, w_desolv) {
+evaluate_weights <- function(df, complexes, w_vdw, w_elec, w_desolv, max_clash_pct = MAX_CLASH_PCT) {
 
   # Re-score dataframe with new weights
   df$new_score <- w_vdw * df$vdw + w_elec * df$elec + w_desolv * df$desolv
@@ -23,16 +32,26 @@ evaluate_weights <- function(df, complexes, w_vdw, w_elec, w_desolv) {
   top20_count <- 0
   top50_count <- 0
   ranks <- c()
+  clash_violations <- 0
+  top1_clash_values <- c()
 
   for (comp in complexes) {
     # Get complex subset
     comp_data <- df[df$complex == comp, ]
 
-    # Sort
+    # Sort by new score
     comp_data <- comp_data[order(comp_data$new_score), ]
     comp_data$rank <- 1:nrow(comp_data)
 
-    # Find model #1 and where its ranked 
+    # Check clash % of top-ranked model
+    top1_clash <- comp_data$clash_pct[1]
+    top1_clash_values <- c(top1_clash_values, top1_clash)
+
+    if (top1_clash > max_clash_pct) {
+      clash_violations <- clash_violations + 1
+    }
+
+    # Find model #1 and where its ranked
     model1_rank <- comp_data$rank[comp_data$model == 1]
     ranks <- c(ranks, model1_rank)
 
@@ -43,6 +62,10 @@ evaluate_weights <- function(df, complexes, w_vdw, w_elec, w_desolv) {
     if (model1_rank <= 20) top20_count <- top20_count + 1
     if (model1_rank <= 50) top50_count <- top50_count + 1
   }
+
+  # Calculate clash violation rate
+  clash_violation_pct <- 100 * clash_violations / length(complexes)
+  mean_top1_clash <- mean(top1_clash_values)
 
   return(c(
     top1 = 100 * top1_count / length(complexes),
@@ -57,7 +80,11 @@ evaluate_weights <- function(df, complexes, w_vdw, w_elec, w_desolv) {
     #  native structure was (on average) on position 42 - ideally
     #  it should be on position 1
     mean_rank = mean(ranks),
-    median_rank = median(ranks)
+    median_rank = median(ranks),
+
+    # Clash metrics
+    clash_violation_pct = clash_violation_pct,
+    mean_top1_clash = mean_top1_clash
   ))
 }
 
@@ -119,19 +146,42 @@ stopCluster(cl)
 
 results <- do.call(rbind, results_list)
 colnames(results) <- c("w_vdw", "w_elec", "w_desolv", "top1", "top5",
-                       "top10", "top20", "top50", "mean_rank", "median_rank")
+                       "top10", "top20", "top50", "mean_rank", "median_rank",
+                       "clash_violation_pct", "mean_top1_clash")
 results_df <- as.data.frame(results)
+
+# Report clash statistics
+cat(sprintf("\n=== CLASH ANALYSIS ===\n"))
+cat(sprintf("Max allowed clash %%: %.1f%%\n", MAX_CLASH_PCT))
+n_valid <- sum(results_df$clash_violation_pct == 0)
+cat(sprintf("Weight combinations with 0%% clash violations: %d / %d (%.1f%%)\n",
+            n_valid, nrow(results_df), 100 * n_valid / nrow(results_df)))
+
+# Filter to only include weight combinations with acceptable clash rates
+valid_results <- results_df[results_df$clash_violation_pct == 0, ]
+
+if (nrow(valid_results) == 0) {
+  cat("\nWARNING: No weight combinations satisfy the clash constraint!\n")
+  cat("Showing best results without clash filtering (for reference):\n\n")
+  valid_results <- results_df
+}
 
 # Sort by best performance: top50 (desc), top20 (desc), top10 (desc), top5 (desc), mean_rank (asc)
 #  --- here we are optimizing for the best model to be in the top50, if there is a tie, it select the one with
 #  the higest top20, so on and so forth
+valid_results <- valid_results[order(-valid_results$top50, -valid_results$top20,
+                                     -valid_results$top10, -valid_results$top5,
+                                     valid_results$mean_rank), ]
+
+# Also sort full results for saving
 results_df <- results_df[order(-results_df$top50, -results_df$top20,
-                               -results_df$top10, -results_df$top5, results_df$mean_rank), ]
+                               -results_df$top10, -results_df$top5,
+                               results_df$mean_rank, results_df$clash_violation_pct), ]
 
 # Print best result details
-cat("\n=== BEST RESULT ===\n")
-cat("These is the weight combination that had the higher success rate on top50\n\n")
-best <- results_df[1, ]
+cat("\n=== BEST RESULT (with clash constraint) ===\n")
+cat(sprintf("Weight combination with highest top50 success AND 0%% clash violations\n\n"))
+best <- valid_results[1, ]
 cat(sprintf("Weights:\n"))
 cat(sprintf("  w_vdw    = %.3f\n", best$w_vdw))
 cat(sprintf("  w_elec   = %.3f\n", best$w_elec))
@@ -144,11 +194,19 @@ cat(sprintf("  Top20:       %.2f%%\n", best$top20))
 cat(sprintf("  Top50:       %.2f%%\n", best$top50))
 cat(sprintf("  Mean rank:   %.1f\n", best$mean_rank))
 cat(sprintf("  Median rank: %.1f\n", best$median_rank))
+cat(sprintf("\nClash metrics:\n"))
+cat(sprintf("  Clash violations: %.1f%%\n", best$clash_violation_pct))
+cat(sprintf("  Mean top1 clash:  %.2f%%\n", best$mean_top1_clash))
 
 # Save results to file
 output_file <- file.path("results/grid_search_results.tsv")
 write.table(results_df, output_file, sep = "\t", row.names = FALSE, quote = FALSE)
 cat(sprintf("\nFull results saved to: %s\n", output_file))
+
+# Save valid (clash-constrained) results separately
+valid_output_file <- file.path("results/grid_search_valid_results.tsv")
+write.table(valid_results, valid_output_file, sep = "\t", row.names = FALSE, quote = FALSE)
+cat(sprintf("Valid results (clash-constrained) saved to: %s\n", valid_output_file))
 
 # Save best weights as JSON
 best_weights_file <- file.path("results/optimized_weights.json")
@@ -166,13 +224,20 @@ best_weights_json <- sprintf('{
     "mean_rank": %.2f,
     "median_rank": %.2f
   },
-  "method": "grid_search",
+  "clash_metrics": {
+    "max_clash_pct_threshold": %.2f,
+    "clash_violation_pct": %.2f,
+    "mean_top1_clash_pct": %.2f
+  },
+  "method": "grid_search_with_clash_constraint",
   "n_complexes": %d,
-  "n_combinations_tested": %d
+  "n_combinations_tested": %d,
+  "n_valid_combinations": %d
 }', best$w_vdw, best$w_elec, best$w_desolv,
    best$top1, best$top5, best$top10, best$top20, best$top50,
    best$mean_rank, best$median_rank,
-   length(complexes), n_combinations)
+   MAX_CLASH_PCT, best$clash_violation_pct, best$mean_top1_clash,
+   length(complexes), n_combinations, nrow(valid_results))
 
 writeLines(best_weights_json, best_weights_file)
 cat(sprintf("Best weights saved to: %s\n", best_weights_file))

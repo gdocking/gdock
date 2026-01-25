@@ -31,7 +31,7 @@ echo "Output: $output_file"
 echo
 
 # Initialize output file with header
-echo -e "complex\tmodel\tscore\tvdw\telec\tdesolv\tw_vdw\tw_elec\tw_desolv\tw_air" >"$output_file"
+echo -e "complex\tmodel\tscore\tvdw\telec\tdesolv\tclash_pct\tw_vdw\tw_elec\tw_desolv\tw_air" >"$output_file"
 
 for complex_dir in "$PREPARED_DIR"/*/; do
 

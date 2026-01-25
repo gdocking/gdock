@@ -7,6 +7,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use crate::chromosome;
+use crate::clustering::{self, ClusteringConfig};
 use crate::constants::{
     self, EnergyWeights, CONVERGENCE_THRESHOLD, CONVERGENCE_WINDOW, ENABLE_EARLY_STOPPING,
     MAX_GENERATIONS, POPULATION_SIZE,
@@ -44,6 +45,9 @@ const HALL_OF_FAME_MAX_SIZE: usize = 500;
 const HALL_OF_FAME_TOP_K: usize = 10;
 const UNIQUENESS_ROTATION_THRESHOLD: f64 = 0.2;    // ~11 degrees
 const UNIQUENESS_TRANSLATION_THRESHOLD: f64 = 2.0; // 2 Å
+
+/// Number of output models after clustering
+const NUM_OUTPUT_MODELS: usize = 5;
 
 /// Entry in the Hall of Fame storing a solution's genes and metadata
 #[derive(Debug, Clone)]
@@ -221,6 +225,7 @@ pub fn run(
     weights: EnergyWeights,
     debug_mode: bool,
     output_dir: Option<String>,
+    no_clustering: bool,
 ) {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     println!(
@@ -517,63 +522,9 @@ pub fn run(
         pop = pop.evolve(&mut rng);
     }
 
-    // Final evaluation for saving models
-    pop.eval_fitness();
-
-    let best_fitness_idx = pop
-        .chromosomes
-        .iter()
-        .enumerate()
-        .min_by(|(_, a), (_, b)| a.fitness.partial_cmp(&b.fitness).unwrap())
-        .map(|(idx, _)| idx)
-        .unwrap();
-
-    let final_best_score = &pop.chromosomes[best_fitness_idx];
-
     // Finish progress bar if not already finished
     if !progress.is_finished() {
         progress.finish();
-    }
-
-    // Report Hall of Fame status
-    println!(
-        "\n{} Collected {} diverse structures in Hall of Fame",
-        "📦".bold(),
-        hall_of_fame.len().to_string().cyan()
-    );
-
-    // Save the best models to disk
-    println!("\n{}", "💾 Saving Results".bold().cyan());
-
-    // Display final metrics
-    if let Some(ref e) = eval {
-        let final_metrics = pop.eval_metrics(e);
-        let best_dockq_idx = final_metrics
-            .iter()
-            .enumerate()
-            .max_by(|(_, a), (_, b)| a.dockq.partial_cmp(&b.dockq).unwrap())
-            .map(|(idx, _)| idx)
-            .unwrap();
-        let best_score_metrics = &final_metrics[best_fitness_idx];
-        let best_dockq_metrics = &final_metrics[best_dockq_idx];
-
-        println!("\n{}", "📊 Final Metrics".bold().cyan());
-        println!(
-            "  {} DockQ={:.3} RMSD={:.2}Å iRMSD={:.2}Å FNAT={:.3}",
-            "Best by score:".green(),
-            best_score_metrics.dockq,
-            best_score_metrics.rmsd,
-            best_score_metrics.irmsd,
-            best_score_metrics.fnat
-        );
-        println!(
-            "  {} DockQ={:.3} RMSD={:.2}Å iRMSD={:.2}Å FNAT={:.3}",
-            "Best by DockQ:".green(),
-            best_dockq_metrics.dockq,
-            best_dockq_metrics.rmsd,
-            best_dockq_metrics.irmsd,
-            best_dockq_metrics.fnat
-        );
     }
 
     // Determine output directory
@@ -586,59 +537,346 @@ pub fn run(
         None => PathBuf::from("."),
     };
 
-    // Apply transformations and save best-by-score model
-    let best_score_ligand = final_best_score.apply_genes(&ligand_clone);
-    let best_score_complex = combine_molecules(&receptor_clone, &best_score_ligand);
-    let best_score_path = out_dir.join("best_by_score.pdb");
-    structure::write_pdb(&best_score_complex, &best_score_path.to_string_lossy().to_string());
+    if no_clustering {
+        // =====================================================================
+        // No clustering: Output best_by_score and best_by_dockq (old behavior)
+        // =====================================================================
 
-    // If we have a reference, also save best-by-DockQ model and metrics
-    if let Some(ref e) = eval {
-        let final_metrics = pop.eval_metrics(e);
-        let best_dockq_idx = final_metrics
+        // Final evaluation to get best models from final population
+        pop.eval_fitness();
+
+        let best_fitness_idx = pop
+            .chromosomes
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.dockq.partial_cmp(&b.dockq).unwrap())
+            .min_by(|(_, a), (_, b)| a.fitness.partial_cmp(&b.fitness).unwrap())
             .map(|(idx, _)| idx)
             .unwrap();
 
-        let final_best_dockq = &pop.chromosomes[best_dockq_idx];
-        let best_dockq_ligand = final_best_dockq.apply_genes(&ligand_clone);
-        let best_dockq_complex = combine_molecules(&receptor_clone, &best_dockq_ligand);
-        let best_dockq_path = out_dir.join("best_by_dockq.pdb");
-        structure::write_pdb(&best_dockq_complex, &best_dockq_path.to_string_lossy().to_string());
+        let final_best_score = &pop.chromosomes[best_fitness_idx];
 
-        // Write metrics.tsv
-        let best_score_metrics = &final_metrics[best_fitness_idx];
-        let best_dockq_metrics = &final_metrics[best_dockq_idx];
+        println!("\n{}", "💾 Saving Results".bold().cyan());
+
+        // Save best-by-score model
+        let best_score_ligand = final_best_score.apply_genes(&ligand_clone);
+        let best_score_complex = combine_molecules(&receptor_clone, &best_score_ligand);
+        let best_score_path = out_dir.join("best_by_score.pdb");
+        structure::write_pdb(&best_score_complex, &best_score_path.to_string_lossy().to_string());
+
+        if let Some(ref e) = eval {
+            let final_metrics = pop.eval_metrics(e);
+            let best_dockq_idx = final_metrics
+                .iter()
+                .enumerate()
+                .max_by(|(_, a), (_, b)| a.dockq.partial_cmp(&b.dockq).unwrap())
+                .map(|(idx, _)| idx)
+                .unwrap();
+
+            let final_best_dockq = &pop.chromosomes[best_dockq_idx];
+            let best_dockq_ligand = final_best_dockq.apply_genes(&ligand_clone);
+            let best_dockq_complex = combine_molecules(&receptor_clone, &best_dockq_ligand);
+            let best_dockq_path = out_dir.join("best_by_dockq.pdb");
+            structure::write_pdb(&best_dockq_complex, &best_dockq_path.to_string_lossy().to_string());
+
+            // Write metrics.tsv
+            let best_score_metrics = &final_metrics[best_fitness_idx];
+            let best_dockq_metrics = &final_metrics[best_dockq_idx];
+
+            // Calculate clashes
+            let best_score_clashes = evaluator::calculate_clashes(&receptor_clone, &best_score_ligand);
+            let best_dockq_clashes = evaluator::calculate_clashes(&receptor_clone, &best_dockq_ligand);
+
+            println!("\n{}", "📊 Final Metrics".bold().cyan());
+            println!(
+                "  {} DockQ={:.3} RMSD={:.2}Å iRMSD={:.2}Å FNAT={:.3} clash={:.1}%",
+                "Best by score:".green(),
+                best_score_metrics.dockq,
+                best_score_metrics.rmsd,
+                best_score_metrics.irmsd,
+                best_score_metrics.fnat,
+                best_score_clashes.clash_percentage
+            );
+            println!(
+                "  {} DockQ={:.3} RMSD={:.2}Å iRMSD={:.2}Å FNAT={:.3} clash={:.1}%",
+                "Best by DockQ:".green(),
+                best_dockq_metrics.dockq,
+                best_dockq_metrics.rmsd,
+                best_dockq_metrics.irmsd,
+                best_dockq_metrics.fnat,
+                best_dockq_clashes.clash_percentage
+            );
+
+            let metrics_path = out_dir.join("metrics.tsv");
+            let mut metrics_file = fs::File::create(&metrics_path).expect("Failed to create metrics file");
+            writeln!(metrics_file, "model\tdockq\trmsd\tirmsd\tfnat\tscore\tclash_pct").unwrap();
+            writeln!(
+                metrics_file,
+                "best_by_score\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.2}",
+                best_score_metrics.dockq,
+                best_score_metrics.rmsd,
+                best_score_metrics.irmsd,
+                best_score_metrics.fnat,
+                final_best_score.fitness,
+                best_score_clashes.clash_percentage
+            ).unwrap();
+            writeln!(
+                metrics_file,
+                "best_by_dockq\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.2}",
+                best_dockq_metrics.dockq,
+                best_dockq_metrics.rmsd,
+                best_dockq_metrics.irmsd,
+                best_dockq_metrics.fnat,
+                final_best_dockq.fitness,
+                best_dockq_clashes.clash_percentage
+            ).unwrap();
+
+            println!("  {} {}", "✓".green(), best_score_path.display());
+            println!("  {} {}", "✓".green(), best_dockq_path.display());
+            println!("  {} {}", "✓".green(), metrics_path.display());
+        } else {
+            println!("  {} {}", "✓".green(), best_score_path.display());
+        }
+
+    } else {
+        // =====================================================================
+        // Clustering: Select diverse representative structures
+        // =====================================================================
+
+        // Report Hall of Fame status
+        println!(
+            "\n{} Collected {} diverse structures in Hall of Fame",
+            "📦".bold(),
+            hall_of_fame.len().to_string().cyan()
+        );
+
+        println!("\n{}", "🔬 Clustering Hall of Fame structures".bold().cyan());
+
+        // Reconstruct structures from Hall of Fame entries
+        let hof_entries = hall_of_fame.entries();
+        let hof_structures: Vec<(usize, Molecule, f64)> = hof_entries
+            .iter()
+            .enumerate()
+            .map(|(idx, entry)| {
+                let ligand = ligand_clone
+                    .clone()
+                    .rotate(entry.genes[0], entry.genes[1], entry.genes[2])
+                    .displace(entry.genes[3], entry.genes[4], entry.genes[5]);
+                let complex = combine_molecules(&receptor_clone, &ligand);
+                (idx, complex, entry.fitness)
+            })
+            .collect();
+
+        // Run FCC clustering
+        let structures_only: Vec<Molecule> = hof_structures.iter().map(|(_, mol, _)| mol.clone()).collect();
+        let cluster_config = ClusteringConfig::default();
+        let clusters = clustering::cluster_structures(&structures_only, &cluster_config);
+
+        println!(
+            "  {} Found {} clusters (min size: {})",
+            "✓".green(),
+            clusters.len().to_string().cyan(),
+            cluster_config.min_cluster_size
+        );
+
+        // Select models: cluster centers sorted by energy (best first)
+        let mut cluster_centers: Vec<(usize, f64, usize)> = clusters
+            .iter()
+            .map(|cluster| {
+                let fitness = hof_entries[cluster.center_idx].fitness;
+                (cluster.center_idx, fitness, cluster.size)
+            })
+            .collect();
+
+        // Sort by fitness (lowest/best energy first)
+        cluster_centers.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+
+        // Take up to NUM_OUTPUT_MODELS
+        let mut selected: Vec<(usize, usize)> = cluster_centers
+            .iter()
+            .take(NUM_OUTPUT_MODELS)
+            .map(|(idx, _, size)| (*idx, *size))
+            .collect();
+
+        // If fewer than NUM_OUTPUT_MODELS clusters, fill with best-scored entries
+        if selected.len() < NUM_OUTPUT_MODELS {
+            let mut all_entries: Vec<(usize, f64)> = hof_entries
+                .iter()
+                .enumerate()
+                .map(|(idx, entry)| (idx, entry.fitness))
+                .collect();
+            all_entries.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+
+            let selected_indices: Vec<usize> = selected.iter().map(|(idx, _)| *idx).collect();
+
+            for (idx, _) in all_entries {
+                if selected.len() >= NUM_OUTPUT_MODELS {
+                    break;
+                }
+                if !selected_indices.contains(&idx) {
+                    selected.push((idx, 1));
+                }
+            }
+        }
+
+        // Save output models and metrics
+        println!("\n{}", "💾 Saving Results".bold().cyan());
+
         let metrics_path = out_dir.join("metrics.tsv");
         let mut metrics_file = fs::File::create(&metrics_path).expect("Failed to create metrics file");
-        writeln!(metrics_file, "model\tdockq\trmsd\tirmsd\tfnat\tscore").unwrap();
-        writeln!(
-            metrics_file,
-            "best_by_score\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
-            best_score_metrics.dockq,
-            best_score_metrics.rmsd,
-            best_score_metrics.irmsd,
-            best_score_metrics.fnat,
-            final_best_score.fitness
-        ).unwrap();
-        writeln!(
-            metrics_file,
-            "best_by_dockq\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
-            best_dockq_metrics.dockq,
-            best_dockq_metrics.rmsd,
-            best_dockq_metrics.irmsd,
-            best_dockq_metrics.fnat,
-            final_best_dockq.fitness
-        ).unwrap();
 
-        println!("  {} {}", "✓".green(), best_score_path.display());
-        println!("  {} {}", "✓".green(), best_dockq_path.display());
-        println!("  {} {}", "✓".green(), metrics_path.display());
-    } else {
-        println!("  {} {}", "✓".green(), best_score_path.display());
+        if eval.is_some() {
+            writeln!(metrics_file, "model\tcluster_size\tscore\tdockq\trmsd\tirmsd\tfnat\tclash_pct").unwrap();
+        } else {
+            writeln!(metrics_file, "model\tcluster_size\tscore\tclash_pct").unwrap();
+        }
+
+        println!("\n{}", "📊 Output Models (FCC Clustered)".bold().cyan());
+
+        for (model_num, (hof_idx, cluster_size)) in selected.iter().enumerate() {
+            let entry = &hof_entries[*hof_idx];
+            let model_name = format!("model_{}", model_num + 1);
+
+            let ligand = ligand_clone
+                .clone()
+                .rotate(entry.genes[0], entry.genes[1], entry.genes[2])
+                .displace(entry.genes[3], entry.genes[4], entry.genes[5]);
+            let complex = combine_molecules(&receptor_clone, &ligand);
+
+            let pdb_path = out_dir.join(format!("{}.pdb", model_name));
+            structure::write_pdb(&complex, &pdb_path.to_string_lossy().to_string());
+
+            // Calculate clashes
+            let clash_result = evaluator::calculate_clashes(&receptor_clone, &ligand);
+
+            if let Some(ref e) = eval {
+                let metrics = e.calc_metrics(&ligand);
+
+                writeln!(
+                    metrics_file,
+                    "{}\t{}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.2}",
+                    model_name, cluster_size, entry.fitness,
+                    metrics.dockq, metrics.rmsd, metrics.irmsd, metrics.fnat,
+                    clash_result.clash_percentage
+                ).unwrap();
+
+                let dockq_str = if metrics.dockq >= 0.80 {
+                    format!("{:.3}", metrics.dockq).green()
+                } else if metrics.dockq >= 0.49 {
+                    format!("{:.3}", metrics.dockq).yellow()
+                } else if metrics.dockq >= 0.23 {
+                    format!("{:.3}", metrics.dockq).bright_yellow()
+                } else {
+                    format!("{:.3}", metrics.dockq).red()
+                };
+
+                println!(
+                    "  {}: cluster={} score={:.1} DockQ={} clash={:.1}%",
+                    model_name.green(),
+                    format!("{:>3}", cluster_size).cyan(),
+                    entry.fitness,
+                    dockq_str,
+                    clash_result.clash_percentage
+                );
+            } else {
+                writeln!(
+                    metrics_file,
+                    "{}\t{}\t{:.4}\t{:.2}",
+                    model_name, cluster_size, entry.fitness,
+                    clash_result.clash_percentage
+                ).unwrap();
+
+                println!(
+                    "  {}: cluster={} score={:.1} clash={:.1}%",
+                    model_name.green(),
+                    format!("{:>3}", cluster_size).cyan(),
+                    entry.fitness,
+                    clash_result.clash_percentage
+                );
+            }
+
+            println!("    {} {}", "✓".bright_black(), pdb_path.display());
+        }
+
+        // =====================================================================
+        // Also output top 5 by score (ranked_*.pdb)
+        // =====================================================================
+
+        println!("\n{}", "📊 Output Models (Ranked by Score)".bold().cyan());
+
+        // Sort Hall of Fame entries by fitness (best first)
+        let mut ranked_entries: Vec<(usize, f64)> = hof_entries
+            .iter()
+            .enumerate()
+            .map(|(idx, entry)| (idx, entry.fitness))
+            .collect();
+        ranked_entries.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+
+        for (rank, (hof_idx, _)) in ranked_entries.iter().take(NUM_OUTPUT_MODELS).enumerate() {
+            let entry = &hof_entries[*hof_idx];
+            let model_name = format!("ranked_{}", rank + 1);
+
+            let ligand = ligand_clone
+                .clone()
+                .rotate(entry.genes[0], entry.genes[1], entry.genes[2])
+                .displace(entry.genes[3], entry.genes[4], entry.genes[5]);
+            let complex = combine_molecules(&receptor_clone, &ligand);
+
+            let pdb_path = out_dir.join(format!("{}.pdb", model_name));
+            structure::write_pdb(&complex, &pdb_path.to_string_lossy().to_string());
+
+            // Calculate clashes
+            let clash_result = evaluator::calculate_clashes(&receptor_clone, &ligand);
+
+            if let Some(ref e) = eval {
+                let metrics = e.calc_metrics(&ligand);
+
+                writeln!(
+                    metrics_file,
+                    "{}\t{}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.2}",
+                    model_name, "-", entry.fitness,
+                    metrics.dockq, metrics.rmsd, metrics.irmsd, metrics.fnat,
+                    clash_result.clash_percentage
+                ).unwrap();
+
+                let dockq_str = if metrics.dockq >= 0.80 {
+                    format!("{:.3}", metrics.dockq).green()
+                } else if metrics.dockq >= 0.49 {
+                    format!("{:.3}", metrics.dockq).yellow()
+                } else if metrics.dockq >= 0.23 {
+                    format!("{:.3}", metrics.dockq).bright_yellow()
+                } else {
+                    format!("{:.3}", metrics.dockq).red()
+                };
+
+                println!(
+                    "  {}: score={:.1} DockQ={} clash={:.1}%",
+                    model_name.green(),
+                    entry.fitness,
+                    dockq_str,
+                    clash_result.clash_percentage
+                );
+            } else {
+                writeln!(
+                    metrics_file,
+                    "{}\t{}\t{:.4}\t{:.2}",
+                    model_name, "-", entry.fitness,
+                    clash_result.clash_percentage
+                ).unwrap();
+
+                println!(
+                    "  {}: score={:.1} clash={:.1}%",
+                    model_name.green(),
+                    entry.fitness,
+                    clash_result.clash_percentage
+                );
+            }
+
+            println!("    {} {}", "✓".bright_black(), pdb_path.display());
+        }
+
+        println!("    {} {}", "✓".bright_black(), metrics_path.display());
     }
+
     println!("\n{}", "✨ Done!".bold().green());
 }
 
