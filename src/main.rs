@@ -36,8 +36,7 @@ fn generate_restraints(receptor_file: String, ligand_file: String, cutoff: f64) 
     // Get unique residues from receptor and ligand
     let rec_residues: std::collections::HashSet<i16> =
         receptor.0.iter().map(|a| a.resseq).collect();
-    let lig_residues: std::collections::HashSet<i16> =
-        ligand.0.iter().map(|a| a.resseq).collect();
+    let lig_residues: std::collections::HashSet<i16> = ligand.0.iter().map(|a| a.resseq).collect();
 
     for rec_res in &rec_residues {
         for lig_res in &lig_residues {
@@ -561,188 +560,224 @@ fn combine_molecules(
     combined
 }
 
+/// Helper to parse restraint pairs from string format "rec1:lig1,rec2:lig2,..."
+fn parse_restraints(restraints_str: &str) -> Vec<(i32, i32)> {
+    restraints_str
+        .split(',')
+        .map(|pair| {
+            let parts: Vec<&str> = pair.trim().split(':').collect();
+            if parts.len() != 2 {
+                panic!(
+                    "Invalid restraint format: '{}'. Expected format: 'receptor:ligand'",
+                    pair
+                );
+            }
+            let rec = parts[0]
+                .trim()
+                .parse::<i32>()
+                .unwrap_or_else(|_| panic!("Invalid receptor residue number: '{}'", parts[0]));
+            let lig = parts[1]
+                .trim()
+                .parse::<i32>()
+                .unwrap_or_else(|_| panic!("Invalid ligand residue number: '{}'", parts[1]));
+            (rec, lig)
+        })
+        .collect()
+}
+
 fn main() {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+    // Common arguments for receptor and ligand
+    let receptor_arg = clap::Arg::new("receptor")
+        .long("receptor")
+        .short('r')
+        .value_name("FILE")
+        .help("Receptor PDB file")
+        .required(true);
+
+    let ligand_arg = clap::Arg::new("ligand")
+        .long("ligand")
+        .short('l')
+        .value_name("FILE")
+        .help("Ligand PDB file")
+        .required(true);
+
+    // Weight arguments (shared by run and score)
+    let weight_args = [
+        clap::Arg::new("w_vdw")
+            .long("w_vdw")
+            .value_name("WEIGHT")
+            .help("Weight for VDW energy term")
+            .value_parser(clap::value_parser!(f64)),
+        clap::Arg::new("w_elec")
+            .long("w_elec")
+            .value_name("WEIGHT")
+            .help("Weight for electrostatic energy term")
+            .value_parser(clap::value_parser!(f64)),
+        clap::Arg::new("w_desolv")
+            .long("w_desolv")
+            .value_name("WEIGHT")
+            .help("Weight for desolvation energy term")
+            .value_parser(clap::value_parser!(f64)),
+        clap::Arg::new("w_air")
+            .long("w_air")
+            .value_name("WEIGHT")
+            .help("Weight for AIR restraint energy term")
+            .value_parser(clap::value_parser!(f64)),
+    ];
+
     let matches = Command::new("gdock")
         .version(VERSION)
-        .author("pending")
+        .author("Rodrigo V. Honorato")
         .about("Fast information-driven protein-protein docking using genetic algorithms")
-        .arg(
-            clap::Arg::new("receptor")
-                .long("receptor")
-                .short('r')
-                .value_name("FILE")
-                .help("Receptor PDB file")
-                .required(true),
+        .subcommand_required(true)
+        .subcommand(
+            Command::new("run")
+                .about("Run the genetic algorithm docking")
+                .arg(receptor_arg.clone())
+                .arg(ligand_arg.clone())
+                .arg(
+                    clap::Arg::new("restraints")
+                        .long("restraints")
+                        .value_name("PAIRS")
+                        .help("Comma-separated restraint pairs receptor:ligand (e.g., 10:45,15:50)")
+                        .required(true),
+                )
+                .arg(
+                    clap::Arg::new("reference")
+                        .long("reference")
+                        .value_name("FILE")
+                        .help("Reference PDB file for DockQ calculation"),
+                )
+                .arg(
+                    clap::Arg::new("debug")
+                        .long("debug")
+                        .help("Debug mode: use DockQ as fitness (requires --reference)")
+                        .action(clap::ArgAction::SetTrue),
+                )
+                .args(weight_args.clone()),
         )
-        .arg(
-            clap::Arg::new("ligand")
-                .long("ligand")
-                .short('l')
-                .value_name("FILE")
-                .help("Ligand PDB file")
-                .required(true),
+        .subcommand(
+            Command::new("score")
+                .about("Score structures without running the GA")
+                .arg(receptor_arg.clone())
+                .arg(ligand_arg.clone())
+                .arg(
+                    clap::Arg::new("restraints")
+                        .long("restraints")
+                        .value_name("PAIRS")
+                        .help("Comma-separated restraint pairs receptor:ligand (optional)"),
+                )
+                .arg(
+                    clap::Arg::new("reference")
+                        .long("reference")
+                        .value_name("FILE")
+                        .help("Reference PDB file for DockQ calculation"),
+                )
+                .args(weight_args),
         )
-        .arg(
-            clap::Arg::new("restraints")
-                .long("restraints")
-                .value_name("PAIRS")
-                .help("Comma-separated restraint pairs receptor:ligand (e.g., 10:45,15:50,20:55). Required for docking mode, optional for score mode.")
-                .required(false),
-        )
-        .arg(
-            clap::Arg::new("reference")
-                .long("reference")
-                .value_name("FILE")
-                .help("Reference PDB file for DockQ calculation (optional)"),
-        )
-        .arg(
-            clap::Arg::new("score")
-                .long("score")
-                .help("Score mode: only calculate energy without running GA")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            clap::Arg::new("w_vdw")
-                .long("w_vdw")
-                .value_name("WEIGHT")
-                .help("Weight for VDW energy term")
-                .value_parser(clap::value_parser!(f64)),
-        )
-        .arg(
-            clap::Arg::new("w_elec")
-                .long("w_elec")
-                .value_name("WEIGHT")
-                .help("Weight for electrostatic energy term")
-                .value_parser(clap::value_parser!(f64)),
-        )
-        .arg(
-            clap::Arg::new("w_desolv")
-                .long("w_desolv")
-                .value_name("WEIGHT")
-                .help("Weight for desolvation energy term")
-                .value_parser(clap::value_parser!(f64)),
-        )
-        .arg(
-            clap::Arg::new("w_air")
-                .long("w_air")
-                .value_name("WEIGHT")
-                .help("Weight for AIR restraint energy term")
-                .value_parser(clap::value_parser!(f64)),
-        )
-        .arg(
-            clap::Arg::new("debug")
-                .long("debug")
-                .help("Debug mode: use DockQ as fitness (requires reference). Validates sampling by optimizing directly for native structure.")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            clap::Arg::new("gen_restraints")
-                .long("gen-restraints")
-                .help("Generate restraints from interface contacts between receptor and ligand")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            clap::Arg::new("cutoff")
-                .long("cutoff")
-                .value_name("DISTANCE")
-                .help("Distance cutoff in Angstroms for interface detection (default: 5.0)")
-                .value_parser(clap::value_parser!(f64)),
+        .subcommand(
+            Command::new("restraints")
+                .about("Generate restraints from interface contacts")
+                .arg(receptor_arg)
+                .arg(ligand_arg)
+                .arg(
+                    clap::Arg::new("cutoff")
+                        .long("cutoff")
+                        .value_name("ANGSTROMS")
+                        .help("Distance cutoff for interface detection (default: 5.0)")
+                        .value_parser(clap::value_parser!(f64)),
+                ),
         )
         .get_matches();
 
-    // Parse common arguments
-    let receptor_file = matches.get_one::<String>("receptor").unwrap().clone();
-    let ligand_file = matches.get_one::<String>("ligand").unwrap().clone();
-    let reference_file = matches.get_one::<String>("reference").cloned();
-    let score_only = matches.get_flag("score");
-    let debug_mode = matches.get_flag("debug");
-    let gen_restraints = matches.get_flag("gen_restraints");
-    let cutoff = matches.get_one::<f64>("cutoff").copied().unwrap_or(5.0);
+    match matches.subcommand() {
+        Some(("run", sub_m)) => {
+            let receptor_file = sub_m.get_one::<String>("receptor").unwrap().clone();
+            let ligand_file = sub_m.get_one::<String>("ligand").unwrap().clone();
+            let reference_file = sub_m.get_one::<String>("reference").cloned();
+            let debug_mode = sub_m.get_flag("debug");
 
-    // Validate debug mode requirements
-    if debug_mode && reference_file.is_none() {
-        eprintln!("Error: --debug mode requires --reference to be specified");
-        std::process::exit(1);
-    }
-    if debug_mode && score_only {
-        eprintln!("Error: --debug mode cannot be used with --score mode");
-        std::process::exit(1);
-    }
+            // Validate debug mode
+            if debug_mode && reference_file.is_none() {
+                eprintln!("Error: --debug requires --reference to be specified");
+                std::process::exit(1);
+            }
 
-    // Parse restraint pairs (format: "rec1:lig1,rec2:lig2,...")
-    let restraint_pairs: Option<Vec<(i32, i32)>> =
-        matches
-            .get_one::<String>("restraints")
-            .map(|restraints_str| {
-                restraints_str
-                    .split(',')
-                    .map(|pair| {
-                        let parts: Vec<&str> = pair.trim().split(':').collect();
-                        if parts.len() != 2 {
-                            panic!(
-                            "Invalid restraint format: '{}'. Expected format: 'receptor:ligand'",
-                            pair
-                        );
-                        }
-                        let rec = parts[0].trim().parse::<i32>().unwrap_or_else(|_| {
-                            panic!("Invalid receptor residue number: '{}'", parts[0])
-                        });
-                        let lig = parts[1].trim().parse::<i32>().unwrap_or_else(|_| {
-                            panic!("Invalid ligand residue number: '{}'", parts[1])
-                        });
-                        (rec, lig)
-                    })
-                    .collect()
-            });
+            let restraint_pairs = parse_restraints(sub_m.get_one::<String>("restraints").unwrap());
 
-    // Validate restraints requirement (not needed for gen-restraints or score mode)
-    if !score_only && !gen_restraints && restraint_pairs.is_none() {
-        eprintln!("Error: --restraints are required for docking mode");
-        eprintln!("Use --score mode if you want to score without restraints");
-        std::process::exit(1);
-    }
+            let weights = constants::EnergyWeights::new(
+                sub_m
+                    .get_one::<f64>("w_vdw")
+                    .copied()
+                    .unwrap_or(DEFAULT_W_VDW),
+                sub_m
+                    .get_one::<f64>("w_elec")
+                    .copied()
+                    .unwrap_or(DEFAULT_W_ELEC),
+                sub_m
+                    .get_one::<f64>("w_desolv")
+                    .copied()
+                    .unwrap_or(DEFAULT_W_DESOLV),
+                sub_m
+                    .get_one::<f64>("w_air")
+                    .copied()
+                    .unwrap_or(DEFAULT_W_AIR),
+            );
 
-    // Parse energy weights
-    let weights = constants::EnergyWeights::new(
-        matches
-            .get_one::<f64>("w_vdw")
-            .copied()
-            .unwrap_or(DEFAULT_W_VDW),
-        matches
-            .get_one::<f64>("w_elec")
-            .copied()
-            .unwrap_or(DEFAULT_W_ELEC),
-        matches
-            .get_one::<f64>("w_desolv")
-            .copied()
-            .unwrap_or(DEFAULT_W_DESOLV),
-        matches
-            .get_one::<f64>("w_air")
-            .copied()
-            .unwrap_or(DEFAULT_W_AIR),
-    );
+            run(
+                receptor_file,
+                ligand_file,
+                restraint_pairs,
+                reference_file,
+                weights,
+                debug_mode,
+            );
+        }
+        Some(("score", sub_m)) => {
+            let receptor_file = sub_m.get_one::<String>("receptor").unwrap().clone();
+            let ligand_file = sub_m.get_one::<String>("ligand").unwrap().clone();
+            let reference_file = sub_m.get_one::<String>("reference").cloned();
 
-    // Execute based on mode
-    if gen_restraints {
-        generate_restraints(receptor_file, ligand_file, cutoff);
-    } else if score_only {
-        score(
-            receptor_file,
-            ligand_file,
-            restraint_pairs,
-            reference_file,
-            weights,
-        );
-    } else {
-        // For docking mode, restraints are mandatory (validated above)
-        run(
-            receptor_file,
-            ligand_file,
-            restraint_pairs.unwrap(),
-            reference_file,
-            weights,
-            debug_mode,
-        );
+            let restraint_pairs = sub_m
+                .get_one::<String>("restraints")
+                .map(|s| parse_restraints(s));
+
+            let weights = constants::EnergyWeights::new(
+                sub_m
+                    .get_one::<f64>("w_vdw")
+                    .copied()
+                    .unwrap_or(DEFAULT_W_VDW),
+                sub_m
+                    .get_one::<f64>("w_elec")
+                    .copied()
+                    .unwrap_or(DEFAULT_W_ELEC),
+                sub_m
+                    .get_one::<f64>("w_desolv")
+                    .copied()
+                    .unwrap_or(DEFAULT_W_DESOLV),
+                sub_m
+                    .get_one::<f64>("w_air")
+                    .copied()
+                    .unwrap_or(DEFAULT_W_AIR),
+            );
+
+            score(
+                receptor_file,
+                ligand_file,
+                restraint_pairs,
+                reference_file,
+                weights,
+            );
+        }
+        Some(("restraints", sub_m)) => {
+            let receptor_file = sub_m.get_one::<String>("receptor").unwrap().clone();
+            let ligand_file = sub_m.get_one::<String>("ligand").unwrap().clone();
+            let cutoff = sub_m.get_one::<f64>("cutoff").copied().unwrap_or(5.0);
+
+            generate_restraints(receptor_file, ligand_file, cutoff);
+        }
+        _ => unreachable!("subcommand_required prevents this"),
     }
 }
