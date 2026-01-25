@@ -3,7 +3,11 @@ use std::collections::HashSet;
 
 /// Find interface residue pairs between receptor and ligand within a distance cutoff.
 /// Returns pairs of (receptor_resseq, ligand_resseq) that are in contact.
-pub fn find_interface_pairs(receptor: &Molecule, ligand: &Molecule, cutoff: f64) -> Vec<(i16, i16)> {
+pub fn find_interface_pairs(
+    receptor: &Molecule,
+    ligand: &Molecule,
+    cutoff: f64,
+) -> Vec<(i16, i16)> {
     let mut interface_pairs: Vec<(i16, i16)> = Vec::new();
 
     // Get unique residues from receptor and ligand
