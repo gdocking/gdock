@@ -352,10 +352,13 @@ pub fn run(
     }
 
     // Evolve the population
-    let mut generation_count = 0;
+    let mut generation_count = 0u64;
     let mut best_score_history: Vec<f64> = Vec::new();
     let mut generations_without_improvement = 0;
     let mut last_best_score = f64::MAX;
+
+    // Initialize Hall of Fame for tracking diverse solutions
+    let mut hall_of_fame = HallOfFame::new();
 
     println!(
         "{} Starting evolution for {} generations",
@@ -364,6 +367,9 @@ pub fn run(
     );
     while generation_count < MAX_GENERATIONS {
         pop.eval_fitness();
+
+        // Track diverse solutions in Hall of Fame
+        hall_of_fame.add_from_population(&pop.chromosomes, generation_count as u32);
 
         // Calculate metrics for all chromosomes (only if reference is available)
         let metric_vec = eval.as_ref().map(|e| pop.eval_metrics(e));
@@ -528,6 +534,13 @@ pub fn run(
     if !progress.is_finished() {
         progress.finish();
     }
+
+    // Report Hall of Fame status
+    println!(
+        "\n{} Collected {} diverse structures in Hall of Fame",
+        "📦".bold(),
+        hall_of_fame.len().to_string().cyan()
+    );
 
     // Save the best models to disk
     println!("\n{}", "💾 Saving Results".bold().cyan());
