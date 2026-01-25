@@ -1,4 +1,5 @@
 pub mod chromosome;
+pub mod clustering;
 pub mod commands;
 pub mod constants;
 pub mod evaluator;
@@ -13,6 +14,8 @@ pub mod utils;
 
 use clap::Command;
 use constants::{DEFAULT_W_AIR, DEFAULT_W_DESOLV, DEFAULT_W_ELEC, DEFAULT_W_VDW};
+use std::fs::File;
+use std::io::prelude::*;
 
 /// Helper to parse restraint pairs from string format "rec1:lig1,rec2:lig2,..."
 fn parse_restraints(restraints_str: &str) -> Vec<(i32, i32)> {
@@ -37,6 +40,14 @@ fn parse_restraints(restraints_str: &str) -> Vec<(i32, i32)> {
             (rec, lig)
         })
         .collect()
+}
+
+/// Helper functions to parse restraints pair from a file
+fn parse_restraints_file(restraints_file_path: &str) -> Vec<(i32, i32)> {
+    let mut file = File::open(restraints_file_path).unwrap();
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).unwrap();
+    parse_restraints(&contents)
 }
 
 fn main() {
@@ -110,6 +121,13 @@ fn main() {
                         .help("Debug mode: use DockQ as fitness (requires --reference)")
                         .action(clap::ArgAction::SetTrue),
                 )
+                .arg(
+                    clap::Arg::new("output-dir")
+                        .long("output-dir")
+                        .short('o')
+                        .value_name("DIR")
+                        .help("Output directory for results (default: current directory)"),
+                )
                 .args(weight_args.clone()),
         )
         .subcommand(
@@ -159,7 +177,12 @@ fn main() {
                 std::process::exit(1);
             }
 
-            let restraint_pairs = parse_restraints(sub_m.get_one::<String>("restraints").unwrap());
+            let restraints_arg = sub_m.get_one::<String>("restraints").unwrap();
+            let restraint_pairs = if std::path::Path::new(restraints_arg).is_file() {
+                parse_restraints_file(restraints_arg)
+            } else {
+                parse_restraints(restraints_arg)
+            };
 
             let weights = constants::EnergyWeights::new(
                 sub_m
@@ -180,6 +203,8 @@ fn main() {
                     .unwrap_or(DEFAULT_W_AIR),
             );
 
+            let output_dir = sub_m.get_one::<String>("output-dir").cloned();
+
             commands::run::run(
                 receptor_file,
                 ligand_file,
@@ -187,6 +212,7 @@ fn main() {
                 reference_file,
                 weights,
                 debug_mode,
+                output_dir,
             );
         }
         Some(("score", sub_m)) => {
@@ -194,9 +220,13 @@ fn main() {
             let ligand_file = sub_m.get_one::<String>("ligand").unwrap().clone();
             let reference_file = sub_m.get_one::<String>("reference").cloned();
 
-            let restraint_pairs = sub_m
-                .get_one::<String>("restraints")
-                .map(|s| parse_restraints(s));
+            let restraint_pairs = sub_m.get_one::<String>("restraints").map(|s| {
+                if std::path::Path::new(s).is_file() {
+                    parse_restraints_file(s)
+                } else {
+                    parse_restraints(s)
+                }
+            });
 
             let weights = constants::EnergyWeights::new(
                 sub_m
