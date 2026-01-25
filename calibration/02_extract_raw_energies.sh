@@ -47,10 +47,9 @@ for complex_dir in "$PREPARED_DIR"/*/; do
   echo " Scoring $complex..."
 
   # Score with all weights = 1 to get raw energy values
-  "$GDOCK" \
+  "$GDOCK" score \
     --receptor "$receptor" \
     --ligand "$ligand" \
-    --score \
     --w_vdw 1 \
     --w_elec 1 \
     --w_desolv 1 \
