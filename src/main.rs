@@ -21,7 +21,66 @@ use constants::{
 use indicatif::{ProgressBar, ProgressStyle};
 use structure::read_pdb;
 
-// TODO: ADD A BIN TO IDENTIFY THE TRUE INTERFACE OF A COMPLEX
+fn generate_restraints(receptor_file: String, ligand_file: String, cutoff: f64) {
+    let receptor_model = read_pdb(&receptor_file);
+    let ligand_model = read_pdb(&ligand_file);
+
+    let receptor = &receptor_model.0[0];
+    let ligand = &ligand_model.0[0];
+
+    // Find interface residue pairs
+    // A residue pair is at the interface if any heavy atom from receptor residue
+    // is within cutoff distance of any heavy atom from ligand residue
+    let mut interface_pairs: Vec<(i16, i16)> = Vec::new();
+
+    // Get unique residues from receptor and ligand
+    let rec_residues: std::collections::HashSet<i16> =
+        receptor.0.iter().map(|a| a.resseq).collect();
+    let lig_residues: std::collections::HashSet<i16> =
+        ligand.0.iter().map(|a| a.resseq).collect();
+
+    for rec_res in &rec_residues {
+        for lig_res in &lig_residues {
+            // Get atoms for this residue pair
+            let rec_atoms: Vec<_> = receptor
+                .0
+                .iter()
+                .filter(|a| a.resseq == *rec_res && !a.name.starts_with('H'))
+                .collect();
+            let lig_atoms: Vec<_> = ligand
+                .0
+                .iter()
+                .filter(|a| a.resseq == *lig_res && !a.name.starts_with('H'))
+                .collect();
+
+            // Check if any pair of atoms is within cutoff
+            'outer: for rec_atom in &rec_atoms {
+                for lig_atom in &lig_atoms {
+                    let dx = rec_atom.x - lig_atom.x;
+                    let dy = rec_atom.y - lig_atom.y;
+                    let dz = rec_atom.z - lig_atom.z;
+                    let dist = (dx * dx + dy * dy + dz * dz).sqrt();
+
+                    if dist <= cutoff {
+                        interface_pairs.push((*rec_res, *lig_res));
+                        break 'outer;
+                    }
+                }
+            }
+        }
+    }
+
+    // Sort for consistent output
+    interface_pairs.sort();
+
+    // Output in gdock restraints format
+    let restraints_str: Vec<String> = interface_pairs
+        .iter()
+        .map(|(r, l)| format!("{}:{}", r, l))
+        .collect();
+
+    println!("{}", restraints_str.join(","));
+}
 
 fn score(
     receptor_file: String,
@@ -577,6 +636,19 @@ fn main() {
                 .help("Debug mode: use DockQ as fitness (requires reference). Validates sampling by optimizing directly for native structure.")
                 .action(clap::ArgAction::SetTrue),
         )
+        .arg(
+            clap::Arg::new("gen_restraints")
+                .long("gen-restraints")
+                .help("Generate restraints from interface contacts between receptor and ligand")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            clap::Arg::new("cutoff")
+                .long("cutoff")
+                .value_name("DISTANCE")
+                .help("Distance cutoff in Angstroms for interface detection (default: 5.0)")
+                .value_parser(clap::value_parser!(f64)),
+        )
         .get_matches();
 
     // Parse common arguments
@@ -585,6 +657,8 @@ fn main() {
     let reference_file = matches.get_one::<String>("reference").cloned();
     let score_only = matches.get_flag("score");
     let debug_mode = matches.get_flag("debug");
+    let gen_restraints = matches.get_flag("gen_restraints");
+    let cutoff = matches.get_one::<f64>("cutoff").copied().unwrap_or(5.0);
 
     // Validate debug mode requirements
     if debug_mode && reference_file.is_none() {
@@ -622,8 +696,8 @@ fn main() {
                     .collect()
             });
 
-    // Validate restraints requirement
-    if !score_only && restraint_pairs.is_none() {
+    // Validate restraints requirement (not needed for gen-restraints or score mode)
+    if !score_only && !gen_restraints && restraint_pairs.is_none() {
         eprintln!("Error: --restraints are required for docking mode");
         eprintln!("Use --score mode if you want to score without restraints");
         std::process::exit(1);
@@ -650,7 +724,9 @@ fn main() {
     );
 
     // Execute based on mode
-    if score_only {
+    if gen_restraints {
+        generate_restraints(receptor_file, ligand_file, cutoff);
+    } else if score_only {
         score(
             receptor_file,
             ligand_file,
