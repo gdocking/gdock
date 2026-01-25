@@ -35,6 +35,183 @@ pub fn combine_molecules(receptor: &Molecule, ligand: &Molecule) -> Molecule {
     combined
 }
 
+// ============================================================================
+// Hall of Fame - tracks diverse solutions throughout evolution
+// ============================================================================
+
+/// Default parameters for Hall of Fame
+const HALL_OF_FAME_MAX_SIZE: usize = 500;
+const HALL_OF_FAME_TOP_K: usize = 10;
+const UNIQUENESS_ROTATION_THRESHOLD: f64 = 0.2;    // ~11 degrees
+const UNIQUENESS_TRANSLATION_THRESHOLD: f64 = 2.0; // 2 Å
+
+/// Entry in the Hall of Fame storing a solution's genes and metadata
+#[derive(Debug, Clone)]
+pub struct HallOfFameEntry {
+    /// Chromosome genes: [alpha, beta, gamma, dx, dy, dz]
+    pub genes: [f64; 6],
+    /// Fitness score at time of capture
+    pub fitness: f64,
+    /// Generation when captured
+    pub generation: u32,
+}
+
+/// Tracks diverse high-quality solutions throughout evolution
+#[derive(Debug)]
+pub struct HallOfFame {
+    entries: Vec<HallOfFameEntry>,
+    max_size: usize,
+}
+
+impl HallOfFame {
+    /// Create a new Hall of Fame with default max size
+    pub fn new() -> Self {
+        Self {
+            entries: Vec::new(),
+            max_size: HALL_OF_FAME_MAX_SIZE,
+        }
+    }
+
+    /// Create a new Hall of Fame with custom max size
+    pub fn with_capacity(max_size: usize) -> Self {
+        Self {
+            entries: Vec::new(),
+            max_size,
+        }
+    }
+
+    /// Try to add a new entry if it's unique enough
+    /// Returns true if the entry was added
+    pub fn try_add(&mut self, genes: &[f64], fitness: f64, generation: u32) -> bool {
+        if genes.len() != 6 {
+            return false;
+        }
+
+        let new_genes: [f64; 6] = [
+            genes[0], genes[1], genes[2],
+            genes[3], genes[4], genes[5],
+        ];
+
+        // Check uniqueness against existing entries
+        if !self.is_unique(&new_genes) {
+            return false;
+        }
+
+        // Add the entry
+        self.entries.push(HallOfFameEntry {
+            genes: new_genes,
+            fitness,
+            generation,
+        });
+
+        // If over capacity, remove worst entries
+        if self.entries.len() > self.max_size {
+            self.prune();
+        }
+
+        true
+    }
+
+    /// Check if genes are unique compared to existing entries
+    fn is_unique(&self, new_genes: &[f64; 6]) -> bool {
+        for entry in &self.entries {
+            if Self::genes_are_similar(new_genes, &entry.genes) {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Check if two gene sets are similar (potential duplicates)
+    fn genes_are_similar(a: &[f64; 6], b: &[f64; 6]) -> bool {
+        // Check rotations (with wrap-around handling)
+        for i in 0..3 {
+            let diff = Self::angular_difference(a[i], b[i]);
+            if diff > UNIQUENESS_ROTATION_THRESHOLD {
+                return false;
+            }
+        }
+
+        // Check translations
+        for i in 3..6 {
+            let diff = (a[i] - b[i]).abs();
+            if diff > UNIQUENESS_TRANSLATION_THRESHOLD {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    /// Calculate minimum angular difference (handles wrap-around at 2π)
+    fn angular_difference(a: f64, b: f64) -> f64 {
+        use std::f64::consts::PI;
+        let diff = (a - b).abs();
+        if diff > PI {
+            2.0 * PI - diff
+        } else {
+            diff
+        }
+    }
+
+    /// Remove worst entries when over capacity
+    fn prune(&mut self) {
+        // Sort by fitness (lower is better) and keep best
+        self.entries.sort_by(|a, b| {
+            a.fitness.partial_cmp(&b.fitness).unwrap()
+        });
+        self.entries.truncate(self.max_size);
+    }
+
+    /// Get the number of entries
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    /// Check if empty
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    /// Get all entries (for clustering)
+    pub fn entries(&self) -> &[HallOfFameEntry] {
+        &self.entries
+    }
+
+    /// Add top-K chromosomes from a population
+    pub fn add_from_population(
+        &mut self,
+        chromosomes: &[chromosome::Chromosome],
+        generation: u32,
+    ) {
+        // Get indices sorted by fitness (best first)
+        let mut indices: Vec<usize> = (0..chromosomes.len()).collect();
+        indices.sort_by(|&a, &b| {
+            chromosomes[a].fitness.partial_cmp(&chromosomes[b].fitness).unwrap()
+        });
+
+        // Try to add top-K
+        let mut added = 0;
+        for &idx in &indices {
+            if added >= HALL_OF_FAME_TOP_K {
+                break;
+            }
+            let chr = &chromosomes[idx];
+            if self.try_add(&chr.genes, chr.fitness, generation) {
+                added += 1;
+            }
+        }
+    }
+}
+
+impl Default for HallOfFame {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ============================================================================
+
 /// Run the genetic algorithm docking
 pub fn run(
     receptor_file: String,
@@ -455,6 +632,7 @@ pub fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::f64::consts::PI;
 
     #[test]
     fn test_combine_molecules() {
@@ -471,5 +649,125 @@ mod tests {
             receptor.0.len() + ligand.0.len(),
             "Combined molecule should have all atoms from both"
         );
+    }
+
+    #[test]
+    fn test_hall_of_fame_new() {
+        let hof = HallOfFame::new();
+        assert!(hof.is_empty());
+        assert_eq!(hof.len(), 0);
+    }
+
+    #[test]
+    fn test_hall_of_fame_add_entry() {
+        let mut hof = HallOfFame::new();
+        let genes = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+
+        let added = hof.try_add(&genes, -100.0, 1);
+        assert!(added);
+        assert_eq!(hof.len(), 1);
+    }
+
+    #[test]
+    fn test_hall_of_fame_rejects_duplicates() {
+        let mut hof = HallOfFame::new();
+        let genes = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+
+        hof.try_add(&genes, -100.0, 1);
+        let added = hof.try_add(&genes, -100.0, 2);
+
+        assert!(!added, "Should reject identical genes");
+        assert_eq!(hof.len(), 1);
+    }
+
+    #[test]
+    fn test_hall_of_fame_accepts_different_genes() {
+        let mut hof = HallOfFame::new();
+
+        // Different rotations (large difference)
+        let genes1 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        let genes2 = [PI, PI, PI, 0.0, 0.0, 0.0];
+
+        hof.try_add(&genes1, -100.0, 1);
+        let added = hof.try_add(&genes2, -90.0, 2);
+
+        assert!(added, "Should accept different genes");
+        assert_eq!(hof.len(), 2);
+    }
+
+    #[test]
+    fn test_hall_of_fame_accepts_different_translations() {
+        let mut hof = HallOfFame::new();
+
+        // Same rotation, different translation
+        let genes1 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        let genes2 = [0.0, 0.0, 0.0, 10.0, 10.0, 10.0];
+
+        hof.try_add(&genes1, -100.0, 1);
+        let added = hof.try_add(&genes2, -90.0, 2);
+
+        assert!(added, "Should accept different translations");
+        assert_eq!(hof.len(), 2);
+    }
+
+    #[test]
+    fn test_hall_of_fame_rejects_similar_genes() {
+        let mut hof = HallOfFame::new();
+
+        // Very similar genes (within threshold)
+        let genes1 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        let genes2 = [0.1, 0.1, 0.1, 0.5, 0.5, 0.5]; // Within thresholds
+
+        hof.try_add(&genes1, -100.0, 1);
+        let added = hof.try_add(&genes2, -90.0, 2);
+
+        assert!(!added, "Should reject similar genes within threshold");
+        assert_eq!(hof.len(), 1);
+    }
+
+    #[test]
+    fn test_hall_of_fame_prune_keeps_best() {
+        let mut hof = HallOfFame::with_capacity(3);
+
+        // Add 5 entries with different genes
+        let base_translation = [0.0, 0.0, 0.0];
+        for i in 0..5 {
+            let genes = [
+                (i as f64) * 1.0, // Vary rotation significantly
+                0.0, 0.0,
+                base_translation[0] + (i as f64) * 10.0, // Vary translation
+                base_translation[1],
+                base_translation[2],
+            ];
+            hof.try_add(&genes, -(100.0 - i as f64 * 10.0), i as u32);
+        }
+
+        // Should have pruned to max_size, keeping best fitness
+        assert_eq!(hof.len(), 3);
+
+        // Best entries should be kept (lowest fitness)
+        let entries = hof.entries();
+        assert!(entries[0].fitness <= entries[1].fitness);
+        assert!(entries[1].fitness <= entries[2].fitness);
+    }
+
+    #[test]
+    fn test_angular_difference_same() {
+        let diff = HallOfFame::angular_difference(0.0, 0.0);
+        assert!((diff - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_angular_difference_wrap_around() {
+        // 0 and 2π should be very close
+        let diff = HallOfFame::angular_difference(0.0, 2.0 * PI - 0.1);
+        assert!(diff < 0.2, "Should handle wrap-around");
+    }
+
+    #[test]
+    fn test_angular_difference_opposite() {
+        // 0 and π should be π apart
+        let diff = HallOfFame::angular_difference(0.0, PI);
+        assert!((diff - PI).abs() < 0.001);
     }
 }
