@@ -184,94 +184,22 @@ pub struct ClashResult {
     pub clash_percentage: f64,
 }
 
-// Spatial grid cell size - should be >= interface cutoff distance
-const GRID_CELL_SIZE: f64 = 5.0;
-
-/// Spatial grid for fast neighbor lookup
-struct SpatialGrid {
-    cells: std::collections::HashMap<(i32, i32, i32), Vec<usize>>,
-}
-
-impl SpatialGrid {
-    /// Build a spatial grid from atom coordinates
-    fn new(atoms: &[(f64, f64, f64)]) -> Self {
-        let mut cells: std::collections::HashMap<(i32, i32, i32), Vec<usize>> =
-            std::collections::HashMap::new();
-
-        for (idx, &(x, y, z)) in atoms.iter().enumerate() {
-            let cell = (
-                (x / GRID_CELL_SIZE).floor() as i32,
-                (y / GRID_CELL_SIZE).floor() as i32,
-                (z / GRID_CELL_SIZE).floor() as i32,
-            );
-            cells.entry(cell).or_default().push(idx);
-        }
-
-        SpatialGrid { cells }
-    }
-
-    /// Get indices of atoms in neighboring cells (27 cells including self)
-    fn get_neighbors(&self, x: f64, y: f64, z: f64) -> Vec<usize> {
-        let cx = (x / GRID_CELL_SIZE).floor() as i32;
-        let cy = (y / GRID_CELL_SIZE).floor() as i32;
-        let cz = (z / GRID_CELL_SIZE).floor() as i32;
-
-        let mut neighbors = Vec::new();
-
-        for dx in -1..=1 {
-            for dy in -1..=1 {
-                for dz in -1..=1 {
-                    if let Some(indices) = self.cells.get(&(cx + dx, cy + dy, cz + dz)) {
-                        neighbors.extend(indices.iter().copied());
-                    }
-                }
-            }
-        }
-
-        neighbors
-    }
-}
-
-/// Calculate clashes between receptor and ligand using spatial grid acceleration
+/// Calculate clashes between receptor and ligand
 /// Interface: atom pairs within 5Å
 /// Clash: atom pairs within 2Å
 pub fn calculate_clashes(
     receptor: &structure::Molecule,
     ligand: &structure::Molecule,
 ) -> ClashResult {
-    // Pre-squared cutoffs to avoid sqrt
-    const INTERFACE_CUTOFF_SQ: f64 = 25.0; // 5Å²
-    const CLASH_CUTOFF_SQ: f64 = 4.0; // 2Å²
-
-    // Extract coordinates for grid building
-    let ligand_coords: Vec<(f64, f64, f64)> = ligand
-        .0
-        .iter()
-        .map(|a| (a.x, a.y, a.z))
-        .collect();
-
-    // Build spatial grid for ligand atoms
-    let grid = SpatialGrid::new(&ligand_coords);
-
     let mut clashes = 0;
     let mut interface_contacts = 0;
 
-    // For each receptor atom, check only nearby ligand atoms
     for rec_atom in &receptor.0 {
-        let neighbor_indices = grid.get_neighbors(rec_atom.x, rec_atom.y, rec_atom.z);
-
-        for lig_idx in neighbor_indices {
-            let lig_atom = &ligand.0[lig_idx];
-
-            // Squared distance (avoids sqrt)
-            let dx = rec_atom.x - lig_atom.x;
-            let dy = rec_atom.y - lig_atom.y;
-            let dz = rec_atom.z - lig_atom.z;
-            let dist_sq = dx * dx + dy * dy + dz * dz;
-
-            if dist_sq <= INTERFACE_CUTOFF_SQ {
+        for lig_atom in &ligand.0 {
+            let distance = rec_atom.distance_to(lig_atom);
+            if distance <= 5.0 {
                 interface_contacts += 1;
-                if dist_sq < CLASH_CUTOFF_SQ {
+                if distance < 2.0 {
                     clashes += 1;
                 }
             }
