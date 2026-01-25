@@ -1,7 +1,7 @@
 #!/bin/bash
 # Extract raw energy values from all complexes
 #
-# This script scores all prepared complexes with weights = 0 to extract
+# This script scores all prepared complexes with weights = 1 to extract
 # the raw energy component values (VDW, elec, desolv).
 #
 # Output: results/raw_energies.tsv

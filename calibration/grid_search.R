@@ -156,7 +156,7 @@ best_weights_json <- sprintf('{
   "w_vdw": %.6f,
   "w_elec": %.6f,
   "w_desolv": %.6f,
-  "w_air": 100.0,
+  "w_air": 1.0,
   "performance": {
     "top1_percent": %.2f,
     "top5_percent": %.2f,

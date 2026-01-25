@@ -32,8 +32,6 @@ if [[ -z "$archives" ]]; then
   exit 1
 fi
 
-echo $archives
-
 for archive in $archives; do
 
   # Extract complex name (e.g., 1a9n from 1a9n_0A.tar.gz)
