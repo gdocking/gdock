@@ -15,7 +15,7 @@
 #===========================================================================#
 # Configuration
 #===========================================================================#
-MAX_CLASH_PCT <- 1.0  # Maximum allowed clash % for top-ranked models
+MAX_CLASH_PCT <- 2.0  # Maximum allowed clash % for top-ranked models
 
 #===========================================================================#
 # Grid search function
