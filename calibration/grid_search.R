@@ -122,7 +122,7 @@ n_cores <- detectCores() - 1 # leave 1 core free
 cl <- makeCluster(n_cores)
 
 # Export necessary data and functions to all worker processes
-clusterExport(cl, c("df", "complexes", "evaluate_weights", "weights_grid"))
+clusterExport(cl, c("df", "complexes", "evaluate_weights", "weights_grid", "MAX_CLASH_PCT"))
 
 # Evaluate combinations
 cat(sprintf("Testing %d weight combinations with %d cores, this might take a while...\n\n", n_combinations, n_cores))
