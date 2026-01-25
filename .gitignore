@@ -200,3 +200,12 @@ native_reference.pdb
 top_opls_aam.inp
 SUMMARY.md
 calibration/.Rhistory
+
+# Downloaded data
+benchmark5.5.tgz
+benchmark5.5/
+data/
+
+# Results
+results/
+benchmark/complexes.txt
