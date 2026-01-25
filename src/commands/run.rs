@@ -2,6 +2,9 @@ use colored::*;
 use indicatif::{ProgressBar, ProgressStyle};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
+use std::fs;
+use std::io::Write;
+use std::path::PathBuf;
 
 use crate::chromosome;
 use crate::constants::{
@@ -40,6 +43,7 @@ pub fn run(
     reference_file: Option<String>,
     weights: EnergyWeights,
     debug_mode: bool,
+    output_dir: Option<String>,
 ) {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     println!(
@@ -382,12 +386,23 @@ pub fn run(
         );
     }
 
+    // Determine output directory
+    let out_dir = match &output_dir {
+        Some(dir) => {
+            let path = PathBuf::from(dir);
+            fs::create_dir_all(&path).expect("Failed to create output directory");
+            path
+        }
+        None => PathBuf::from("."),
+    };
+
     // Apply transformations and save best-by-score model
     let best_score_ligand = final_best_score.apply_genes(&ligand_clone);
     let best_score_complex = combine_molecules(&receptor_clone, &best_score_ligand);
-    structure::write_pdb(&best_score_complex, &"best_by_score.pdb".to_string());
+    let best_score_path = out_dir.join("best_by_score.pdb");
+    structure::write_pdb(&best_score_complex, &best_score_path.to_string_lossy().to_string());
 
-    // If we have a reference, also save best-by-DockQ model
+    // If we have a reference, also save best-by-DockQ model and metrics
     if let Some(ref e) = eval {
         let final_metrics = pop.eval_metrics(e);
         let best_dockq_idx = final_metrics
@@ -400,12 +415,39 @@ pub fn run(
         let final_best_dockq = &pop.chromosomes[best_dockq_idx];
         let best_dockq_ligand = final_best_dockq.apply_genes(&ligand_clone);
         let best_dockq_complex = combine_molecules(&receptor_clone, &best_dockq_ligand);
-        structure::write_pdb(&best_dockq_complex, &"best_by_dockq.pdb".to_string());
+        let best_dockq_path = out_dir.join("best_by_dockq.pdb");
+        structure::write_pdb(&best_dockq_complex, &best_dockq_path.to_string_lossy().to_string());
 
-        println!("  {} {}", "✓".green(), "best_by_score.pdb".bright_white());
-        println!("  {} {}", "✓".green(), "best_by_dockq.pdb".bright_white());
+        // Write metrics.tsv
+        let best_score_metrics = &final_metrics[best_fitness_idx];
+        let best_dockq_metrics = &final_metrics[best_dockq_idx];
+        let metrics_path = out_dir.join("metrics.tsv");
+        let mut metrics_file = fs::File::create(&metrics_path).expect("Failed to create metrics file");
+        writeln!(metrics_file, "model\tdockq\trmsd\tirmsd\tfnat\tscore").unwrap();
+        writeln!(
+            metrics_file,
+            "best_by_score\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
+            best_score_metrics.dockq,
+            best_score_metrics.rmsd,
+            best_score_metrics.irmsd,
+            best_score_metrics.fnat,
+            final_best_score.fitness
+        ).unwrap();
+        writeln!(
+            metrics_file,
+            "best_by_dockq\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
+            best_dockq_metrics.dockq,
+            best_dockq_metrics.rmsd,
+            best_dockq_metrics.irmsd,
+            best_dockq_metrics.fnat,
+            final_best_dockq.fitness
+        ).unwrap();
+
+        println!("  {} {}", "✓".green(), best_score_path.display());
+        println!("  {} {}", "✓".green(), best_dockq_path.display());
+        println!("  {} {}", "✓".green(), metrics_path.display());
     } else {
-        println!("  {} {}", "✓".green(), "best_by_score.pdb".bright_white());
+        println!("  {} {}", "✓".green(), best_score_path.display());
     }
     println!("\n{}", "✨ Done!".bold().green());
 }
