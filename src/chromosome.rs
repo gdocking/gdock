@@ -3,7 +3,7 @@ use super::constants::MAX_DISPLACEMENT;
 use crate::fitness;
 use crate::restraints;
 use crate::structure;
-use crate::StdRng;
+use rand::rngs::StdRng;
 use core::f64::consts::PI;
 
 use rand::Rng;
