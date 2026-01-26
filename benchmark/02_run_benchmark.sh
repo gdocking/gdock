@@ -14,6 +14,9 @@ NPROC="${1:-}"
 # Create results directory
 mkdir -p "$RESULTS_DIR"
 
+# Initialize timing summary file
+echo -e "complex\tdockq\ttime_s\trec_atoms\tlig_atoms\trestraints" > "$RESULTS_DIR/timing.tsv"
+
 # Count total complexes for progress
 total=$(ls -d "$DATA_DIR"/*/ 2>/dev/null | wc -l)
 current=0
@@ -55,7 +58,13 @@ for complex_dir in "$DATA_DIR"/*/; do
     NPROC_ARG="--nproc $NPROC"
   fi
 
-  # Run gdock
+  # Count atoms and restraints for timing analysis
+  n_rec_atoms=$(grep -c "^ATOM" "$receptor" 2>/dev/null || echo 0)
+  n_lig_atoms=$(grep -c "^ATOM" "$ligand" 2>/dev/null || echo 0)
+  n_restraints=$(wc -l < "$restraints" 2>/dev/null || echo 0)
+
+  # Run gdock with timing
+  start_time=$(date +%s.%N)
   if "$GDOCK" run \
     --receptor "$receptor" \
     --ligand "$ligand" \
@@ -64,16 +73,22 @@ for complex_dir in "$DATA_DIR"/*/; do
     --output-dir "$output_dir" \
     $NPROC_ARG \
     >"$output_dir.log" 2>&1; then
+    end_time=$(date +%s.%N)
+    elapsed=$(echo "$end_time - $start_time" | bc)
 
-    # Extract DockQ from metrics.tsv
+    # Extract DockQ from metrics.tsv (column 4: dockq)
     if [[ -f "$output_dir/metrics.tsv" ]]; then
-      dockq=$(awk -F'\t' 'NR==2 {print $2}' "$output_dir/metrics.tsv")
-      echo "DockQ=$dockq"
+      dockq=$(awk -F'\t' 'NR==2 {print $4}' "$output_dir/metrics.tsv")
+      printf "DockQ=%.3f  time=%.1fs  (rec=%d lig=%d res=%d)\n" "$dockq" "$elapsed" "$n_rec_atoms" "$n_lig_atoms" "$n_restraints"
+      # Append to timing summary
+      echo -e "$pdb_id\t$dockq\t$elapsed\t$n_rec_atoms\t$n_lig_atoms\t$n_restraints" >> "$RESULTS_DIR/timing.tsv"
     else
-      echo "OK (no metrics)"
+      printf "OK  time=%.1fs\n" "$elapsed"
     fi
   else
-    echo "FAILED (see $output_dir.log)"
+    end_time=$(date +%s.%N)
+    elapsed=$(echo "$end_time - $start_time" | bc)
+    printf "FAILED  time=%.1fs (see $output_dir.log)\n" "$elapsed"
   fi
 done
 
