@@ -127,9 +127,7 @@ fn calculate_fcc(x: &HashSet<String>, y: &HashSet<String>) -> (f64, f64) {
 }
 
 /// Calculate pairwise FCC values for all structure pairs.
-fn calculate_pairwise_fcc(
-    contact_sets: &[HashSet<String>],
-) -> Vec<(usize, usize, f64, f64)> {
+fn calculate_pairwise_fcc(contact_sets: &[HashSet<String>]) -> Vec<(usize, usize, f64, f64)> {
     let n = contact_sets.len();
     let mut results = Vec::with_capacity(n * n);
 
@@ -153,9 +151,12 @@ fn create_elements(
 
     // Initialize all elements
     for i in 0..n_structures {
-        elements.insert(i, Element {
-            neighbors: HashSet::new(),
-        });
+        elements.insert(
+            i,
+            Element {
+                neighbors: HashSet::new(),
+            },
+        );
     }
 
     // Add neighbor relationships based on FCC threshold
@@ -194,8 +195,16 @@ fn cluster_elements(mut elements: HashMap<usize, Element>) -> Vec<ClusterResult>
         let center = clusterable
             .iter()
             .max_by(|&&a, &&b| {
-                let count_a = elements[&a].neighbors.iter().filter(|n| !used.contains(n)).count();
-                let count_b = elements[&b].neighbors.iter().filter(|n| !used.contains(n)).count();
+                let count_a = elements[&a]
+                    .neighbors
+                    .iter()
+                    .filter(|n| !used.contains(n))
+                    .count();
+                let count_b = elements[&b]
+                    .neighbors
+                    .iter()
+                    .filter(|n| !used.contains(n))
+                    .count();
                 count_a.cmp(&count_b).then_with(|| b.cmp(&a))
             })
             .copied()
@@ -349,8 +358,8 @@ mod tests {
 
     #[test]
     fn test_calculate_contacts_with_real_data() {
-        use crate::structure::read_pdb;
         use crate::commands::run::combine_molecules;
+        use crate::structure::read_pdb;
 
         let receptor_model = read_pdb(&"data/A.pdb".to_string());
         let ligand_model = read_pdb(&"data/B.pdb".to_string());
@@ -367,7 +376,11 @@ mod tests {
         // All contacts should involve two different chains
         for contact in &contacts {
             let parts: Vec<&str> = contact.split_whitespace().collect();
-            assert_eq!(parts.len(), 4, "Contact format should be 'chain res chain res'");
+            assert_eq!(
+                parts.len(),
+                4,
+                "Contact format should be 'chain res chain res'"
+            );
             assert_ne!(parts[0], parts[2], "Contacts should be inter-chain");
         }
     }

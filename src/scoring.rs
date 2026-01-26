@@ -66,8 +66,18 @@ pub fn split_complex(pdb_file: &str) -> Vec<String> {
         // Parse ATOM lines by column position (PDB is fixed-column format)
         // Chain ID is at column 22 (0-indexed: 21)
         if line.starts_with("ATOM") && line.len() >= 22 {
-            let chain = line.chars().nth(21).unwrap_or(' ').to_string().trim().to_string();
-            let chain = if chain.is_empty() { " ".to_string() } else { chain };
+            let chain = line
+                .chars()
+                .nth(21)
+                .unwrap_or(' ')
+                .to_string()
+                .trim()
+                .to_string();
+            let chain = if chain.is_empty() {
+                " ".to_string()
+            } else {
+                chain
+            };
 
             // Add it to the hashmap if it doesn't exist
             if !atom_map.contains_key(&chain) {

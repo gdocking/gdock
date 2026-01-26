@@ -43,7 +43,7 @@ pub fn combine_molecules(receptor: &Molecule, ligand: &Molecule) -> Molecule {
 /// Default parameters for Hall of Fame
 const HALL_OF_FAME_MAX_SIZE: usize = 500;
 const HALL_OF_FAME_TOP_K: usize = 10;
-const UNIQUENESS_ROTATION_THRESHOLD: f64 = 0.2;    // ~11 degrees
+const UNIQUENESS_ROTATION_THRESHOLD: f64 = 0.2; // ~11 degrees
 const UNIQUENESS_TRANSLATION_THRESHOLD: f64 = 2.0; // 2 Å
 
 /// Number of output models after clustering
@@ -91,10 +91,7 @@ impl HallOfFame {
             return false;
         }
 
-        let new_genes: [f64; 6] = [
-            genes[0], genes[1], genes[2],
-            genes[3], genes[4], genes[5],
-        ];
+        let new_genes: [f64; 6] = [genes[0], genes[1], genes[2], genes[3], genes[4], genes[5]];
 
         // Check uniqueness against existing entries
         if !self.is_unique(&new_genes) {
@@ -161,9 +158,8 @@ impl HallOfFame {
     /// Remove worst entries when over capacity
     fn prune(&mut self) {
         // Sort by fitness (lower is better) and keep best
-        self.entries.sort_by(|a, b| {
-            a.fitness.partial_cmp(&b.fitness).unwrap()
-        });
+        self.entries
+            .sort_by(|a, b| a.fitness.partial_cmp(&b.fitness).unwrap());
         self.entries.truncate(self.max_size);
     }
 
@@ -183,15 +179,14 @@ impl HallOfFame {
     }
 
     /// Add top-K chromosomes from a population
-    pub fn add_from_population(
-        &mut self,
-        chromosomes: &[chromosome::Chromosome],
-        generation: u32,
-    ) {
+    pub fn add_from_population(&mut self, chromosomes: &[chromosome::Chromosome], generation: u32) {
         // Get indices sorted by fitness (best first)
         let mut indices: Vec<usize> = (0..chromosomes.len()).collect();
         indices.sort_by(|&a, &b| {
-            chromosomes[a].fitness.partial_cmp(&chromosomes[b].fitness).unwrap()
+            chromosomes[a]
+                .fitness
+                .partial_cmp(&chromosomes[b].fitness)
+                .unwrap()
         });
 
         // Try to add top-K
@@ -561,7 +556,10 @@ pub fn run(
         let best_score_ligand = final_best_score.apply_genes(&ligand_clone);
         let best_score_complex = combine_molecules(&receptor_clone, &best_score_ligand);
         let best_score_path = out_dir.join("best_by_score.pdb");
-        structure::write_pdb(&best_score_complex, &best_score_path.to_string_lossy().to_string());
+        structure::write_pdb(
+            &best_score_complex,
+            &best_score_path.to_string_lossy().to_string(),
+        );
 
         if let Some(ref e) = eval {
             let final_metrics = pop.eval_metrics(e);
@@ -576,7 +574,10 @@ pub fn run(
             let best_dockq_ligand = final_best_dockq.apply_genes(&ligand_clone);
             let best_dockq_complex = combine_molecules(&receptor_clone, &best_dockq_ligand);
             let best_dockq_path = out_dir.join("best_by_dockq.pdb");
-            structure::write_pdb(&best_dockq_complex, &best_dockq_path.to_string_lossy().to_string());
+            structure::write_pdb(
+                &best_dockq_complex,
+                &best_dockq_path.to_string_lossy().to_string(),
+            );
 
             // Write metrics.tsv
             let best_score_metrics = &final_metrics[best_fitness_idx];
@@ -601,7 +602,8 @@ pub fn run(
             );
 
             let metrics_path = out_dir.join("metrics.tsv");
-            let mut metrics_file = fs::File::create(&metrics_path).expect("Failed to create metrics file");
+            let mut metrics_file =
+                fs::File::create(&metrics_path).expect("Failed to create metrics file");
             writeln!(metrics_file, "model\tdockq\trmsd\tirmsd\tfnat\tscore").unwrap();
             writeln!(
                 metrics_file,
@@ -611,7 +613,8 @@ pub fn run(
                 best_score_metrics.irmsd,
                 best_score_metrics.fnat,
                 final_best_score.fitness
-            ).unwrap();
+            )
+            .unwrap();
             writeln!(
                 metrics_file,
                 "best_by_dockq\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
@@ -620,7 +623,8 @@ pub fn run(
                 best_dockq_metrics.irmsd,
                 best_dockq_metrics.fnat,
                 final_best_dockq.fitness
-            ).unwrap();
+            )
+            .unwrap();
 
             println!("  {} {}", "✓".green(), best_score_path.display());
             println!("  {} {}", "✓".green(), best_dockq_path.display());
@@ -628,7 +632,6 @@ pub fn run(
         } else {
             println!("  {} {}", "✓".green(), best_score_path.display());
         }
-
     } else {
         // =====================================================================
         // Clustering: Select diverse representative structures
@@ -641,7 +644,10 @@ pub fn run(
             hall_of_fame.len().to_string().cyan()
         );
 
-        println!("\n{}", "🔬 Clustering Hall of Fame structures".bold().cyan());
+        println!(
+            "\n{}",
+            "🔬 Clustering Hall of Fame structures".bold().cyan()
+        );
 
         // Reconstruct structures from Hall of Fame entries
         let hof_entries = hall_of_fame.entries();
@@ -659,7 +665,10 @@ pub fn run(
             .collect();
 
         // Run FCC clustering
-        let structures_only: Vec<Molecule> = hof_structures.iter().map(|(_, mol, _)| mol.clone()).collect();
+        let structures_only: Vec<Molecule> = hof_structures
+            .iter()
+            .map(|(_, mol, _)| mol.clone())
+            .collect();
         let cluster_config = ClusteringConfig::default();
         let clusters = clustering::cluster_structures(&structures_only, &cluster_config);
 
@@ -714,10 +723,15 @@ pub fn run(
         println!("\n{}", "💾 Saving Results".bold().cyan());
 
         let metrics_path = out_dir.join("metrics.tsv");
-        let mut metrics_file = fs::File::create(&metrics_path).expect("Failed to create metrics file");
+        let mut metrics_file =
+            fs::File::create(&metrics_path).expect("Failed to create metrics file");
 
         if eval.is_some() {
-            writeln!(metrics_file, "model\tcluster_size\tscore\tdockq\trmsd\tirmsd\tfnat").unwrap();
+            writeln!(
+                metrics_file,
+                "model\tcluster_size\tscore\tdockq\trmsd\tirmsd\tfnat"
+            )
+            .unwrap();
         } else {
             writeln!(metrics_file, "model\tcluster_size\tscore").unwrap();
         }
@@ -743,9 +757,15 @@ pub fn run(
                 writeln!(
                     metrics_file,
                     "{}\t{}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
-                    model_name, cluster_size, entry.fitness,
-                    metrics.dockq, metrics.rmsd, metrics.irmsd, metrics.fnat
-                ).unwrap();
+                    model_name,
+                    cluster_size,
+                    entry.fitness,
+                    metrics.dockq,
+                    metrics.rmsd,
+                    metrics.irmsd,
+                    metrics.fnat
+                )
+                .unwrap();
 
                 let dockq_str = if metrics.dockq >= 0.80 {
                     format!("{:.3}", metrics.dockq).green()
@@ -769,7 +789,8 @@ pub fn run(
                     metrics_file,
                     "{}\t{}\t{:.4}",
                     model_name, cluster_size, entry.fitness
-                ).unwrap();
+                )
+                .unwrap();
 
                 println!(
                     "  {}: cluster={} score={:.1}",
@@ -814,10 +835,15 @@ pub fn run(
 
                 writeln!(
                     metrics_file,
-                    "{}\t{}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
-                    model_name, "-", entry.fitness,
-                    metrics.dockq, metrics.rmsd, metrics.irmsd, metrics.fnat
-                ).unwrap();
+                    "{}\t-\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
+                    model_name,
+                    entry.fitness,
+                    metrics.dockq,
+                    metrics.rmsd,
+                    metrics.irmsd,
+                    metrics.fnat
+                )
+                .unwrap();
 
                 let dockq_str = if metrics.dockq >= 0.80 {
                     format!("{:.3}", metrics.dockq).green()
@@ -836,17 +862,9 @@ pub fn run(
                     dockq_str
                 );
             } else {
-                writeln!(
-                    metrics_file,
-                    "{}\t{}\t{:.4}",
-                    model_name, "-", entry.fitness
-                ).unwrap();
+                writeln!(metrics_file, "{}\t-\t{:.4}", model_name, entry.fitness).unwrap();
 
-                println!(
-                    "  {}: score={:.1}",
-                    model_name.green(),
-                    entry.fitness
-                );
+                println!("  {}: score={:.1}", model_name.green(), entry.fitness);
             }
 
             println!("    {} {}", "✓".bright_black(), pdb_path.display());
@@ -963,7 +981,8 @@ mod tests {
         for i in 0..5 {
             let genes = [
                 (i as f64) * 1.0, // Vary rotation significantly
-                0.0, 0.0,
+                0.0,
+                0.0,
                 base_translation[0] + (i as f64) * 10.0, // Vary translation
                 base_translation[1],
                 base_translation[2],

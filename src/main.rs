@@ -195,8 +195,11 @@ fn main() {
                     );
                     default_threads
                 }
-                Some(n) if n == 0 => {
-                    eprintln!("Warning: --nproc must be at least 1, using {}", default_threads);
+                Some(0) => {
+                    eprintln!(
+                        "Warning: --nproc must be at least 1, using {}",
+                        default_threads
+                    );
                     default_threads
                 }
                 Some(n) => n,
