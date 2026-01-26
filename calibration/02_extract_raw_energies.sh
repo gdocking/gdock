@@ -89,7 +89,7 @@ echo
 echo "Merging results..."
 
 # Initialize output file with header
-echo -e "complex\tmodel\tscore\tvdw\telec\tdesolv\tclash_pct\tw_vdw\tw_elec\tw_desolv\tw_air" > "$output_file"
+echo -e "complex\tmodel\tscore\tvdw\telec\tdesolv\tw_vdw\tw_elec\tw_desolv\tw_air" > "$output_file"
 
 # Merge all temp files (sorted by complex name for reproducibility)
 for f in $(ls "$TEMP_DIR"/*.tsv 2>/dev/null | sort); do
