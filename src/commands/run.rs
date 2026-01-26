@@ -19,6 +19,18 @@ use crate::scoring;
 use crate::structure::{self, read_pdb, Molecule};
 use crate::utils;
 
+/// Configuration for a docking run
+pub struct RunConfig {
+    pub receptor_file: String,
+    pub ligand_file: String,
+    pub restraint_pairs: Vec<(i32, i32)>,
+    pub reference_file: Option<String>,
+    pub weights: EnergyWeights,
+    pub debug_mode: bool,
+    pub output_dir: Option<String>,
+    pub no_clustering: bool,
+}
+
 /// Combines receptor and ligand into a single molecule for PDB output
 pub fn combine_molecules(receptor: &Molecule, ligand: &Molecule) -> Molecule {
     let mut combined = Molecule::new();
@@ -212,16 +224,17 @@ impl Default for HallOfFame {
 // ============================================================================
 
 /// Run the genetic algorithm docking
-pub fn run(
-    receptor_file: String,
-    ligand_file: String,
-    restraint_pairs: Vec<(i32, i32)>,
-    reference_file: Option<String>,
-    weights: EnergyWeights,
-    debug_mode: bool,
-    output_dir: Option<String>,
-    no_clustering: bool,
-) {
+pub fn run(config: RunConfig) {
+    let RunConfig {
+        receptor_file,
+        ligand_file,
+        restraint_pairs,
+        reference_file,
+        weights,
+        debug_mode,
+        output_dir,
+        no_clustering,
+    } = config;
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     println!(
         "\n{} {}",

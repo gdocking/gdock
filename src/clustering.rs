@@ -50,6 +50,9 @@ struct Element {
     neighbors: HashSet<usize>,
 }
 
+/// Type alias for residue coordinate map (chain, resseq) -> list of (x, y, z) coordinates
+type ResidueCoordMap = HashMap<(char, i16), Vec<(f64, f64, f64)>>;
+
 /// Calculate inter-chain contacts for a structure.
 ///
 /// A contact is defined as any pair of residues from different chains
@@ -58,7 +61,7 @@ struct Element {
 /// Returns a set of contact strings in format "chainA resA chainB resB".
 pub fn calculate_contacts(molecule: &Molecule, contact_distance: f64) -> HashSet<String> {
     // Group atoms by residue (chain + resseq)
-    let mut residues: HashMap<(char, i16), Vec<(f64, f64, f64)>> = HashMap::new();
+    let mut residues: ResidueCoordMap = HashMap::new();
 
     for atom in &molecule.0 {
         // Skip hydrogen atoms

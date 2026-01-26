@@ -250,7 +250,7 @@ fn main() {
             let output_dir = sub_m.get_one::<String>("output-dir").cloned();
             let no_clustering = sub_m.get_flag("no-clust");
 
-            commands::run::run(
+            commands::run::run(commands::run::RunConfig {
                 receptor_file,
                 ligand_file,
                 restraint_pairs,
@@ -259,7 +259,7 @@ fn main() {
                 debug_mode,
                 output_dir,
                 no_clustering,
-            );
+            });
         }
         Some(("score", sub_m)) => {
             let receptor_file = sub_m.get_one::<String>("receptor").unwrap().clone();
