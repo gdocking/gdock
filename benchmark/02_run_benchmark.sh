@@ -66,7 +66,8 @@ for complex_dir in "$DATA_DIR"/*/; do
   # Count atoms and restraints for timing analysis
   n_rec_atoms=$(grep -c "^ATOM" "$receptor" 2>/dev/null || echo 0)
   n_lig_atoms=$(grep -c "^ATOM" "$ligand" 2>/dev/null || echo 0)
-  n_restraints=$(wc -l < "$restraints" 2>/dev/null || echo 0)
+  # Count restraints (number of colon-separated pairs, e.g., "39:47,40:48" = 2 pairs)
+  n_restraints=$(grep -o ':' "$restraints" 2>/dev/null | wc -l || echo 0)
 
   # Run gdock with timing
   start_time=$(date +%s.%N)
