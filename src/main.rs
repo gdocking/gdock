@@ -135,6 +135,14 @@ fn main() {
                         .help("Disable clustering, output best_by_score and best_by_dockq only")
                         .action(clap::ArgAction::SetTrue),
                 )
+                .arg(
+                    clap::Arg::new("nproc")
+                        .long("nproc")
+                        .short('n')
+                        .value_name("NUM")
+                        .help("Number of processors to use (default: total - 2)")
+                        .value_parser(clap::value_parser!(usize)),
+                )
                 .args(weight_args.clone()),
         )
         .subcommand(
@@ -173,6 +181,32 @@ fn main() {
 
     match matches.subcommand() {
         Some(("run", sub_m)) => {
+            // Configure thread pool based on --nproc
+            let total_cpus = std::thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(1);
+            let default_threads = if total_cpus > 2 { total_cpus - 2 } else { 1 };
+            let requested_threads = sub_m.get_one::<usize>("nproc").copied();
+            let num_threads = match requested_threads {
+                Some(n) if n > total_cpus => {
+                    eprintln!(
+                        "Warning: requested {} threads but only {} available, using {}",
+                        n, total_cpus, default_threads
+                    );
+                    default_threads
+                }
+                Some(n) if n == 0 => {
+                    eprintln!("Warning: --nproc must be at least 1, using {}", default_threads);
+                    default_threads
+                }
+                Some(n) => n,
+                None => default_threads,
+            };
+            rayon::ThreadPoolBuilder::new()
+                .num_threads(num_threads)
+                .build_global()
+                .unwrap_or_else(|e| eprintln!("Warning: could not set thread pool: {}", e));
+
             let receptor_file = sub_m.get_one::<String>("receptor").unwrap().clone();
             let ligand_file = sub_m.get_one::<String>("ligand").unwrap().clone();
             let reference_file = sub_m.get_one::<String>("reference").cloned();

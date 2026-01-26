@@ -19,15 +19,14 @@ pub fn score(
     let receptor = receptor_model.0[0].clone();
 
     // Print header line for parser-friendly output
-    // clash_pct is always included for calibration purposes
     if restraint_pairs.is_some() && reference_file.is_some() {
-        println!("model\tscore\tvdw\telec\tdesolv\tair\tclash_pct\tw_vdw\tw_elec\tw_desolv\tw_air\tdockq\tlrmsd\tirmsd\tfnat");
+        println!("model\tscore\tvdw\telec\tdesolv\tair\tw_vdw\tw_elec\tw_desolv\tw_air\tdockq\tlrmsd\tirmsd\tfnat");
     } else if restraint_pairs.is_some() {
-        println!("model\tscore\tvdw\telec\tdesolv\tair\tclash_pct\tw_vdw\tw_elec\tw_desolv\tw_air");
+        println!("model\tscore\tvdw\telec\tdesolv\tair\tw_vdw\tw_elec\tw_desolv\tw_air");
     } else if reference_file.is_some() {
-        println!("model\tscore\tvdw\telec\tdesolv\tclash_pct\tw_vdw\tw_elec\tw_desolv\tw_air\tdockq\tlrmsd\tirmsd\tfnat");
+        println!("model\tscore\tvdw\telec\tdesolv\tw_vdw\tw_elec\tw_desolv\tw_air\tdockq\tlrmsd\tirmsd\tfnat");
     } else {
-        println!("model\tscore\tvdw\telec\tdesolv\tclash_pct\tw_vdw\tw_elec\tw_desolv\tw_air");
+        println!("model\tscore\tvdw\telec\tdesolv\tw_vdw\tw_elec\tw_desolv\tw_air");
     }
 
     for (model_idx, ligand) in ligand_model.0.iter().enumerate() {
@@ -36,9 +35,6 @@ pub fn score(
         let vdw = fitness::vdw_energy(&receptor, ligand);
         let elec = fitness::elec_energy(&receptor, ligand);
         let desolv = fitness::desolv_energy(&receptor, ligand);
-
-        // Calculate clash percentage
-        let clash_result = evaluator::calculate_clashes(&receptor, ligand);
 
         // Calculate AIR energy only if restraints are provided
         let air = match &restraint_pairs {
@@ -61,9 +57,6 @@ pub fn score(
         if restraint_pairs.is_some() {
             output.push_str(&format!("\t{:.3}", air));
         }
-
-        // Add clash percentage
-        output.push_str(&format!("\t{:.2}", clash_result.clash_percentage));
 
         output.push_str(&format!(
             "\t{}\t{}\t{}\t{}",

@@ -582,52 +582,44 @@ pub fn run(
             let best_score_metrics = &final_metrics[best_fitness_idx];
             let best_dockq_metrics = &final_metrics[best_dockq_idx];
 
-            // Calculate clashes
-            let best_score_clashes = evaluator::calculate_clashes(&receptor_clone, &best_score_ligand);
-            let best_dockq_clashes = evaluator::calculate_clashes(&receptor_clone, &best_dockq_ligand);
-
             println!("\n{}", "📊 Final Metrics".bold().cyan());
             println!(
-                "  {} DockQ={:.3} RMSD={:.2}Å iRMSD={:.2}Å FNAT={:.3} clash={:.1}%",
+                "  {} DockQ={:.3} RMSD={:.2}Å iRMSD={:.2}Å FNAT={:.3}",
                 "Best by score:".green(),
                 best_score_metrics.dockq,
                 best_score_metrics.rmsd,
                 best_score_metrics.irmsd,
-                best_score_metrics.fnat,
-                best_score_clashes.clash_percentage
+                best_score_metrics.fnat
             );
             println!(
-                "  {} DockQ={:.3} RMSD={:.2}Å iRMSD={:.2}Å FNAT={:.3} clash={:.1}%",
+                "  {} DockQ={:.3} RMSD={:.2}Å iRMSD={:.2}Å FNAT={:.3}",
                 "Best by DockQ:".green(),
                 best_dockq_metrics.dockq,
                 best_dockq_metrics.rmsd,
                 best_dockq_metrics.irmsd,
-                best_dockq_metrics.fnat,
-                best_dockq_clashes.clash_percentage
+                best_dockq_metrics.fnat
             );
 
             let metrics_path = out_dir.join("metrics.tsv");
             let mut metrics_file = fs::File::create(&metrics_path).expect("Failed to create metrics file");
-            writeln!(metrics_file, "model\tdockq\trmsd\tirmsd\tfnat\tscore\tclash_pct").unwrap();
+            writeln!(metrics_file, "model\tdockq\trmsd\tirmsd\tfnat\tscore").unwrap();
             writeln!(
                 metrics_file,
-                "best_by_score\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.2}",
+                "best_by_score\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
                 best_score_metrics.dockq,
                 best_score_metrics.rmsd,
                 best_score_metrics.irmsd,
                 best_score_metrics.fnat,
-                final_best_score.fitness,
-                best_score_clashes.clash_percentage
+                final_best_score.fitness
             ).unwrap();
             writeln!(
                 metrics_file,
-                "best_by_dockq\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.2}",
+                "best_by_dockq\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
                 best_dockq_metrics.dockq,
                 best_dockq_metrics.rmsd,
                 best_dockq_metrics.irmsd,
                 best_dockq_metrics.fnat,
-                final_best_dockq.fitness,
-                best_dockq_clashes.clash_percentage
+                final_best_dockq.fitness
             ).unwrap();
 
             println!("  {} {}", "✓".green(), best_score_path.display());
@@ -725,9 +717,9 @@ pub fn run(
         let mut metrics_file = fs::File::create(&metrics_path).expect("Failed to create metrics file");
 
         if eval.is_some() {
-            writeln!(metrics_file, "model\tcluster_size\tscore\tdockq\trmsd\tirmsd\tfnat\tclash_pct").unwrap();
+            writeln!(metrics_file, "model\tcluster_size\tscore\tdockq\trmsd\tirmsd\tfnat").unwrap();
         } else {
-            writeln!(metrics_file, "model\tcluster_size\tscore\tclash_pct").unwrap();
+            writeln!(metrics_file, "model\tcluster_size\tscore").unwrap();
         }
 
         println!("\n{}", "📊 Output Models (FCC Clustered)".bold().cyan());
@@ -745,18 +737,14 @@ pub fn run(
             let pdb_path = out_dir.join(format!("{}.pdb", model_name));
             structure::write_pdb(&complex, &pdb_path.to_string_lossy().to_string());
 
-            // Calculate clashes
-            let clash_result = evaluator::calculate_clashes(&receptor_clone, &ligand);
-
             if let Some(ref e) = eval {
                 let metrics = e.calc_metrics(&ligand);
 
                 writeln!(
                     metrics_file,
-                    "{}\t{}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.2}",
+                    "{}\t{}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
                     model_name, cluster_size, entry.fitness,
-                    metrics.dockq, metrics.rmsd, metrics.irmsd, metrics.fnat,
-                    clash_result.clash_percentage
+                    metrics.dockq, metrics.rmsd, metrics.irmsd, metrics.fnat
                 ).unwrap();
 
                 let dockq_str = if metrics.dockq >= 0.80 {
@@ -770,27 +758,24 @@ pub fn run(
                 };
 
                 println!(
-                    "  {}: cluster={} score={:.1} DockQ={} clash={:.1}%",
+                    "  {}: cluster={} score={:.1} DockQ={}",
                     model_name.green(),
                     format!("{:>3}", cluster_size).cyan(),
                     entry.fitness,
-                    dockq_str,
-                    clash_result.clash_percentage
+                    dockq_str
                 );
             } else {
                 writeln!(
                     metrics_file,
-                    "{}\t{}\t{:.4}\t{:.2}",
-                    model_name, cluster_size, entry.fitness,
-                    clash_result.clash_percentage
+                    "{}\t{}\t{:.4}",
+                    model_name, cluster_size, entry.fitness
                 ).unwrap();
 
                 println!(
-                    "  {}: cluster={} score={:.1} clash={:.1}%",
+                    "  {}: cluster={} score={:.1}",
                     model_name.green(),
                     format!("{:>3}", cluster_size).cyan(),
-                    entry.fitness,
-                    clash_result.clash_percentage
+                    entry.fitness
                 );
             }
 
@@ -824,18 +809,14 @@ pub fn run(
             let pdb_path = out_dir.join(format!("{}.pdb", model_name));
             structure::write_pdb(&complex, &pdb_path.to_string_lossy().to_string());
 
-            // Calculate clashes
-            let clash_result = evaluator::calculate_clashes(&receptor_clone, &ligand);
-
             if let Some(ref e) = eval {
                 let metrics = e.calc_metrics(&ligand);
 
                 writeln!(
                     metrics_file,
-                    "{}\t{}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.2}",
+                    "{}\t{}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
                     model_name, "-", entry.fitness,
-                    metrics.dockq, metrics.rmsd, metrics.irmsd, metrics.fnat,
-                    clash_result.clash_percentage
+                    metrics.dockq, metrics.rmsd, metrics.irmsd, metrics.fnat
                 ).unwrap();
 
                 let dockq_str = if metrics.dockq >= 0.80 {
@@ -849,25 +830,22 @@ pub fn run(
                 };
 
                 println!(
-                    "  {}: score={:.1} DockQ={} clash={:.1}%",
+                    "  {}: score={:.1} DockQ={}",
                     model_name.green(),
                     entry.fitness,
-                    dockq_str,
-                    clash_result.clash_percentage
+                    dockq_str
                 );
             } else {
                 writeln!(
                     metrics_file,
-                    "{}\t{}\t{:.4}\t{:.2}",
-                    model_name, "-", entry.fitness,
-                    clash_result.clash_percentage
+                    "{}\t{}\t{:.4}",
+                    model_name, "-", entry.fitness
                 ).unwrap();
 
                 println!(
-                    "  {}: score={:.1} clash={:.1}%",
+                    "  {}: score={:.1}",
                     model_name.green(),
-                    entry.fitness,
-                    clash_result.clash_percentage
+                    entry.fitness
                 );
             }
 
