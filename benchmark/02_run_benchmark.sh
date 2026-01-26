@@ -14,19 +14,24 @@ NPROC="${1:-}"
 # Create results directory
 mkdir -p "$RESULTS_DIR"
 
+# Determine actual number of processors being used
+if [[ -n "$NPROC" ]]; then
+  NPROC_USED="$NPROC"
+else
+  total_cpus=$(nproc)
+  NPROC_USED=$((total_cpus - 2))
+  [[ $NPROC_USED -lt 1 ]] && NPROC_USED=1
+fi
+
 # Initialize timing summary file
-echo -e "complex\tdockq\ttime_s\trec_atoms\tlig_atoms\trestraints" > "$RESULTS_DIR/timing.tsv"
+echo -e "complex\tdockq\ttime_s\trec_atoms\tlig_atoms\trestraints\tnproc" > "$RESULTS_DIR/timing.tsv"
 
 # Count total complexes for progress
 total=$(ls -d "$DATA_DIR"/*/ 2>/dev/null | wc -l)
 current=0
 
 echo "Running benchmark on $total complexes"
-if [[ -n "$NPROC" ]]; then
-  echo "Using $NPROC processors per run"
-else
-  echo "Using default processors (total - 2)"
-fi
+echo "Using $NPROC_USED processors per run"
 echo ""
 
 for complex_dir in "$DATA_DIR"/*/; do
@@ -81,7 +86,7 @@ for complex_dir in "$DATA_DIR"/*/; do
       dockq=$(awk -F'\t' 'NR==2 {print $4}' "$output_dir/metrics.tsv")
       printf "DockQ=%.3f  time=%.1fs  (rec=%d lig=%d res=%d)\n" "$dockq" "$elapsed" "$n_rec_atoms" "$n_lig_atoms" "$n_restraints"
       # Append to timing summary
-      echo -e "$pdb_id\t$dockq\t$elapsed\t$n_rec_atoms\t$n_lig_atoms\t$n_restraints" >> "$RESULTS_DIR/timing.tsv"
+      echo -e "$pdb_id\t$dockq\t$elapsed\t$n_rec_atoms\t$n_lig_atoms\t$n_restraints\t$NPROC_USED" >> "$RESULTS_DIR/timing.tsv"
     else
       printf "OK  time=%.1fs\n" "$elapsed"
     fi
