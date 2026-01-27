@@ -86,6 +86,9 @@ impl Evaluator {
 
         // Calculate the sum of squared distances between corresponding atoms
         let n = self.reference.0.len();
+        if n == 0 {
+            return 0.0;
+        }
         let sum_squared_distances = &ligand
             .0
             .iter()
@@ -104,6 +107,9 @@ impl Evaluator {
 
         // Calculate the sum of squared distances between corresponding atoms
         let n = self.reference_interface.0.len();
+        if n == 0 {
+            return 0.0;
+        }
         let sum_squared_distances = &target_ligand
             .0
             .iter()
