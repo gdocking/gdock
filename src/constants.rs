@@ -19,9 +19,9 @@ pub const CONVERGENCE_WINDOW: u64 = 10; // Stop if no improvement for this many 
 //  These defaults are based on a score calibration,
 //   check the `calibration/` directory of the base
 //   repository for more information
-pub const DEFAULT_W_VDW: f64 = 4.9;
-pub const DEFAULT_W_ELEC: f64 = 0.010;
-pub const DEFAULT_W_DESOLV: f64 = 0.1;
+pub const DEFAULT_W_VDW: f64 = 0.4;
+pub const DEFAULT_W_ELEC: f64 = 0.05;
+pub const DEFAULT_W_DESOLV: f64 = 3.4;
 pub const DEFAULT_W_AIR: f64 = 1.0;
 
 /// Energy function weights for scoring

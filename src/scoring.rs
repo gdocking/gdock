@@ -1,5 +1,4 @@
 use crate::structure;
-use regex::Regex;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
@@ -63,10 +62,22 @@ pub fn split_complex(pdb_file: &str) -> Vec<String> {
 
     // Open the complex_file and read the atoms
     let file = File::open(pdb_file).expect("Cannot open file");
-    let pdb_re = Regex::new(r"ATOM\s{2}((?:\s|\d){5})\s((?:\s|.){4})((?:\s|\w){1})((?:\s|\w){3})\s((?:\s|\w){1})((?:\s|\w){4})((?:\s|\w){1})\s{3}((?:\s|.){8})((?:\s|.){8})((?:\s|.){8})((?:\s|.){6})((?:\s|.){6})\s{10}((?:\s|\w){2})((?:\s|\w){2})").unwrap();
     for line in BufReader::new(file).lines().map_while(Result::ok) {
-        if let Some(cap) = pdb_re.captures(&line) {
-            let chain = cap[5].trim().to_string();
+        // Parse ATOM lines by column position (PDB is fixed-column format)
+        // Chain ID is at column 22 (0-indexed: 21)
+        if line.starts_with("ATOM") && line.len() >= 22 {
+            let chain = line
+                .chars()
+                .nth(21)
+                .unwrap_or(' ')
+                .to_string()
+                .trim()
+                .to_string();
+            let chain = if chain.is_empty() {
+                " ".to_string()
+            } else {
+                chain
+            };
 
             // Add it to the hashmap if it doesn't exist
             if !atom_map.contains_key(&chain) {

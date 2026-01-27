@@ -1,7 +1,7 @@
 /// This module contains the genetic algorithm implementation.
 use super::constants::CROSSOVER_RATE;
 use crate::chromosome::Chromosome;
-use crate::StdRng;
+use rand::rngs::StdRng;
 use rand::Rng;
 
 pub fn crossover(

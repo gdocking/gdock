@@ -28,11 +28,11 @@ evaluate_weights <- function(df, complexes, w_vdw, w_elec, w_desolv) {
     # Get complex subset
     comp_data <- df[df$complex == comp, ]
 
-    # Sort
+    # Sort by new score
     comp_data <- comp_data[order(comp_data$new_score), ]
     comp_data$rank <- 1:nrow(comp_data)
 
-    # Find model #1 and where its ranked 
+    # Find model #1 and where its ranked
     model1_rank <- comp_data$rank[comp_data$model == 1]
     ranks <- c(ranks, model1_rank)
 
@@ -73,9 +73,10 @@ cat(sprintf("Loaded %d rows for %d complexes\n", nrow(df), length(complexes)))
 #===========================================================================#
 # Define grid
 #===========================================================================#
-w_vdw_values <- seq(0.1, 5.0, by = 0.1)
-w_elec_values <- seq(0.01, 0.3, by = 0.005)
-w_desolv_values <- seq(0.1, 3.0, by = 0.05)
+# Focused on low-VDW, high-desolv region based on clash analysis
+w_vdw_values <- seq(0.1, 1.5, by = 0.05)
+w_elec_values <- seq(0.01, 0.3, by = 0.01)
+w_desolv_values <- seq(1.0, 4.0, by = 0.1)
 
 weights_grid <- expand.grid(
   w_vdw = w_vdw_values,
@@ -130,7 +131,7 @@ results_df <- results_df[order(-results_df$top50, -results_df$top20,
 
 # Print best result details
 cat("\n=== BEST RESULT ===\n")
-cat("These is the weight combination that had the higher success rate on top50\n\n")
+cat("Weight combination with highest top50 success rate\n\n")
 best <- results_df[1, ]
 cat(sprintf("Weights:\n"))
 cat(sprintf("  w_vdw    = %.3f\n", best$w_vdw))

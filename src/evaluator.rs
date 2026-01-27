@@ -173,6 +173,52 @@ fn calculate_interface(
     (receptor_interface, reference_interface)
 }
 
+/// Result of clash analysis
+#[derive(Debug)]
+pub struct ClashResult {
+    /// Number of atom pairs within 2Å (clashes)
+    pub clashes: usize,
+    /// Number of atom pairs within 5Å (interface contacts)
+    pub interface_contacts: usize,
+    /// Percentage of interface contacts that are clashes
+    pub clash_percentage: f64,
+}
+
+/// Calculate clashes between receptor and ligand
+/// Interface: atom pairs within 5Å
+/// Clash: atom pairs within 2Å
+pub fn calculate_clashes(
+    receptor: &structure::Molecule,
+    ligand: &structure::Molecule,
+) -> ClashResult {
+    let mut clashes = 0;
+    let mut interface_contacts = 0;
+
+    for rec_atom in &receptor.0 {
+        for lig_atom in &ligand.0 {
+            let distance = rec_atom.distance_to(lig_atom);
+            if distance <= 5.0 {
+                interface_contacts += 1;
+                if distance < 2.0 {
+                    clashes += 1;
+                }
+            }
+        }
+    }
+
+    let clash_percentage = if interface_contacts > 0 {
+        (clashes as f64 / interface_contacts as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    ClashResult {
+        clashes,
+        interface_contacts,
+        clash_percentage,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -431,5 +477,69 @@ mod tests {
             (metrics.dockq - 1.0).abs() < 1e-10,
             "DockQ should be 1.0 for perfect match"
         );
+    }
+
+    #[test]
+    fn test_calculate_clashes_no_clash() {
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom(3.0, 0.0, 0.0, 10, 'B')); // 3Å apart - in interface but no clash
+
+        let result = calculate_clashes(&receptor, &ligand);
+
+        assert_eq!(result.interface_contacts, 1);
+        assert_eq!(result.clashes, 0);
+        assert_eq!(result.clash_percentage, 0.0);
+    }
+
+    #[test]
+    fn test_calculate_clashes_with_clash() {
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom(1.5, 0.0, 0.0, 10, 'B')); // 1.5Å apart - clash!
+
+        let result = calculate_clashes(&receptor, &ligand);
+
+        assert_eq!(result.interface_contacts, 1);
+        assert_eq!(result.clashes, 1);
+        assert_eq!(result.clash_percentage, 100.0);
+    }
+
+    #[test]
+    fn test_calculate_clashes_mixed() {
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+        receptor.0.push(create_test_atom(0.0, 4.0, 0.0, 2, 'A'));
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom(1.0, 0.0, 0.0, 10, 'B')); // 1Å from atom 1 (clash), ~4.1Å from atom 2 (interface)
+        ligand.0.push(create_test_atom(0.0, 1.0, 0.0, 11, 'B')); // 1Å from atom 1 (clash), 3Å from atom 2 (interface)
+
+        let result = calculate_clashes(&receptor, &ligand);
+
+        // Atom pairs within 5Å: (1,10), (1,11), (2,10), (2,11)
+        assert_eq!(result.interface_contacts, 4);
+        // Clashes (<2Å): (1,10) at 1Å, (1,11) at 1Å
+        assert_eq!(result.clashes, 2);
+        assert_eq!(result.clash_percentage, 50.0);
+    }
+
+    #[test]
+    fn test_calculate_clashes_no_interface() {
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom(10.0, 0.0, 0.0, 10, 'B')); // 10Å apart - not in interface
+
+        let result = calculate_clashes(&receptor, &ligand);
+
+        assert_eq!(result.interface_contacts, 0);
+        assert_eq!(result.clashes, 0);
+        assert_eq!(result.clash_percentage, 0.0);
     }
 }
