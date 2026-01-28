@@ -108,10 +108,6 @@ impl Chromosome {
         }
 
         // Normal mode: calculate all energy components
-        // vdw 1.0 - prevent clashes and guide packing
-        // elec 0.5 - moderate electrostatic influence
-        // desolv 0.5 - burial
-        // air 100.0 -> let restraints guide id
         self.vdw = fitness::vdw_energy(receptor, &target_ligand);
         self.elec = fitness::elec_energy(receptor, &target_ligand);
         self.desolv = fitness::desolv_energy(receptor, &target_ligand);
