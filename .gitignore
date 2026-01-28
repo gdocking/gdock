@@ -209,3 +209,5 @@ data/
 # Results
 results/
 benchmark/complexes.txt
+paper/jats
+paper/paper.pdf
