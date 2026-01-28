@@ -45,11 +45,19 @@ fn parse_restraints(restraints_str: &str) -> Result<Vec<(i32, i32)>, String> {
 
 /// Helper functions to parse restraints pair from a file
 fn parse_restraints_file(restraints_file_path: &str) -> Result<Vec<(i32, i32)>, String> {
-    let mut file = File::open(restraints_file_path)
-        .map_err(|e| format!("Cannot open restraints file '{}': {}", restraints_file_path, e))?;
+    let mut file = File::open(restraints_file_path).map_err(|e| {
+        format!(
+            "Cannot open restraints file '{}': {}",
+            restraints_file_path, e
+        )
+    })?;
     let mut contents = String::new();
-    file.read_to_string(&mut contents)
-        .map_err(|e| format!("Cannot read restraints file '{}': {}", restraints_file_path, e))?;
+    file.read_to_string(&mut contents).map_err(|e| {
+        format!(
+            "Cannot read restraints file '{}': {}",
+            restraints_file_path, e
+        )
+    })?;
     parse_restraints(&contents)
 }
 
@@ -272,19 +280,17 @@ fn main() {
             let ligand_file = sub_m.get_one::<String>("ligand").unwrap().clone();
             let reference_file = sub_m.get_one::<String>("reference").cloned();
 
-            let restraint_pairs = sub_m
-                .get_one::<String>("restraints")
-                .map(|s| {
-                    let result = if std::path::Path::new(s).is_file() {
-                        parse_restraints_file(s)
-                    } else {
-                        parse_restraints(s)
-                    };
-                    result.unwrap_or_else(|e| {
-                        eprintln!("Error: {}", e);
-                        std::process::exit(1);
-                    })
-                });
+            let restraint_pairs = sub_m.get_one::<String>("restraints").map(|s| {
+                let result = if std::path::Path::new(s).is_file() {
+                    parse_restraints_file(s)
+                } else {
+                    parse_restraints(s)
+                };
+                result.unwrap_or_else(|e| {
+                    eprintln!("Error: {}", e);
+                    std::process::exit(1);
+                })
+            });
 
             let weights = constants::EnergyWeights::new(
                 sub_m
@@ -357,6 +363,8 @@ mod tests {
     fn test_parse_restraints_invalid_number() {
         let result = parse_restraints("abc:45");
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Invalid receptor residue number"));
+        assert!(result
+            .unwrap_err()
+            .contains("Invalid receptor residue number"));
     }
 }
