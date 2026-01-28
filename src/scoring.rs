@@ -27,9 +27,12 @@ pub fn read_complex(pdbf: &str) -> (structure::Molecule, structure::Molecule) {
     let mol_a = structure::read_pdb(&molecules[0]).0[0].clone();
     let mol_b = structure::read_pdb(&molecules[1]).0[0].clone();
 
-    // Delete the files
+    // Delete the files and temp directory
     std::fs::remove_file(&molecules[0]).unwrap();
     std::fs::remove_file(&molecules[1]).unwrap();
+    if let Some(parent) = std::path::Path::new(&molecules[0]).parent() {
+        let _ = std::fs::remove_dir(parent);
+    }
 
     (mol_a, mol_b)
 }
@@ -178,29 +181,6 @@ mod tests {
             let _ = fs::remove_dir_all(parent);
         }
     }
-
-    // #[test]
-    // fn test_split_complex_chain_separation() {
-    //     let result = split_complex("data/2oob.pdb");
-    //
-    //     let mol_a = structure::read_pdb(&result[0]);
-    //     let mol_b = structure::read_pdb(&result[1]);
-    //
-    //     // All atoms in mol_a should be chain A
-    //     for atom in &mol_a.0 {
-    //         assert_eq!(atom.chainid, 'A');
-    //     }
-    //
-    //     // All atoms in mol_b should be chain B
-    //     for atom in &mol_b.0 {
-    //         assert_eq!(atom.chainid, 'B');
-    //     }
-    //
-    //     // Clean up
-    //     if let Some(parent) = Path::new(&result[0]).parent() {
-    //         let _ = fs::remove_dir_all(parent);
-    //     }
-    // }
 
     #[test]
     fn test_read_complex_returns_two_molecules() {

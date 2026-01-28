@@ -129,11 +129,6 @@ impl Molecule {
         }
         self
     }
-
-    // // Add the restraints to the molecule
-    // pub fn add_restraints(&mut self, restraints: Vec<i16>) {
-    //     self.1 = restraints;
-    // }
 }
 
 impl Atom {
@@ -275,7 +270,7 @@ fn process_atom_line(line: &str) -> Option<Atom> {
 }
 
 // Reads a PDB file and returns a `Model` struct.
-pub fn read_pdb(pdb_file: &String) -> Model {
+pub fn read_pdb(pdb_file: &str) -> Model {
     let mut model = Model::new();
     let mut molecule = Molecule::new();
     let mut has_model_records = false;
@@ -305,7 +300,7 @@ pub fn read_pdb(pdb_file: &String) -> Model {
 }
 
 // Output a Molecule in PDB format
-pub fn write_pdb(molecule: &Molecule, output_file: &String) {
+pub fn write_pdb(molecule: &Molecule, output_file: &str) {
     // Write the output string to the file
     let mut pdb_string = String::new();
     for atom in &molecule.0 {

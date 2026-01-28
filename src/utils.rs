@@ -74,21 +74,6 @@ pub fn get_unique_tempdir() -> PathBuf {
     env::temp_dir().join(format!("gdock_{}_{}", std::process::id(), nanos))
 }
 
-// pub fn is_converging(arr: &Vec<f64>) -> bool {
-//     // Check if the last 10 values are within 0.01 of the last value
-//     let mut last = arr[arr.len() - 1];
-
-//     last = (last * 100.0).round() / 100.0;
-//     let mut count = 0;
-//     for i in (arr.len() - 10)..arr.len() {
-//         if (arr[i] - last).abs() < 0.1 {
-//             count += 1;
-//         }
-//         last = arr[i];
-//     }
-//     count == 10
-// }
-
 pub fn position_ligand(
     receptor: &structure::Molecule,
     mut ligand: structure::Molecule,

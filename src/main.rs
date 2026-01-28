@@ -18,36 +18,46 @@ use std::fs::File;
 use std::io::prelude::*;
 
 /// Helper to parse restraint pairs from string format "rec1:lig1,rec2:lig2,..."
-fn parse_restraints(restraints_str: &str) -> Vec<(i32, i32)> {
+fn parse_restraints(restraints_str: &str) -> Result<Vec<(i32, i32)>, String> {
     restraints_str
         .split(',')
         .filter(|pair| !pair.trim().is_empty())
         .map(|pair| {
             let parts: Vec<&str> = pair.trim().split(':').collect();
             if parts.len() != 2 {
-                panic!(
+                return Err(format!(
                     "Invalid restraint format: '{}'. Expected format: 'receptor:ligand'",
                     pair
-                );
+                ));
             }
             let rec = parts[0]
                 .trim()
                 .parse::<i32>()
-                .unwrap_or_else(|_| panic!("Invalid receptor residue number: '{}'", parts[0]));
+                .map_err(|_| format!("Invalid receptor residue number: '{}'", parts[0]))?;
             let lig = parts[1]
                 .trim()
                 .parse::<i32>()
-                .unwrap_or_else(|_| panic!("Invalid ligand residue number: '{}'", parts[1]));
-            (rec, lig)
+                .map_err(|_| format!("Invalid ligand residue number: '{}'", parts[1]))?;
+            Ok((rec, lig))
         })
         .collect()
 }
 
 /// Helper functions to parse restraints pair from a file
-fn parse_restraints_file(restraints_file_path: &str) -> Vec<(i32, i32)> {
-    let mut file = File::open(restraints_file_path).unwrap();
+fn parse_restraints_file(restraints_file_path: &str) -> Result<Vec<(i32, i32)>, String> {
+    let mut file = File::open(restraints_file_path).map_err(|e| {
+        format!(
+            "Cannot open restraints file '{}': {}",
+            restraints_file_path, e
+        )
+    })?;
     let mut contents = String::new();
-    file.read_to_string(&mut contents).unwrap();
+    file.read_to_string(&mut contents).map_err(|e| {
+        format!(
+            "Cannot read restraints file '{}': {}",
+            restraints_file_path, e
+        )
+    })?;
     parse_restraints(&contents)
 }
 
@@ -226,7 +236,11 @@ fn main() {
                 parse_restraints_file(restraints_arg)
             } else {
                 parse_restraints(restraints_arg)
-            };
+            }
+            .unwrap_or_else(|e| {
+                eprintln!("Error: {}", e);
+                std::process::exit(1);
+            });
 
             let weights = constants::EnergyWeights::new(
                 sub_m
@@ -267,11 +281,15 @@ fn main() {
             let reference_file = sub_m.get_one::<String>("reference").cloned();
 
             let restraint_pairs = sub_m.get_one::<String>("restraints").map(|s| {
-                if std::path::Path::new(s).is_file() {
+                let result = if std::path::Path::new(s).is_file() {
                     parse_restraints_file(s)
                 } else {
                     parse_restraints(s)
-                }
+                };
+                result.unwrap_or_else(|e| {
+                    eprintln!("Error: {}", e);
+                    std::process::exit(1);
+                })
             });
 
             let weights = constants::EnergyWeights::new(
@@ -318,31 +336,35 @@ mod tests {
 
     #[test]
     fn test_parse_restraints_single() {
-        let pairs = parse_restraints("10:45");
+        let pairs = parse_restraints("10:45").unwrap();
         assert_eq!(pairs, vec![(10, 45)]);
     }
 
     #[test]
     fn test_parse_restraints_multiple() {
-        let pairs = parse_restraints("10:45,15:50,20:55");
+        let pairs = parse_restraints("10:45,15:50,20:55").unwrap();
         assert_eq!(pairs, vec![(10, 45), (15, 50), (20, 55)]);
     }
 
     #[test]
     fn test_parse_restraints_with_spaces() {
-        let pairs = parse_restraints("10:45, 15:50 , 20:55");
+        let pairs = parse_restraints("10:45, 15:50 , 20:55").unwrap();
         assert_eq!(pairs, vec![(10, 45), (15, 50), (20, 55)]);
     }
 
     #[test]
-    #[should_panic(expected = "Invalid restraint format")]
     fn test_parse_restraints_invalid_format() {
-        parse_restraints("10-45");
+        let result = parse_restraints("10-45");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid restraint format"));
     }
 
     #[test]
-    #[should_panic(expected = "Invalid receptor residue number")]
     fn test_parse_restraints_invalid_number() {
-        parse_restraints("abc:45");
+        let result = parse_restraints("abc:45");
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("Invalid receptor residue number"));
     }
 }

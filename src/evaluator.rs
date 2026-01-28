@@ -1,4 +1,8 @@
-/// The evaluator module contains the evaluator struct and its methods.
+//! Evaluator module for calculating docking quality metrics.
+//!
+//! Provides the `Evaluator` struct which computes DockQ, RMSD, iRMSD, and Fnat
+//! metrics by comparing docked poses against a reference structure.
+
 use crate::structure;
 use std::collections::HashSet;
 
@@ -13,7 +17,7 @@ pub struct Evaluator {
 }
 
 #[derive(PartialEq, Debug, Hash, Eq, Clone)]
-pub struct Contact {
+struct Contact {
     chain_i: char,
     res_i: i16,
     atom_i: String,
@@ -86,6 +90,9 @@ impl Evaluator {
 
         // Calculate the sum of squared distances between corresponding atoms
         let n = self.reference.0.len();
+        if n == 0 {
+            return 0.0;
+        }
         let sum_squared_distances = &ligand
             .0
             .iter()
@@ -104,6 +111,9 @@ impl Evaluator {
 
         // Calculate the sum of squared distances between corresponding atoms
         let n = self.reference_interface.0.len();
+        if n == 0 {
+            return 0.0;
+        }
         let sum_squared_distances = &target_ligand
             .0
             .iter()
@@ -127,6 +137,9 @@ impl Evaluator {
             .count();
 
         // Calculate the FNAT
+        if self.native_contacts.is_empty() {
+            return 0.0;
+        }
         common_contacts as f64 / self.native_contacts.len() as f64
     }
 }

@@ -55,6 +55,14 @@ impl EnergyWeights {
     }
 }
 
+// Energy function cutoffs and parameters
+pub const VDW_CUTOFF: f64 = 12.0; // Angstroms
+pub const SOFTCORE_ALPHA: f64 = 0.5; // Softness parameter for soft-core LJ
+pub const DESOLV_CUTOFF: f64 = 8.0; // Angstroms
+pub const ELEC_CUTOFF: f64 = 15.0; // Angstroms
+pub const ELEC_MIN_DISTANCE: f64 = 1.0; // Angstroms - avoid singularities
+pub const AIR_FORCE_CONSTANT: f64 = 10.0; // kcal/mol per Å²
+
 // VdW radii
 // `https://en.wikipedia.org/wiki/Van_der_Waals_radius`
 pub const HYDROGEN_RADIUS: f64 = 1.2;

@@ -571,7 +571,7 @@ pub fn run(config: RunConfig) {
         let best_score_path = out_dir.join("best_by_score.pdb");
         structure::write_pdb(
             &best_score_complex,
-            &best_score_path.to_string_lossy().to_string(),
+            best_score_path.to_string_lossy().as_ref(),
         );
 
         if let Some(ref e) = eval {
@@ -589,7 +589,7 @@ pub fn run(config: RunConfig) {
             let best_dockq_path = out_dir.join("best_by_dockq.pdb");
             structure::write_pdb(
                 &best_dockq_complex,
-                &best_dockq_path.to_string_lossy().to_string(),
+                best_dockq_path.to_string_lossy().as_ref(),
             );
 
             // Write metrics.tsv
@@ -762,7 +762,7 @@ pub fn run(config: RunConfig) {
             let complex = combine_molecules(&receptor_clone, &ligand);
 
             let pdb_path = out_dir.join(format!("{}.pdb", model_name));
-            structure::write_pdb(&complex, &pdb_path.to_string_lossy().to_string());
+            structure::write_pdb(&complex, pdb_path.to_string_lossy().as_ref());
 
             if let Some(ref e) = eval {
                 let metrics = e.calc_metrics(&ligand);
@@ -841,7 +841,7 @@ pub fn run(config: RunConfig) {
             let complex = combine_molecules(&receptor_clone, &ligand);
 
             let pdb_path = out_dir.join(format!("{}.pdb", model_name));
-            structure::write_pdb(&complex, &pdb_path.to_string_lossy().to_string());
+            structure::write_pdb(&complex, pdb_path.to_string_lossy().as_ref());
 
             if let Some(ref e) = eval {
                 let metrics = e.calc_metrics(&ligand);

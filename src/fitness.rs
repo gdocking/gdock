@@ -1,9 +1,23 @@
+use crate::constants::{
+    AIR_FORCE_CONSTANT, DESOLV_CUTOFF, ELEC_CUTOFF, ELEC_MIN_DISTANCE, SOFTCORE_ALPHA, VDW_CUTOFF,
+};
 use crate::restraints;
 use crate::structure;
 use crate::structure::Atom;
 
-// Calculate the ratio of clashes
-//   i.e. the number of atom pairs that are closer than the sum of their van der Waals radii
+/// Calculates the ratio of clashing atom pairs between two molecules.
+///
+/// A clash is defined as an atom pair where the distance is less than
+/// the sum of their van der Waals radii.
+///
+/// # Arguments
+///
+/// * `molecule1` - First molecule
+/// * `molecule2` - Second molecule
+///
+/// # Returns
+///
+/// The ratio of clashing pairs to total pairs (0.0 to 1.0).
 pub fn calc_clashes(molecule1: &structure::Molecule, molecule2: &structure::Molecule) -> f64 {
     let mut clashes = 0;
     let mut total_atoms = 0;
@@ -71,17 +85,15 @@ fn softcore_lj_potential(atom1: &Atom, atom2: &Atom, distance: f64, alpha: f64) 
 /// The van der Waals energy between the two molecules in kcal/mol.
 pub fn vdw_energy(receptor: &structure::Molecule, ligand: &structure::Molecule) -> f64 {
     let mut energy = 0.0;
-    let cutoff = 12.0; // VDW cutoff in Angstroms
-    let softcore_alpha = 0.5; // Softness parameter
 
     for atom1 in &receptor.0 {
         for atom2 in &ligand.0 {
             // Check if atoms are not from the same molecule
             if atom1.serial != atom2.serial {
                 let dist = structure::distance(atom1, atom2);
-                if dist > 0.0 && dist < cutoff {
+                if dist > 0.0 && dist < VDW_CUTOFF {
                     // Use soft-core potential to prevent catastrophic energies
-                    let vdw = softcore_lj_potential(atom1, atom2, dist, softcore_alpha);
+                    let vdw = softcore_lj_potential(atom1, atom2, dist, SOFTCORE_ALPHA);
                     // Still apply capping for extreme cases
                     let capped_vdw = vdw.clamp(-50.0, 500.0);
                     energy += capped_vdw;
@@ -109,7 +121,6 @@ pub fn vdw_energy(receptor: &structure::Molecule, ligand: &structure::Molecule) 
 /// The desolvation energy in kcal/mol (positive = unfavorable).
 pub fn desolv_energy(receptor: &structure::Molecule, ligand: &structure::Molecule) -> f64 {
     let mut energy = 0.0;
-    let cutoff = 8.0; // Cutoff for burial calculation in Angstroms
 
     // Empirical atomic solvation parameters (kcal/mol/Å²)
     // Based on OPLS/CHARMM atom types - simplified version
@@ -136,7 +147,7 @@ pub fn desolv_energy(receptor: &structure::Molecule, ligand: &structure::Molecul
         let mut burial_count = 0;
         for atom2 in &ligand.0 {
             let dist = structure::distance(atom1, atom2);
-            if dist < cutoff {
+            if dist < DESOLV_CUTOFF {
                 burial_count += 1;
             }
         }
@@ -160,7 +171,7 @@ pub fn desolv_energy(receptor: &structure::Molecule, ligand: &structure::Molecul
         let mut burial_count = 0;
         for atom1 in &receptor.0 {
             let dist = structure::distance(atom1, atom2);
-            if dist < cutoff {
+            if dist < DESOLV_CUTOFF {
                 burial_count += 1;
             }
         }
@@ -170,10 +181,6 @@ pub fn desolv_energy(receptor: &structure::Molecule, ligand: &structure::Molecul
     }
 
     energy
-}
-
-pub fn bsa_energy(_molecule1: &structure::Molecule, _molecule2: &structure::Molecule) -> f64 {
-    todo!();
 }
 
 /// Calculates AIR (Ambiguous Interaction Restraints) energy.
@@ -206,7 +213,6 @@ pub fn air_energy(
     // For CA-CA interface contacts (typical at interface: 3-7 Å)
     let lower_bound = 0.0; // No penalty for being close (contacts are good!)
     let upper_bound = 7.0; // Target maximum for interface CA-CA distance
-    let force_constant = 10.0; // kcal/mol per Å² - controls penalty strength
 
     for restraint in restraints {
         // Find CA atoms for this restraint (consistent with is_satisfied)
@@ -235,7 +241,7 @@ pub fn air_energy(
                 0.0 // Within bounds - no penalty
             };
 
-            energy += force_constant * violation * violation;
+            energy += AIR_FORCE_CONSTANT * violation * violation;
         }
     }
 
@@ -279,13 +285,11 @@ pub fn elec_energy(receptor: &structure::Molecule, ligand: &structure::Molecule)
     // Coulomb's constant in kcal⋅Å/(mol⋅e²) for molecular mechanics
     let k = 332.0636;
     let mut energy = 0.0;
-    let cutoff = 15.0; // Electrostatics cutoff in Angstroms
-    let min_dist = 1.0; // Minimum distance to avoid singularities
 
     for atom1 in &receptor.0 {
         for atom2 in &ligand.0 {
             let dist = structure::distance(atom1, atom2);
-            if dist > min_dist && dist < cutoff {
+            if dist > ELEC_MIN_DISTANCE && dist < ELEC_CUTOFF {
                 let charge1 = atom1.charge;
                 let charge2 = atom2.charge;
                 // Distance-dependent dielectric: ε = r
