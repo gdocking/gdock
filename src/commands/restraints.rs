@@ -75,8 +75,8 @@ mod tests {
 
     #[test]
     fn test_find_interface_pairs_with_test_data() {
-        let receptor_model = read_pdb(&"data/A.pdb".to_string());
-        let ligand_model = read_pdb(&"data/B.pdb".to_string());
+        let receptor_model = read_pdb(&"data/2oob_A.pdb".to_string());
+        let ligand_model = read_pdb(&"data/2oob_B.pdb".to_string());
 
         let receptor = &receptor_model.0[0];
         let ligand = &ligand_model.0[0];
@@ -94,8 +94,8 @@ mod tests {
 
     #[test]
     fn test_find_interface_pairs_cutoff_effect() {
-        let receptor_model = read_pdb(&"data/A.pdb".to_string());
-        let ligand_model = read_pdb(&"data/B.pdb".to_string());
+        let receptor_model = read_pdb(&"data/2oob_A.pdb".to_string());
+        let ligand_model = read_pdb(&"data/2oob_B.pdb".to_string());
 
         let receptor = &receptor_model.0[0];
         let ligand = &ligand_model.0[0];
