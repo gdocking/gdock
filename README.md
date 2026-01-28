@@ -115,7 +115,7 @@ gdock restraints \
 
 Comma-separated list of residue pairs in `receptor:ligand` format:
 
-```
+```text
 933:6,936:8,940:42
 ```
 
@@ -151,6 +151,14 @@ gdock run \
   --reference data/2oob.pdb \
   --output-dir example/
 ```
+
+## Relevant repositories
+
+- [`gdock-benchmark`](https://github.com/rvhonorato/gdock-benchmark): repository
+containing all scripts and raw data relevant to benchmarking the performance
+of `gdock`
+- [`gdock-website`](https://github.com/rvhonorato/gdock-website): source
+code for [gdock.org](https://gdock.org)
 
 ## Citation
 
