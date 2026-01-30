@@ -14,6 +14,10 @@ restraints and energy components to guide the docking process. It combines a
 genetic algorithm with physics-based scoring to find optimal protein-protein
 complexes.
 
+> **Note**: This project is currently under review for publication in the
+> [Journal of Open Source Software (JOSS)](https://joss.theoj.org/). A stable
+> v2.0.0 release will follow upon acceptance.
+
 ## Features
 
 - **Fast**: Genetic algorithm with early stopping and elitism
@@ -136,6 +140,9 @@ or other information sources.
 - `model_X.pdb`: Cluster representatives (unless `--no-clust`)
 - `ranked_X.pdb`: Top 5 models ranked by score
 - `metrics.tsv`: Tab-separated file with scores and metrics
+
+Output structures can be visualized with molecular viewers such as
+[PyMOL](https://pymol.org/) or [ChimeraX](https://www.cgl.ucsf.edu/chimerax/).
 
 ## Algorithm
 
