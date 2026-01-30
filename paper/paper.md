@@ -71,16 +71,14 @@ built from scratch in Rust to prioritize minimal deployment overhead and
 scripting integration. Crucially, the entire scoring function is implemented
 from scratch in modern, readable code, making it fully transparent and easy to
 verify—unlike tools that depend on legacy Fortran engines or opaque external
-libraries. `gdock` does not aim to replace full-featured docking
-platforms but instead provides a lightweight alternative when users have
-reliable interface information and need rapid, reproducible results without
-environment setup.
+libraries. `gdock` does not aim to replace full-featured docking platforms but
+provides a lightweight alternative for users with reliable interface information
+who need rapid, reproducible results without environment setup.
 
 # Software design
 
-`gdock` is a rewrite in Rust of an earlier Python prototype. The ~7,000 line
-codebase compiles to a single statically-linked binary with no external runtime
-dependencies.
+`gdock` is a Rust rewrite of an earlier Python prototype, compiling to a
+~7,000-line statically-linked binary with no runtime dependencies.
 
 **Search algorithm.** A genetic algorithm explores rigid-body transformations
 of the ligand relative to the receptor. Each chromosome encodes six genes:
@@ -154,17 +152,14 @@ These results reflect ideal restraint conditions; real-world performance depends
 on restraint quality. As a rigid-body method, `gdock` is best suited for cases
 where conformational changes upon binding are minimal.
 
-All scripts required to reproduce the calibration and benchmarking experiments
-are available in a separate repository:
+Scripts to reproduce these experiments are available at:
 <https://github.com/rvhonorato/gdock-benchmark>.
 
 # AI usage disclosure
 
-Generative AI tools (Claude by Anthropic) were used during development for code
-review, test generation, and proofreading of documentation and this manuscript.
-All AI-generated content was reviewed and verified by the author. Unit tests
-were validated against expected behavior, and code suggestions were tested
-through the existing continuous integration pipeline before integration.
+Claude (Anthropic) assisted with code review, test generation, and proofreading.
+All AI-generated content was verified by the author through manual review and
+the continuous integration pipeline.
 
 # Acknowledgements
 
