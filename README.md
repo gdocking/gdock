@@ -26,20 +26,24 @@ complexes.
   provided
 - **Clustering**: FCC-based clustering to group similar solutions
 
-## Installation
-
-### From crates.io
+## Quick Start
 
 ```bash
-cargo install gdock
+# Clone and build
+git clone https://github.com/rvhonorato/gdock
+cd gdock
+cargo build --release
+
+# Run docking with example data
+./target/release/gdock run \
+  --receptor data/2oob_A.pdb \
+  --ligand data/2oob_B.pdb \
+  --restraints 933:6,936:8,940:42,941:44,946:45,950:46
 ```
 
-### From GitHub releases
+Most docking runs complete in ~15 seconds on standard hardware.
 
-Download pre-built binaries from the
-[releases page](https://github.com/rvhonorato/gdock/releases).
-
-### Build from source
+## Installation
 
 ```bash
 git clone https://github.com/rvhonorato/gdock
@@ -48,6 +52,9 @@ cargo build --release
 ```
 
 The binary will be available at `./target/release/gdock`.
+
+Upon stable release, pre-built binaries and `cargo install gdock` will also be
+available.
 
 ## Usage
 
@@ -149,8 +156,14 @@ gdock run \
   --ligand data/2oob_B.pdb \
   --restraints 933:6,936:8,940:42,941:44,946:45,950:46 \
   --reference data/2oob.pdb \
-  --output-dir example/
+  --output-dir results/
 ```
+
+This will produce:
+
+- `results/model_*.pdb` — Cluster representatives ranked by cluster size
+- `results/ranked_*.pdb` — Top 5 models ranked by score
+- `results/metrics.tsv` — Scores and DockQ values for all models
 
 ## Relevant repositories
 
