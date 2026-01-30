@@ -5,9 +5,7 @@
 [![ci](https://github.com/rvhonorato/gdock/actions/workflows/ci.yml/badge.svg)](https://github.com/rvhonorato/gdock/actions/workflows/ci.yml)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/23671025da8a4334a754d8d5af76a34a)](https://app.codacy.com/gh/rvhonorato/gdock/dashboard)
 
-![Crates.io License](https://img.shields.io/crates/l/gdock)
-![Crates.io Version](https://img.shields.io/crates/v/gdock)
-![Crates.io Total Downloads](https://img.shields.io/crates/d/gdock)
+![License](https://img.shields.io/badge/license-0BSD-blue)
 
 <img src="imgs/gdock_logo.png" width="350">
 
@@ -42,6 +40,10 @@ cargo build --release
 ```
 
 Most docking runs complete in ~15 seconds on standard hardware.
+
+## Requirements
+
+- [Rust](https://www.rust-lang.org/tools/install) (1.70 or later)
 
 ## Installation
 
@@ -146,6 +148,17 @@ gdock uses:
 - **Early Stopping**: Converges when no improvement for 10 generations
 - **Clustering**: FCC-based clustering of final population
 
+## Testing
+
+Run the test suite:
+
+```bash
+cargo test
+```
+
+The test suite includes 174 tests covering parsing, energy calculations, and
+algorithm behavior.
+
 ## Example
 
 Using the test data included in the repository:
@@ -172,6 +185,17 @@ containing all scripts and raw data relevant to benchmarking the performance
 of `gdock`
 - [`gdock-website`](https://github.com/rvhonorato/gdock-website): source
 code for [gdock.org](https://gdock.org)
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit issues and pull requests
+on [GitHub](https://github.com/rvhonorato/gdock).
+
+Before submitting a pull request, please ensure:
+
+- All tests pass (`cargo test`)
+- Code is formatted (`cargo fmt`)
+- Linting passes (`cargo clippy`)
 
 ## Citation
 
