@@ -1,14 +1,21 @@
 [package]
 name = "gdock"
-version = "2.0.0-rc.1"
+version = "2.0.0-rc.2"
 edition = "2021"
 license = "0BSD"
 authors = ["Rodrigo V. Honorato <rvhonorato@protonmail.com>"]
-description = "Fast information-driven protein-protein docking using genetic algorithms and physics-based scoring"
-repository = "https://github.com/gdocking/gdock"
+description = "Information-driven protein-protein docking using a genetic algorithm"
+repository = "https://github.com/rvhonorato/gdock"
+homepage = "https://gdock.org"
 readme = "README.md"
-keywords = ["bioinformatics", "protein", "docking", "molecular", "genetics"]
-categories = ["science", "command-line-utilities", "algorithms"]
+keywords = [
+  "bioinformatics",
+  "protein",
+  "docking",
+  "structural-biology",
+  "genetic-algorithm",
+]
+categories = ["science", "command-line-utilities", "algorithms", "simulation"]
 
 [dependencies]
 regex = "1.12"

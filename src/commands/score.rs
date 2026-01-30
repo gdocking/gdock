@@ -93,8 +93,8 @@ mod tests {
         // We can't easily capture stdout in a unit test without extra crates,
         // so we just verify the function runs without panicking
         score(
-            "data/A.pdb".to_string(),
-            "data/B.pdb".to_string(),
+            "data/2oob_A.pdb".to_string(),
+            "data/2oob_B.pdb".to_string(),
             None,
             None,
             weights,
