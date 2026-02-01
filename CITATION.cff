@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "gdock: Information-driven protein-protein docking using a genetic algorithm"
+authors:
+  - family-names: "Vargas Honorato"
+    given-names: "Rodrigo V."
+    orcid: "https://orcid.org/0000-0001-5267-3002"
+    affiliation: "Computational Structural Biology Group, Utrecht University, The Netherlands"
+repository-code: "https://github.com/rvhonorato/gdock"
+url: "https://gdock.org"
+license: 0BSD
+version: "2.0.0-rc.2"
+date-released: 2026-02-01
+keywords:
+  - protein docking
+  - genetic algorithm
+  - bioinformatics
+  - structural biology
+  - Rust
+abstract: >-
+  gdock is a fast protein-protein docking tool written in Rust that uses
+  restraints and energy components to guide the docking process. It combines
+  a genetic algorithm with physics-based scoring to find optimal protein-protein
+  complexes.
+contact:
+  - family-names: "Vargas Honorato"
+    given-names: "Rodrigo V."
+    email: "r.honorato@uu.nl"
