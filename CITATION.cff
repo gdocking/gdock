@@ -4,7 +4,7 @@ type: software
 title: "gdock: Information-driven protein-protein docking using a genetic algorithm"
 authors:
   - family-names: "Vargas Honorato"
-    given-names: "Rodrigo V."
+    given-names: "Rodrigo"
     orcid: "https://orcid.org/0000-0001-5267-3002"
     affiliation: "Computational Structural Biology Group, Utrecht University, The Netherlands"
 repository-code: "https://github.com/rvhonorato/gdock"
@@ -25,5 +25,5 @@ abstract: >-
   complexes.
 contact:
   - family-names: "Vargas Honorato"
-    given-names: "Rodrigo V."
-    email: "r.honorato@uu.nl"
+    given-names: "Rodrigo"
+    email: "email@gdock.org"
