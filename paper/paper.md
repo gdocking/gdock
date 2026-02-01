@@ -14,7 +14,7 @@ authors:
 affiliations:
   - name: 'Computational Structural Biology Group, Utrecht University, The Netherlands'
     index: 1
-date: 28 January 2026
+date: 01 February 2026
 bibliography: paper.bib
 ---
 
@@ -33,7 +33,8 @@ orientations of one protein relative to another, scoring each candidate with a
 physics-based energy function. Written entirely in Rust, `gdock` compiles to a
 single executable with no external dependencies, making it straightforward to
 install and integrate into automated workflows. On a standard workstation, most
-docking runs complete in under 20 seconds.
+docking runs complete in under 20 seconds. Documentation and source code are
+available at <https://github.com/rvhonorato/gdock> and <https://gdock.org>.
 
 # Statement of need
 
@@ -55,13 +56,13 @@ docking without the overhead of larger software packages.
 # State of the field
 
 Protein-protein docking software spans a range of complexity and capability.
-ClusPro [@kozakov2017cluspro] and ZDOCK [@pierce2014zdock] provide FFT-based
-sampling with web interfaces, though restraint integration is limited. HADDOCK
+For example, ClusPro [@kozakov2017cluspro] and ZDOCK [@pierce2014zdock] provide
+FFT-based sampling with web interfaces, though restraint integration is limited. HADDOCK
 [@dominguez2003haddock] offers comprehensive information-driven docking with
 flexible refinement, symmetry handling, and multi-body support; LightDock
 [@lightdock2018] uses swarm optimization with restraint support—both require
 managed Python environments with specific package versions, and HADDOCK
-additionally depends on CNS. A limited Rust implementation of LightDock exists
+additionally depends on CNS (Crystallography and NMR System) [@brunger1998cns]. A limited Rust implementation of LightDock exists
 [@lightdock-rust] and served as one inspiration for `gdock`.
 
 `gdock` occupies a distinct niche: a dependency-free, single-binary tool for
@@ -100,8 +101,10 @@ $$E_{total} = w_{vdw} E_{vdw} + w_{elec} E_{elec} + w_{desolv} E_{desolv} + w_{a
 - $E_{desolv}$: Empirical atomic solvation parameters penalizing burial of
   polar atoms and rewarding burial of hydrophobic atoms
 - $E_{air}$: Flat-bottom harmonic potential on Cα–Cα distances between
-  user-specified residue pairs (no penalty within 0–7 Å), inspired by
-  HADDOCK's ambiguous interaction restraints [@dominguez2003haddock]
+  user-specified residue pairs (no penalty within 0–7 Å, quadratic penalty
+  beyond), conceptually inspired by HADDOCK's distance restraints
+  [@dominguez2003haddock] but using a simpler purely harmonic form without
+  the linear switching at long distances
 
 **Weight calibration.** The weights $w_{vdw}$, $w_{elec}$, and $w_{desolv}$ were
 calibrated using the Dockground decoy set [@dockground2008], which provides 100
@@ -126,9 +129,11 @@ the permissive 0BSD license.
 # Research impact statement
 
 `gdock` was validated on 271 complexes from the Protein-Protein Docking
-Benchmark v5 [@vreven2015updates], a standard dataset for assessing docking
-methods. Restraints were derived from native contacts using a 5 Å distance
-cutoff, simulating ideal information-driven scenarios.
+Benchmark v5 [@vreven2015updates], a standard dataset for assessing methods,
+using the bound-bound conformations. Restraints were derived as explicit Cα–Cα
+residue pairs from native interface contacts (within 5 Å), simulating ideal
+contact information. Unlike HADDOCK's ambiguous interface restraints, each
+restraint specifies a single receptor–ligand residue pair.
 
 Using the DockQ metric [@basu2016dockq] to assess model quality, `gdock`
 achieved a 95.9% success rate (260/271 complexes with at least one acceptable
