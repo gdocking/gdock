@@ -1,9 +1,18 @@
 name: Draft PDF
 on:
   push:
+    branches:
+      - main
     paths:
       - paper/**
       - .github/workflows/draft-pdf.yml
+  pull_request:
+    paths:
+      - paper/**
+      - .github/workflows/draft-pdf.yml
+
+permissions:
+  contents: write
 
 jobs:
   paper:
@@ -12,13 +21,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Build draft PDF
         uses: openjournals/openjournals-draft-action@master
         with:
           journal: joss
           # This should be the path to the paper within your repo.
           paper-path: paper/paper.md
-      - name: Upload
+
+      - name: Upload PDF as artifact
         uses: actions/upload-artifact@v4
         with:
           name: paper
@@ -26,3 +37,11 @@ jobs:
           # PDF. Note, this should be the same directory as the input
           # paper.md
           path: paper/paper.pdf
+
+      - name: Commit and push PDF to repository
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: "paper/paper.pdf"
+          message: "Update compiled paper.pdf [skip ci]"
+          default_author: github_actions
