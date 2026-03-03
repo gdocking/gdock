@@ -1,9 +1,15 @@
 //! Top-level GA runner — the single source of truth for the evolution loop.
+use std::collections::HashSet;
+
 use rand::rngs::StdRng;
 
-use crate::constants::{CONVERGENCE_THRESHOLD, CONVERGENCE_WINDOW, ENABLE_EARLY_STOPPING};
-use crate::hall_of_fame::HallOfFame;
+use crate::clustering::{self, ClusteringConfig};
+use crate::constants::{
+    CONVERGENCE_THRESHOLD, CONVERGENCE_WINDOW, ENABLE_EARLY_STOPPING, NUM_OUTPUT_MODELS,
+};
+use crate::hall_of_fame::{HallOfFame, HallOfFameEntry};
 use crate::population::Population;
+use crate::structure::{combine_molecules, Molecule};
 
 /// Result returned by [`run_ga`] after the evolution loop completes.
 pub struct GaResult {
@@ -74,4 +80,85 @@ where
         converged_early,
         final_population: pop,
     }
+}
+
+/// Output of [`select_models`]: the HoF indices to use for each output set.
+pub struct SelectedModels {
+    /// `(hof_idx, cluster_size)` — cluster-centre models sorted by fitness (best first).
+    pub clustered: Vec<(usize, usize)>,
+    /// `hof_idx` — top entries sorted purely by fitness (best first).
+    pub ranked: Vec<usize>,
+}
+
+/// Select the output models from a Hall-of-Fame by FCC clustering.
+///
+/// Returns up to `NUM_OUTPUT_MODELS` cluster-centre entries (diverse poses) and
+/// `NUM_OUTPUT_MODELS` entries ranked purely by fitness. When there are fewer
+/// clusters than `NUM_OUTPUT_MODELS`, the gap is filled with the next-best
+/// unselected HoF entries.
+pub fn select_models(
+    hof_entries: &[HallOfFameEntry],
+    receptor: &Molecule,
+    ligand: &Molecule,
+) -> SelectedModels {
+    // Build receptor+ligand complexes for every HoF entry.
+    let complexes: Vec<Molecule> = hof_entries
+        .iter()
+        .map(|e| {
+            let docked = ligand
+                .clone()
+                .rotate(e.genes[0], e.genes[1], e.genes[2])
+                .displace(e.genes[3], e.genes[4], e.genes[5]);
+            combine_molecules(receptor, &docked)
+        })
+        .collect();
+
+    // FCC clustering.
+    let cluster_config = ClusteringConfig::default();
+    let clusters = clustering::cluster_structures(&complexes, &cluster_config);
+
+    // Pick cluster centres sorted by fitness.
+    let mut cluster_centers: Vec<(usize, f64, usize)> = clusters
+        .iter()
+        .map(|c| (c.center_idx, hof_entries[c.center_idx].fitness, c.size))
+        .collect();
+    cluster_centers.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    let mut clustered: Vec<(usize, usize)> = cluster_centers
+        .iter()
+        .take(NUM_OUTPUT_MODELS)
+        .map(|(idx, _, size)| (*idx, *size))
+        .collect();
+
+    // Fill to NUM_OUTPUT_MODELS with the best unselected HoF entries.
+    let mut used: HashSet<usize> = clustered.iter().map(|(i, _)| *i).collect();
+    if clustered.len() < NUM_OUTPUT_MODELS {
+        let mut remaining: Vec<(usize, f64)> = hof_entries
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| !used.contains(i))
+            .map(|(i, e)| (i, e.fitness))
+            .collect();
+        remaining.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        for (idx, _) in remaining.iter().take(NUM_OUTPUT_MODELS - clustered.len()) {
+            clustered.push((*idx, 1));
+            used.insert(*idx);
+        }
+    }
+
+    // Ranked purely by fitness.
+    let mut ranked_by_fitness: Vec<(usize, f64)> = hof_entries
+        .iter()
+        .enumerate()
+        .map(|(i, e)| (i, e.fitness))
+        .collect();
+    ranked_by_fitness
+        .sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+    let ranked: Vec<usize> = ranked_by_fitness
+        .iter()
+        .take(NUM_OUTPUT_MODELS)
+        .map(|(idx, _)| *idx)
+        .collect();
+
+    SelectedModels { clustered, ranked }
 }

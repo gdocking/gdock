@@ -7,7 +7,6 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use crate::chromosome;
-use crate::clustering::{self, ClusteringConfig};
 use crate::constants::{
     self, EnergyWeights, CONVERGENCE_THRESHOLD, CONVERGENCE_WINDOW, MAX_GENERATIONS,
     POPULATION_SIZE,
@@ -15,9 +14,9 @@ use crate::constants::{
 use crate::evaluator;
 use crate::population;
 use crate::restraints;
-use crate::runner::run_ga;
+use crate::runner::{run_ga, select_models};
 use crate::scoring;
-use crate::structure::{self, read_pdb, Molecule};
+use crate::structure::{self, read_pdb};
 use crate::utils;
 
 /// Configuration for a docking run
@@ -34,8 +33,6 @@ pub struct RunConfig {
 
 /// Re-exported for use by tests and other modules that imported from here.
 pub use crate::structure::combine_molecules;
-
-const NUM_OUTPUT_MODELS: usize = 5;
 
 // ============================================================================
 
@@ -449,75 +446,8 @@ pub fn run(config: RunConfig) {
             "🔬 Clustering Hall of Fame structures".bold().cyan()
         );
 
-        // Reconstruct structures from Hall of Fame entries
         let hof_entries = hall_of_fame.entries();
-        let hof_structures: Vec<(usize, Molecule, f64)> = hof_entries
-            .iter()
-            .enumerate()
-            .map(|(idx, entry)| {
-                let ligand = ligand_clone
-                    .clone()
-                    .rotate(entry.genes[0], entry.genes[1], entry.genes[2])
-                    .displace(entry.genes[3], entry.genes[4], entry.genes[5]);
-                let complex = combine_molecules(&receptor_clone, &ligand);
-                (idx, complex, entry.fitness)
-            })
-            .collect();
-
-        // Run FCC clustering
-        let structures_only: Vec<Molecule> = hof_structures
-            .iter()
-            .map(|(_, mol, _)| mol.clone())
-            .collect();
-        let cluster_config = ClusteringConfig::default();
-        let clusters = clustering::cluster_structures(&structures_only, &cluster_config);
-
-        println!(
-            "  {} Found {} clusters (min size: {})",
-            "✓".green(),
-            clusters.len().to_string().cyan(),
-            cluster_config.min_cluster_size
-        );
-
-        // Select models: cluster centers sorted by energy (best first)
-        let mut cluster_centers: Vec<(usize, f64, usize)> = clusters
-            .iter()
-            .map(|cluster| {
-                let fitness = hof_entries[cluster.center_idx].fitness;
-                (cluster.center_idx, fitness, cluster.size)
-            })
-            .collect();
-
-        // Sort by fitness (lowest/best energy first)
-        cluster_centers.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-
-        // Take up to NUM_OUTPUT_MODELS
-        let mut selected: Vec<(usize, usize)> = cluster_centers
-            .iter()
-            .take(NUM_OUTPUT_MODELS)
-            .map(|(idx, _, size)| (*idx, *size))
-            .collect();
-
-        // If fewer than NUM_OUTPUT_MODELS clusters, fill with best-scored entries
-        if selected.len() < NUM_OUTPUT_MODELS {
-            let mut all_entries: Vec<(usize, f64)> = hof_entries
-                .iter()
-                .enumerate()
-                .map(|(idx, entry)| (idx, entry.fitness))
-                .collect();
-            all_entries.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-
-            let selected_indices: Vec<usize> = selected.iter().map(|(idx, _)| *idx).collect();
-
-            for (idx, _) in all_entries {
-                if selected.len() >= NUM_OUTPUT_MODELS {
-                    break;
-                }
-                if !selected_indices.contains(&idx) {
-                    selected.push((idx, 1));
-                }
-            }
-        }
+        let selected = select_models(hof_entries, &receptor_clone, &ligand_clone);
 
         // Save output models and metrics
         println!("\n{}", "💾 Saving Results".bold().cyan());
@@ -538,7 +468,7 @@ pub fn run(config: RunConfig) {
 
         println!("\n{}", "📊 Output Models (FCC Clustered)".bold().cyan());
 
-        for (model_num, (hof_idx, cluster_size)) in selected.iter().enumerate() {
+        for (model_num, (hof_idx, cluster_size)) in selected.clustered.iter().enumerate() {
             let entry = &hof_entries[*hof_idx];
             let model_name = format!("model_{}", model_num + 1);
 
@@ -609,15 +539,7 @@ pub fn run(config: RunConfig) {
 
         println!("\n{}", "📊 Output Models (Ranked by Score)".bold().cyan());
 
-        // Sort Hall of Fame entries by fitness (best first)
-        let mut ranked_entries: Vec<(usize, f64)> = hof_entries
-            .iter()
-            .enumerate()
-            .map(|(idx, entry)| (idx, entry.fitness))
-            .collect();
-        ranked_entries.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-
-        for (rank, (hof_idx, _)) in ranked_entries.iter().take(NUM_OUTPUT_MODELS).enumerate() {
+        for (rank, hof_idx) in selected.ranked.iter().enumerate() {
             let entry = &hof_entries[*hof_idx];
             let model_name = format!("ranked_{}", rank + 1);
 
