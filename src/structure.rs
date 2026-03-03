@@ -386,7 +386,11 @@ mod tests {
         let rendered = mol.to_pdb_string();
 
         let model2 = read_pdb_from_str(&rendered);
-        assert_eq!(model2.0[0].0.len(), mol.0.len(), "atom count preserved across round-trip");
+        assert_eq!(
+            model2.0[0].0.len(),
+            mol.0.len(),
+            "atom count preserved across round-trip"
+        );
     }
 
     #[test]
