@@ -6,6 +6,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 use crate::structure::Molecule;
@@ -131,20 +132,33 @@ fn calculate_fcc(x: &HashSet<String>, y: &HashSet<String>) -> (f64, f64) {
     (fcc, fcc_v)
 }
 
-/// Calculate pairwise FCC values for all structure pairs (parallel).
+/// Calculate pairwise FCC values for all structure pairs.
 fn calculate_pairwise_fcc(contact_sets: &[HashSet<String>]) -> Vec<(usize, usize, f64, f64)> {
     let n = contact_sets.len();
 
-    // Generate all (i, j) pairs and compute FCC in parallel
-    (0..n)
-        .into_par_iter()
-        .flat_map(|i| {
-            (0..n).into_par_iter().map(move |j| {
-                let (fcc, fcc_v) = calculate_fcc(&contact_sets[i], &contact_sets[j]);
-                (i, j, fcc, fcc_v)
+    #[cfg(feature = "parallel")]
+    {
+        (0..n)
+            .into_par_iter()
+            .flat_map(|i| {
+                (0..n).into_par_iter().map(move |j| {
+                    let (fcc, fcc_v) = calculate_fcc(&contact_sets[i], &contact_sets[j]);
+                    (i, j, fcc, fcc_v)
+                })
             })
-        })
-        .collect()
+            .collect()
+    }
+    #[cfg(not(feature = "parallel"))]
+    {
+        let mut result = Vec::new();
+        for i in 0..n {
+            for j in 0..n {
+                let (fcc, fcc_v) = calculate_fcc(&contact_sets[i], &contact_sets[j]);
+                result.push((i, j, fcc, fcc_v));
+            }
+        }
+        result
+    }
 }
 
 /// Build the similarity graph from pairwise FCC values.
@@ -270,9 +284,15 @@ pub fn cluster_structures(
         return Vec::new();
     }
 
-    // Calculate contacts for each structure (parallel)
+    // Calculate contacts for each structure
+    #[cfg(feature = "parallel")]
     let contact_sets: Vec<HashSet<String>> = structures
         .par_iter()
+        .map(|mol| calculate_contacts(mol, config.contact_distance))
+        .collect();
+    #[cfg(not(feature = "parallel"))]
+    let contact_sets: Vec<HashSet<String>> = structures
+        .iter()
         .map(|mol| calculate_contacts(mol, config.contact_distance))
         .collect();
 

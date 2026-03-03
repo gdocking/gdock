@@ -1,19 +1,8 @@
-pub mod chromosome;
-pub mod clustering;
-pub mod commands;
-pub mod constants;
-pub mod evaluator;
-pub mod fitness;
-pub mod ga;
-pub mod population;
-pub mod restraints;
-pub mod scoring;
-pub mod structure;
-pub mod toppar;
-pub mod utils;
+use gdock::commands;
+use gdock::constants;
+use gdock::constants::{DEFAULT_W_AIR, DEFAULT_W_DESOLV, DEFAULT_W_ELEC, DEFAULT_W_VDW};
 
 use clap::Command;
-use constants::{DEFAULT_W_AIR, DEFAULT_W_DESOLV, DEFAULT_W_ELEC, DEFAULT_W_VDW};
 use std::fs::File;
 use std::io::prelude::*;
 
@@ -192,33 +181,36 @@ fn main() {
     match matches.subcommand() {
         Some(("run", sub_m)) => {
             // Configure thread pool based on --nproc
-            let total_cpus = std::thread::available_parallelism()
-                .map(|n| n.get())
-                .unwrap_or(1);
-            let default_threads = if total_cpus > 2 { total_cpus - 2 } else { 1 };
-            let requested_threads = sub_m.get_one::<usize>("nproc").copied();
-            let num_threads = match requested_threads {
-                Some(n) if n > total_cpus => {
-                    eprintln!(
-                        "Warning: requested {} threads but only {} available, using {}",
-                        n, total_cpus, default_threads
-                    );
-                    default_threads
-                }
-                Some(0) => {
-                    eprintln!(
-                        "Warning: --nproc must be at least 1, using {}",
+            #[cfg(feature = "parallel")]
+            {
+                let total_cpus = std::thread::available_parallelism()
+                    .map(|n| n.get())
+                    .unwrap_or(1);
+                let default_threads = if total_cpus > 2 { total_cpus - 2 } else { 1 };
+                let requested_threads = sub_m.get_one::<usize>("nproc").copied();
+                let num_threads = match requested_threads {
+                    Some(n) if n > total_cpus => {
+                        eprintln!(
+                            "Warning: requested {} threads but only {} available, using {}",
+                            n, total_cpus, default_threads
+                        );
                         default_threads
-                    );
-                    default_threads
-                }
-                Some(n) => n,
-                None => default_threads,
-            };
-            rayon::ThreadPoolBuilder::new()
-                .num_threads(num_threads)
-                .build_global()
-                .unwrap_or_else(|e| eprintln!("Warning: could not set thread pool: {}", e));
+                    }
+                    Some(0) => {
+                        eprintln!(
+                            "Warning: --nproc must be at least 1, using {}",
+                            default_threads
+                        );
+                        default_threads
+                    }
+                    Some(n) => n,
+                    None => default_threads,
+                };
+                rayon::ThreadPoolBuilder::new()
+                    .num_threads(num_threads)
+                    .build_global()
+                    .unwrap_or_else(|e| eprintln!("Warning: could not set thread pool: {}", e));
+            }
 
             let receptor_file = sub_m.get_one::<String>("receptor").unwrap().clone();
             let ligand_file = sub_m.get_one::<String>("ligand").unwrap().clone();

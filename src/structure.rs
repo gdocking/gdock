@@ -2,8 +2,12 @@ use crate::constants;
 use crate::toppar;
 
 use std::collections::HashSet;
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::fs;
+#[cfg(not(target_arch = "wasm32"))]
 use std::fs::File;
+#[cfg(not(target_arch = "wasm32"))]
 use std::io::{BufRead, BufReader};
 
 #[derive(Debug, Clone)]
@@ -128,6 +132,16 @@ impl Molecule {
             atom.z += displacement_z;
         }
         self
+    }
+
+    /// Render all atoms as a PDB-format string (for wasm output).
+    pub fn to_pdb_string(&self) -> String {
+        let mut s = String::new();
+        for atom in &self.0 {
+            s.push_str(&atom.to_pdb_string());
+        }
+        s.push_str("END\n");
+        s
     }
 }
 
@@ -269,21 +283,17 @@ fn process_atom_line(line: &str) -> Option<Atom> {
     Some(atom)
 }
 
-// Reads a PDB file and returns a `Model` struct.
-pub fn read_pdb(pdb_file: &str) -> Model {
+/// Parse PDB lines from any iterator of String.
+fn parse_lines<I: Iterator<Item = String>>(lines: I) -> Model {
     let mut model = Model::new();
     let mut molecule = Molecule::new();
     let mut has_model_records = false;
 
-    let file = File::open(pdb_file).expect("Cannot open file");
-
-    for line in BufReader::new(file).lines().map_while(Result::ok) {
+    for line in lines {
         if line.starts_with("MODEL") {
             has_model_records = true;
-            // Start a new molecule for this MODEL
             molecule = Molecule::new();
         } else if line.starts_with("ENDMDL") {
-            // End of current model - push it to the model list
             model.0.push(molecule.clone());
             molecule = Molecule::new();
         } else if let Some(atom) = process_atom_line(&line) {
@@ -291,7 +301,6 @@ pub fn read_pdb(pdb_file: &str) -> Model {
         }
     }
 
-    // If no MODEL records were found, push the single molecule
     if !has_model_records {
         model.0.push(molecule);
     }
@@ -299,9 +308,33 @@ pub fn read_pdb(pdb_file: &str) -> Model {
     model
 }
 
-// Output a Molecule in PDB format
+/// Read a PDB from an in-memory string. Works on all targets including wasm32.
+pub fn read_pdb_from_str(content: &str) -> Model {
+    parse_lines(content.lines().map(|l| l.to_string()))
+}
+
+/// Read a PDB file from disk. Not available on wasm32.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn read_pdb(pdb_file: &str) -> Model {
+    let file = File::open(pdb_file).expect("Cannot open file");
+    parse_lines(BufReader::new(file).lines().map_while(Result::ok))
+}
+
+/// Combine receptor and ligand atoms into a single Molecule.
+pub fn combine_molecules(receptor: &Molecule, ligand: &Molecule) -> Molecule {
+    let mut combined = Molecule::new();
+    for atom in &receptor.0 {
+        combined.0.push(atom.clone());
+    }
+    for atom in &ligand.0 {
+        combined.0.push(atom.clone());
+    }
+    combined
+}
+
+/// Output a Molecule in PDB format to a file. Not available on wasm32.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn write_pdb(molecule: &Molecule, output_file: &str) {
-    // Write the output string to the file
     let mut pdb_string = String::new();
     for atom in &molecule.0 {
         pdb_string.push_str(&atom.to_pdb_string());
