@@ -31,22 +31,8 @@ pub struct RunConfig {
     pub no_clustering: bool,
 }
 
-/// Combines receptor and ligand into a single molecule for PDB output
-pub fn combine_molecules(receptor: &Molecule, ligand: &Molecule) -> Molecule {
-    let mut combined = Molecule::new();
-
-    // Add receptor atoms
-    for atom in &receptor.0 {
-        combined.0.push(atom.clone());
-    }
-
-    // Add ligand atoms
-    for atom in &ligand.0 {
-        combined.0.push(atom.clone());
-    }
-
-    combined
-}
+/// Re-exported for use by tests and other modules that imported from here.
+pub use crate::structure::combine_molecules;
 
 // ============================================================================
 // Hall of Fame - tracks diverse solutions throughout evolution
