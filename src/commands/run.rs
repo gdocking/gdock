@@ -206,7 +206,11 @@ pub fn run(config: RunConfig) {
 
         let improvement_since_last = if gen > 0 {
             let prev = best_score_history[gen as usize - 1];
-            ((prev - best_fitness) / prev.abs()) * 100.0
+            if prev.abs() < f64::EPSILON {
+                0.0
+            } else {
+                ((prev - best_fitness) / prev.abs()) * 100.0
+            }
         } else {
             0.0
         };

@@ -50,7 +50,11 @@ where
         let best_fitness = pop.get_min_fittest().fitness;
 
         if generation_count > 0 {
-            let improvement = (last_best_score - best_fitness) / last_best_score.abs();
+            let improvement = if last_best_score.abs() < f64::EPSILON {
+                0.0
+            } else {
+                (last_best_score - best_fitness) / last_best_score.abs()
+            };
             if improvement < CONVERGENCE_THRESHOLD {
                 generations_without_improvement += 1;
             } else {
@@ -71,8 +75,11 @@ where
     }
 
     // Final evaluation so callers always receive a fully-evaluated population.
-    pop.eval_fitness();
-    hall_of_fame.add_from_population(&pop.chromosomes);
+    // Skipped on early-stop: the last loop iteration already evaluated and added to HoF.
+    if !converged_early {
+        pop.eval_fitness();
+        hall_of_fame.add_from_population(&pop.chromosomes);
+    }
 
     GaResult {
         hall_of_fame,
