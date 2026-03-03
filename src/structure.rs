@@ -420,7 +420,7 @@ mod tests {
 
     #[test]
     fn test_read_pdb() {
-        let molecule = read_pdb(&"data/2oob.pdb".to_string());
+        let molecule = read_pdb("data/2oob.pdb");
         assert!(!molecule.0.is_empty())
     }
 
