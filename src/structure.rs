@@ -2,8 +2,12 @@ use crate::constants;
 use crate::toppar;
 
 use std::collections::HashSet;
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::fs;
+#[cfg(not(target_arch = "wasm32"))]
 use std::fs::File;
+#[cfg(not(target_arch = "wasm32"))]
 use std::io::{BufRead, BufReader};
 
 #[derive(Debug, Clone)]
@@ -128,6 +132,16 @@ impl Molecule {
             atom.z += displacement_z;
         }
         self
+    }
+
+    /// Render all atoms as a PDB-format string (for wasm output).
+    pub fn to_pdb_string(&self) -> String {
+        let mut s = String::new();
+        for atom in &self.0 {
+            s.push_str(&atom.to_pdb_string());
+        }
+        s.push_str("END\n");
+        s
     }
 }
 
@@ -269,29 +283,27 @@ fn process_atom_line(line: &str) -> Option<Atom> {
     Some(atom)
 }
 
-// Reads a PDB file and returns a `Model` struct.
-pub fn read_pdb(pdb_file: &str) -> Model {
+/// Parse PDB lines from any iterator whose items can be viewed as `&str`.
+/// Accepts both owned `String` (from `BufRead::lines`) and borrowed `&str`
+/// (from `str::lines`), avoiding a per-line allocation in the in-memory path.
+fn parse_lines<S: AsRef<str>, I: Iterator<Item = S>>(lines: I) -> Model {
     let mut model = Model::new();
     let mut molecule = Molecule::new();
     let mut has_model_records = false;
 
-    let file = File::open(pdb_file).expect("Cannot open file");
-
-    for line in BufReader::new(file).lines().map_while(Result::ok) {
+    for line in lines {
+        let line = line.as_ref();
         if line.starts_with("MODEL") {
             has_model_records = true;
-            // Start a new molecule for this MODEL
             molecule = Molecule::new();
         } else if line.starts_with("ENDMDL") {
-            // End of current model - push it to the model list
             model.0.push(molecule.clone());
             molecule = Molecule::new();
-        } else if let Some(atom) = process_atom_line(&line) {
+        } else if let Some(atom) = process_atom_line(line) {
             molecule.0.push(atom);
         }
     }
 
-    // If no MODEL records were found, push the single molecule
     if !has_model_records {
         model.0.push(molecule);
     }
@@ -299,14 +311,30 @@ pub fn read_pdb(pdb_file: &str) -> Model {
     model
 }
 
-// Output a Molecule in PDB format
+/// Read a PDB from an in-memory string. Works on all targets including wasm32.
+pub fn read_pdb_from_str(content: &str) -> Model {
+    parse_lines(content.lines())
+}
+
+/// Read a PDB file from disk. Not available on wasm32.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn read_pdb(pdb_file: &str) -> Model {
+    let file = File::open(pdb_file).expect("Cannot open file");
+    parse_lines(BufReader::new(file).lines().map_while(Result::ok))
+}
+
+/// Combine receptor and ligand atoms into a single Molecule.
+pub fn combine_molecules(receptor: &Molecule, ligand: &Molecule) -> Molecule {
+    let mut combined = Molecule(Vec::with_capacity(receptor.0.len() + ligand.0.len()));
+    combined.0.extend(receptor.0.iter().cloned());
+    combined.0.extend(ligand.0.iter().cloned());
+    combined
+}
+
+/// Output a Molecule in PDB format to a file. Not available on wasm32.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn write_pdb(molecule: &Molecule, output_file: &str) {
-    // Write the output string to the file
-    let mut pdb_string = String::new();
-    for atom in &molecule.0 {
-        pdb_string.push_str(&atom.to_pdb_string());
-    }
-    fs::write(output_file, pdb_string).expect("Unable to write file");
+    fs::write(output_file, molecule.to_pdb_string()).expect("Unable to write file");
 }
 
 pub fn distance(atom1: &Atom, atom2: &Atom) -> f64 {
@@ -330,6 +358,41 @@ pub fn filter_by_resseq_vec(molecule: &Molecule, resseq_vec: &HashSet<i16>) -> M
 mod tests {
     use super::*;
     use std::f64::consts::PI;
+
+    /// Minimal two-atom PDB string for round-trip tests.
+    fn sample_pdb() -> &'static str {
+        "ATOM      1  CA  ALA A   1       1.000   2.000   3.000  1.00  0.00           C\n\
+         ATOM      2  CA  ALA A   2       4.000   5.000   6.000  1.00  0.00           C\n"
+    }
+
+    #[test]
+    fn test_read_pdb_from_str_atom_count() {
+        let model = read_pdb_from_str(sample_pdb());
+        assert_eq!(model.0.len(), 1);
+        assert_eq!(model.0[0].0.len(), 2);
+    }
+
+    #[test]
+    fn test_to_pdb_string_round_trip() {
+        let model = read_pdb_from_str(sample_pdb());
+        let mol = &model.0[0];
+        let rendered = mol.to_pdb_string();
+
+        let model2 = read_pdb_from_str(&rendered);
+        assert_eq!(
+            model2.0[0].0.len(),
+            mol.0.len(),
+            "atom count preserved across round-trip"
+        );
+    }
+
+    #[test]
+    fn test_combine_molecules_atom_count() {
+        let model = read_pdb_from_str(sample_pdb());
+        let mol = model.0[0].clone();
+        let combined = combine_molecules(&mol, &mol);
+        assert_eq!(combined.0.len(), mol.0.len() * 2);
+    }
 
     fn create_test_atom(x: f64, y: f64, z: f64) -> Atom {
         Atom {
@@ -357,7 +420,7 @@ mod tests {
 
     #[test]
     fn test_read_pdb() {
-        let molecule = read_pdb(&"data/2oob.pdb".to_string());
+        let molecule = read_pdb("data/2oob.pdb");
         assert!(!molecule.0.is_empty())
     }
 

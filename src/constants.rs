@@ -15,6 +15,15 @@ pub const ENABLE_EARLY_STOPPING: bool = true;
 pub const CONVERGENCE_THRESHOLD: f64 = 0.001; // 0.1% improvement threshold
 pub const CONVERGENCE_WINDOW: u64 = 10; // Stop if no improvement for this many generations
 
+// Output
+pub const NUM_OUTPUT_MODELS: usize = 5;
+
+// Hall of Fame parameters
+pub const HALL_OF_FAME_MAX_SIZE: usize = 500;
+pub const HALL_OF_FAME_TOP_K: usize = 10;
+pub const HOF_UNIQUENESS_ROTATION_THRESHOLD: f64 = 0.2; // ~11 degrees
+pub const HOF_UNIQUENESS_TRANSLATION_THRESHOLD: f64 = 2.0; // 2 Å
+
 // Default weights
 //  These defaults are based on a score calibration,
 //   check the `calibration/` directory of the base

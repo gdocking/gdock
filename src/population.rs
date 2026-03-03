@@ -8,7 +8,7 @@ use core::cmp::Ordering;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rand::Rng;
-// use rayon::iter::IntoParallelRefIterator;
+#[cfg(feature = "parallel")]
 use rayon::iter::{IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator};
 
 #[derive(Debug, Clone)]
@@ -46,10 +46,20 @@ impl Population {
     }
 
     pub fn eval_fitness(&mut self) {
-        // Calculate the fitness in parallel
         let weights = self.weights;
         let evaluator_ref = self.debug_evaluator.as_ref();
+        #[cfg(feature = "parallel")]
         self.chromosomes.par_iter_mut().for_each(|c| {
+            c.fitness(
+                &self.receptor,
+                &self.ligand,
+                &self.restraints,
+                &weights,
+                evaluator_ref,
+            );
+        });
+        #[cfg(not(feature = "parallel"))]
+        self.chromosomes.iter_mut().for_each(|c| {
             c.fitness(
                 &self.receptor,
                 &self.ligand,
@@ -61,13 +71,20 @@ impl Population {
     }
 
     pub fn eval_metrics(&self, evaluator: &evaluator::Evaluator) -> Vec<evaluator::Metrics> {
-        self.chromosomes
-            .par_iter()
-            .map(|c| {
-                let model = c.apply_genes(&self.ligand);
-                evaluator.calc_metrics(&model)
-            })
-            .collect()
+        #[cfg(feature = "parallel")]
+        {
+            self.chromosomes
+                .par_iter()
+                .map(|c| evaluator.calc_metrics(&c.apply_genes(&self.ligand)))
+                .collect()
+        }
+        #[cfg(not(feature = "parallel"))]
+        {
+            self.chromosomes
+                .iter()
+                .map(|c| evaluator.calc_metrics(&c.apply_genes(&self.ligand)))
+                .collect()
+        }
     }
 
     /// Evolve the population

@@ -1,6 +1,6 @@
 [package]
 name = "gdock"
-version = "2.0.0-rc.2"
+version = "2.0.0-rc.3"
 edition = "2021"
 license = "0BSD"
 authors = ["Rodrigo V. Honorato <rvhonorato@protonmail.com>"]
@@ -17,11 +17,15 @@ keywords = [
 ]
 categories = ["science", "command-line-utilities", "algorithms", "simulation"]
 
+[features]
+default = ["parallel"]
+parallel = ["dep:rayon"]
+
 [dependencies]
 regex = "1.12"
 rand = "0.8.5"
 rand_distr = "0.4"
-rayon = "1.11"
+rayon = { version = "1.11", optional = true }
 clap = "4.5"
 colored = "2.1"
 indicatif = "0.17"
