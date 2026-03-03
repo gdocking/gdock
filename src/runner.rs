@@ -152,8 +152,7 @@ pub fn select_models(
         .enumerate()
         .map(|(i, e)| (i, e.fitness))
         .collect();
-    ranked_by_fitness
-        .sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+    ranked_by_fitness.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
     let ranked: Vec<usize> = ranked_by_fitness
         .iter()
         .take(NUM_OUTPUT_MODELS)
