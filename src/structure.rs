@@ -325,24 +325,16 @@ pub fn read_pdb(pdb_file: &str) -> Model {
 
 /// Combine receptor and ligand atoms into a single Molecule.
 pub fn combine_molecules(receptor: &Molecule, ligand: &Molecule) -> Molecule {
-    let mut combined = Molecule::new();
-    for atom in &receptor.0 {
-        combined.0.push(atom.clone());
-    }
-    for atom in &ligand.0 {
-        combined.0.push(atom.clone());
-    }
+    let mut combined = Molecule(Vec::with_capacity(receptor.0.len() + ligand.0.len()));
+    combined.0.extend(receptor.0.iter().cloned());
+    combined.0.extend(ligand.0.iter().cloned());
     combined
 }
 
 /// Output a Molecule in PDB format to a file. Not available on wasm32.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn write_pdb(molecule: &Molecule, output_file: &str) {
-    let mut pdb_string = String::new();
-    for atom in &molecule.0 {
-        pdb_string.push_str(&atom.to_pdb_string());
-    }
-    fs::write(output_file, pdb_string).expect("Unable to write file");
+    fs::write(output_file, molecule.to_pdb_string()).expect("Unable to write file");
 }
 
 pub fn distance(atom1: &Atom, atom2: &Atom) -> f64 {
@@ -365,6 +357,7 @@ pub fn filter_by_resseq_vec(molecule: &Molecule, resseq_vec: &HashSet<i16>) -> M
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::f64::consts::PI;
 
     /// Minimal two-atom PDB string for round-trip tests.
     fn sample_pdb() -> &'static str {
@@ -400,7 +393,6 @@ mod tests {
         let combined = combine_molecules(&mol, &mol);
         assert_eq!(combined.0.len(), mol.0.len() * 2);
     }
-    use std::f64::consts::PI;
 
     fn create_test_atom(x: f64, y: f64, z: f64) -> Atom {
         Atom {
