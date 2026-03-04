@@ -14,7 +14,7 @@ restraints and energy components to guide the docking process. It combines a
 genetic algorithm with physics-based scoring to find optimal protein-protein
 complexes.
 
-> **Note**: This project is currently under review for publication in the
+> A paper describing gdock is currently under review in the
 > [Journal of Open Source Software (JOSS)](https://joss.theoj.org/).
 
 ## Features
