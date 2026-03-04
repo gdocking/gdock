@@ -2,10 +2,10 @@
 
 **Information-driven protein-protein docking using a genetic algorithm**
 
+[![DOI](https://zenodo.org/badge/264535556.svg)](https://doi.org/10.5281/zenodo.18863556)
+![License](https://img.shields.io/badge/license-0BSD-blue)
 [![ci](https://github.com/rvhonorato/gdock/actions/workflows/ci.yml/badge.svg)](https://github.com/rvhonorato/gdock/actions/workflows/ci.yml)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/23671025da8a4334a754d8d5af76a34a)](https://app.codacy.com/gh/rvhonorato/gdock/dashboard)
-
-![License](https://img.shields.io/badge/license-0BSD-blue)
 
 <img src="imgs/gdock_logo.png" alt="gdock_logo" width="350">
 
@@ -14,7 +14,7 @@ restraints and energy components to guide the docking process. It combines a
 genetic algorithm with physics-based scoring to find optimal protein-protein
 complexes.
 
-> A paper describing gdock is currently under review in the
+> A paper describing gdock has been submitted to and is waiting review in the
 > [Journal of Open Source Software (JOSS)](https://joss.theoj.org/).
 
 ## Features
@@ -265,11 +265,11 @@ Before submitting a pull request, please ensure:
 
 ## Citation
 
-If you use gdock in your research, please cite using the Zenodo DOI:
+If you use gdock in your research, please cite:
 
-[![DOI](https://zenodo.org/badge/DOI/TO_BE_ADDED.svg)](https://doi.org/TO_BE_ADDED)
+- Vargas Honorato, R. gdock: Information-Driven Protein-Protein Docking Using a Genetic Algorithm. (Zenodo, 2026). doi:[10.5281/zenodo.18863557](https://doi.org/10.5281/zenodo.18863557). 
 
-A JOSS paper is currently under review.
+[_A JOSS paper has been submitted and is waiting for review_](https://gdock.org/gdock_paper_submitted.pdf).
 
 ## License
 
