@@ -122,6 +122,78 @@ gdock restraints \
   --cutoff 5.0
 ```
 
+## Command reference
+
+```
+$ gdock -h
+Fast information-driven protein-protein docking using genetic algorithms
+
+Usage: gdock <COMMAND>
+
+Commands:
+  run         Run the genetic algorithm docking
+  score       Score structures without running the GA
+  restraints  Generate restraints from interface contacts
+  help        Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
+```
+
+```
+$ gdock run -h
+Run the genetic algorithm docking
+
+Usage: gdock run [OPTIONS] --receptor <FILE> --ligand <FILE> --restraints <PAIRS>
+
+Options:
+  -r, --receptor <FILE>     Receptor PDB file
+  -l, --ligand <FILE>       Ligand PDB file
+      --restraints <PAIRS>  Comma-separated restraint pairs receptor:ligand (e.g., 10:45,15:50)
+      --reference <FILE>    Reference PDB file for DockQ calculation
+      --debug               Debug mode: use DockQ as fitness (requires --reference)
+  -o, --output-dir <DIR>    Output directory for results (default: current directory)
+      --no-clust            Disable clustering, output best_by_score and best_by_dockq only
+  -n, --nproc <NUM>         Number of processors to use (default: total - 2)
+      --w_vdw <WEIGHT>      Weight for VDW energy term
+      --w_elec <WEIGHT>     Weight for electrostatic energy term
+      --w_desolv <WEIGHT>   Weight for desolvation energy term
+      --w_air <WEIGHT>      Weight for AIR restraint energy term
+  -h, --help                Print help
+```
+
+```
+$ gdock score -h
+Score structures without running the GA
+
+Usage: gdock score [OPTIONS] --receptor <FILE> --ligand <FILE>
+
+Options:
+  -r, --receptor <FILE>     Receptor PDB file
+  -l, --ligand <FILE>       Ligand PDB file
+      --restraints <PAIRS>  Comma-separated restraint pairs receptor:ligand (optional)
+      --reference <FILE>    Reference PDB file for DockQ calculation
+      --w_vdw <WEIGHT>      Weight for VDW energy term
+      --w_elec <WEIGHT>     Weight for electrostatic energy term
+      --w_desolv <WEIGHT>   Weight for desolvation energy term
+      --w_air <WEIGHT>      Weight for AIR restraint energy term
+  -h, --help                Print help
+```
+
+```
+$ gdock restraints -h
+Generate restraints from interface contacts
+
+Usage: gdock restraints [OPTIONS] --receptor <FILE> --ligand <FILE>
+
+Options:
+  -r, --receptor <FILE>     Receptor PDB file
+  -l, --ligand <FILE>       Ligand PDB file
+      --cutoff <ANGSTROMS>  Distance cutoff for interface detection (default: 5.0)
+  -h, --help                Print help
+```
+
 ## Input Format
 
 ### PDB Files
