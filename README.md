@@ -7,7 +7,7 @@
 
 ![License](https://img.shields.io/badge/license-0BSD-blue)
 
-<img src="imgs/gdock_logo.png" width="350">
+<img src="imgs/gdock_logo.png" alt="gdock_logo" width="350">
 
 gdock is a fast protein-protein docking tool written in Rust that uses
 restraints and energy components to guide the docking process. It combines a
@@ -15,8 +15,7 @@ genetic algorithm with physics-based scoring to find optimal protein-protein
 complexes.
 
 > **Note**: This project is currently under review for publication in the
-> [Journal of Open Source Software (JOSS)](https://joss.theoj.org/). A stable
-> v2.0.0 release will follow upon acceptance.
+> [Journal of Open Source Software (JOSS)](https://joss.theoj.org/).
 
 ## Features
 
@@ -28,28 +27,38 @@ complexes.
   provided
 - **Clustering**: FCC-based clustering to group similar solutions
 
+## Web Interface
+
+A web interface is available at [gdock.org](https://gdock.org) for running
+docking jobs without installing anything locally.
+
 ## Quick Start
 
 ```bash
-# Clone and build
-git clone https://github.com/rvhonorato/gdock
-cd gdock
-cargo build --release
+# Install
+cargo install gdock
 
-# Run docking with example data
-./target/release/gdock run \
-  --receptor data/2oob_A.pdb \
-  --ligand data/2oob_B.pdb \
+# Prepare some input data
+curl -sL https://files.rcsb.org/download/2OOB.pdb -o 2OOB.pdb
+awk '/^ATOM/ && substr($0,22,1)=="A"' 2OOB.pdb > 2oob_A.pdb
+awk '/^ATOM/ && substr($0,22,1)=="B"' 2OOB.pdb > 2oob_B.pdb
+
+# Run docking
+gdock run \
+  --receptor 2oob_A.pdb \
+  --ligand 2oob_B.pdb \
   --restraints 933:6,936:8,940:42,941:44,946:45,950:46
 ```
 
 Most docking runs complete in ~15 seconds on standard hardware.
 
-## Requirements
-
-- [Rust](https://www.rust-lang.org/tools/install) (1.70 or later)
-
 ## Installation
+
+```bash
+cargo install gdock
+```
+
+Or build from source:
 
 ```bash
 git clone https://github.com/rvhonorato/gdock
@@ -57,14 +66,11 @@ cd gdock
 cargo build --release
 ```
 
-The binary will be available at `./target/release/gdock`.
-
-Upon stable release, pre-built binaries and `cargo install gdock` will also be
-available.
+Requires [Rust](https://www.rust-lang.org/tools/install) 1.70 or later.
 
 ## Usage
 
-gdock has three subcommands: `run`, `score`, and `restraints`.
+`gdock` has three subcommands: `run`, `score`, and `restraints`.
 
 ### Docking (`run`)
 
@@ -166,32 +172,13 @@ cargo test
 The test suite includes 174 tests covering parsing, energy calculations, and
 algorithm behavior.
 
-## Example
-
-Using the test data included in the repository:
-
-```bash
-gdock run \
-  --receptor data/2oob_A.pdb \
-  --ligand data/2oob_B.pdb \
-  --restraints 933:6,936:8,940:42,941:44,946:45,950:46 \
-  --reference data/2oob.pdb \
-  --output-dir results/
-```
-
-This will produce:
-
-- `results/model_*.pdb` — Cluster representatives ranked by cluster size
-- `results/ranked_*.pdb` — Top 5 models ranked by score
-- `results/metrics.tsv` — Scores and DockQ values for all models
-
 ## Relevant repositories
 
 - [`gdock-benchmark`](https://github.com/rvhonorato/gdock-benchmark): repository
 containing all scripts and raw data relevant to benchmarking the performance
 of `gdock`
-- [`gdock-website`](https://github.com/rvhonorato/gdock-website): source
-code for [gdock.org](https://gdock.org)
+- [`gdock-wasm`](https://github.com/rvhonorato/gdock-wasm): WebAssembly bindings
+used in [gdock.org](https://gdock.org)
 
 ## Contributing
 
@@ -206,7 +193,11 @@ Before submitting a pull request, please ensure:
 
 ## Citation
 
-Coming soon.
+If you use gdock in your research, please cite using the Zenodo DOI:
+
+[![DOI](https://zenodo.org/badge/DOI/TO_BE_ADDED.svg)](https://doi.org/TO_BE_ADDED)
+
+A JOSS paper is currently under review.
 
 ## License
 
