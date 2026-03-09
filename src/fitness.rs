@@ -309,6 +309,7 @@ mod tests {
         structure::Atom {
             serial: 1,
             name: "CA".to_string(),
+            chemical: String::new(),
             altloc: ' ',
             resname: "ALA".to_string(),
             chainid: 'A',

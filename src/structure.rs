@@ -36,7 +36,8 @@ pub struct Molecule {
 #[derive(Debug, Clone)]
 pub struct Atom {
     pub serial: i32,
-    pub name: String,
+    pub name: String,     // Ca, Cb, N, C, O, etc
+    pub chemical: String, // C145, N412, etc
     pub altloc: char,
     pub resname: String,
     pub chainid: char,
@@ -160,6 +161,7 @@ impl Atom {
         Atom {
             serial: 0,
             name: String::new(),
+            chemical: String::new(),
             altloc: ' ',
             resname: String::new(),
             chainid: ' ',
@@ -359,14 +361,14 @@ pub fn distance(atom1: &Atom, atom2: &Atom) -> f64 {
 
 pub fn filter_by_resseq_vec(molecule: &Molecule, resseq_vec: &HashSet<i16>) -> Molecule {
     // TODO: Improve this
-    let mut mol = Molecule::new();
     let filtered_atoms: Vec<Atom> = molecule
         .atoms
         .iter()
         .filter(|atom| resseq_vec.contains(&atom.resseq))
         .cloned()
-        .collect();
+        .collect::<Vec<Atom>>();
 
+    let mut mol = Molecule::new();
     mol.atoms = filtered_atoms;
 
     mol
@@ -416,6 +418,7 @@ mod tests {
         Atom {
             serial: 1,
             name: "CA".to_string(),
+            chemical: String::new(),
             altloc: ' ',
             resname: "ALA".to_string(),
             chainid: 'A',
