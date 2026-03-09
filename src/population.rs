@@ -280,10 +280,10 @@ mod tests {
             .collect();
 
         let mut receptor = Molecule::new();
-        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+        receptor.atoms.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
 
         let mut ligand = Molecule::new();
-        ligand.0.push(create_test_atom(5.0, 0.0, 0.0, 10, 'B'));
+        ligand.atoms.push(create_test_atom(5.0, 0.0, 0.0, 10, 'B'));
 
         let reference = ligand.clone();
 
@@ -304,9 +304,9 @@ mod tests {
 
         assert_eq!(pop.chromosomes.len(), 10);
         assert_eq!(pop.generation, 0);
-        assert_eq!(pop.receptor.0.len(), 1);
-        assert_eq!(pop.ligand.0.len(), 1);
-        assert_eq!(pop.reference.0.len(), 1);
+        assert_eq!(pop.receptor.atoms.len(), 1);
+        assert_eq!(pop.ligand.atoms.len(), 1);
+        assert_eq!(pop.reference.atoms.len(), 1);
     }
 
     #[test]

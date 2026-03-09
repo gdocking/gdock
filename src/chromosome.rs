@@ -256,7 +256,7 @@ mod tests {
     #[test]
     fn test_apply_genes_translation_only() {
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom("CA", 0.0, 0.0, 0.0));
+        ligand.atoms.push(create_test_atom("CA", 0.0, 0.0, 0.0));
 
         let chromosome = Chromosome {
             genes: vec![0.0, 0.0, 0.0, 5.0, 10.0, 15.0], // No rotation, just translation
@@ -273,34 +273,34 @@ mod tests {
         let transformed = chromosome.apply_genes(&ligand);
 
         // Position should be translated by (5, 10, 15)
-        assert!((transformed.0[0].x - 5.0).abs() < 1e-6);
-        assert!((transformed.0[0].y - 10.0).abs() < 1e-6);
-        assert!((transformed.0[0].z - 15.0).abs() < 1e-6);
+        assert!((transformed.atoms[0].x - 5.0).abs() < 1e-6);
+        assert!((transformed.atoms[0].y - 10.0).abs() < 1e-6);
+        assert!((transformed.atoms[0].z - 15.0).abs() < 1e-6);
     }
 
     #[test]
     fn test_apply_genes_preserves_molecule_size() {
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom("CA", 0.0, 0.0, 0.0));
-        ligand.0.push(create_test_atom("CB", 1.0, 0.0, 0.0));
-        ligand.0.push(create_test_atom("C", 2.0, 0.0, 0.0));
+        ligand.atoms.push(create_test_atom("CA", 0.0, 0.0, 0.0));
+        ligand.atoms.push(create_test_atom("CB", 1.0, 0.0, 0.0));
+        ligand.atoms.push(create_test_atom("C", 2.0, 0.0, 0.0));
 
         let mut rng = StdRng::seed_from_u64(42);
         let chromosome = Chromosome::new(&mut rng);
 
         let transformed = chromosome.apply_genes(&ligand);
 
-        assert_eq!(transformed.0.len(), ligand.0.len());
+        assert_eq!(transformed.atoms.len(), ligand.atoms.len());
     }
 
     #[test]
     fn test_fitness_calculation() {
         // Create simple test molecules
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom("CA", 0.0, 0.0, 0.0));
+        receptor.atoms.push(create_test_atom("CA", 0.0, 0.0, 0.0));
 
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom("CA", 5.0, 0.0, 0.0));
+        ligand.atoms.push(create_test_atom("CA", 5.0, 0.0, 0.0));
 
         let restraints = vec![]; // No restraints
         let weights = constants::EnergyWeights::default();
@@ -330,10 +330,10 @@ mod tests {
     #[test]
     fn test_fitness_stores_energy_components() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom("CA", 0.0, 0.0, 0.0));
+        receptor.atoms.push(create_test_atom("CA", 0.0, 0.0, 0.0));
 
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom("CA", 3.0, 0.0, 0.0));
+        ligand.atoms.push(create_test_atom("CA", 3.0, 0.0, 0.0));
 
         let restraints = vec![];
         let weights = constants::EnergyWeights::default();

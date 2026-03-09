@@ -64,7 +64,7 @@ pub fn calculate_contacts(molecule: &Molecule, contact_distance: f64) -> HashSet
     // Group atoms by residue (chain + resseq)
     let mut residues: ResidueCoordMap = HashMap::new();
 
-    for atom in &molecule.0 {
+    for atom in &molecule.atoms {
         // Skip hydrogen atoms
         if atom.element.trim() == "H" {
             continue;
@@ -387,8 +387,8 @@ mod tests {
         use crate::commands::run::combine_molecules;
         use crate::structure::read_pdb;
 
-        let receptor_model = read_pdb(&"data/2oob_A.pdb".to_string());
-        let ligand_model = read_pdb(&"data/2oob_B.pdb".to_string());
+        let receptor_model = read_pdb("data/2oob_A.pdb");
+        let ligand_model = read_pdb("data/2oob_B.pdb");
 
         let receptor = &receptor_model.0[0];
         let ligand = &ligand_model.0[0];

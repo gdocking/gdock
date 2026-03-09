@@ -18,13 +18,13 @@ impl Restraint {
 
         // Find CA atom in receptor with matching resseq
         let ca_receptor = receptor
-            .0
+            .atoms
             .iter()
             .find(|x| x.resseq == self.0.resseq && x.name.trim() == "CA");
 
         // Find CA atom in ligand with matching resseq
         let ca_ligand = ligand
-            .0
+            .atoms
             .iter()
             .find(|x| x.resseq == self.1.resseq && x.name.trim() == "CA");
 
@@ -51,13 +51,13 @@ pub fn create_restraints_from_pairs(
     for (res1, res2) in pairs {
         // Find CA atom in mol1 with matching residue number
         let ca_atom_1 = mol1
-            .0
+            .atoms
             .iter()
             .find(|atom| atom.name.trim() == "CA" && atom.resseq as i32 == *res1);
 
         // Find CA atom in mol2 with matching residue number
         let ca_atom_2 = mol2
-            .0
+            .atoms
             .iter()
             .find(|atom| atom.name.trim() == "CA" && atom.resseq as i32 == *res2);
 
@@ -83,13 +83,13 @@ pub fn create_restraints(mol1: &structure::Molecule, mol2: &structure::Molecule)
     // Only create restraints for CA atoms (backbone) to reduce the number of restraints
     // This is more realistic for protein-protein docking
     let ca_atoms_1: Vec<&structure::Atom> = mol1
-        .0
+        .atoms
         .iter()
         .filter(|atom| atom.name.trim() == "CA")
         .collect();
 
     let ca_atoms_2: Vec<&structure::Atom> = mol2
-        .0
+        .atoms
         .iter()
         .filter(|atom| atom.name.trim() == "CA")
         .collect();
@@ -162,10 +162,12 @@ mod tests {
 
         // Create molecules with CA atoms within 7.0A
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+        receptor
+            .atoms
+            .push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
 
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0)); // Distance = 5.0
+        ligand.atoms.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0)); // Distance = 5.0
 
         assert!(restraint.is_satisfied(&receptor, &ligand));
     }
@@ -178,10 +180,12 @@ mod tests {
         let restraint = Restraint::new(atom1.clone(), atom2.clone());
 
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+        receptor
+            .atoms
+            .push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
 
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom("CA", 10, 7.0, 0.0, 0.0)); // Distance = 7.0 (at boundary)
+        ligand.atoms.push(create_test_atom("CA", 10, 7.0, 0.0, 0.0)); // Distance = 7.0 (at boundary)
 
         assert!(restraint.is_satisfied(&receptor, &ligand));
     }
@@ -194,10 +198,14 @@ mod tests {
         let restraint = Restraint::new(atom1.clone(), atom2.clone());
 
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+        receptor
+            .atoms
+            .push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
 
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom("CA", 10, 10.0, 0.0, 0.0)); // Distance = 10.0
+        ligand
+            .atoms
+            .push(create_test_atom("CA", 10, 10.0, 0.0, 0.0)); // Distance = 10.0
 
         assert!(!restraint.is_satisfied(&receptor, &ligand));
     }
@@ -211,10 +219,12 @@ mod tests {
 
         // Receptor has wrong residue number
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom("CA", 99, 0.0, 0.0, 0.0));
+        receptor
+            .atoms
+            .push(create_test_atom("CA", 99, 0.0, 0.0, 0.0));
 
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0));
+        ligand.atoms.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0));
 
         assert!(!restraint.is_satisfied(&receptor, &ligand));
     }
@@ -227,11 +237,13 @@ mod tests {
         let restraint = Restraint::new(atom1, atom2);
 
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+        receptor
+            .atoms
+            .push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
 
         // Ligand has wrong residue number
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom("CA", 99, 5.0, 0.0, 0.0));
+        ligand.atoms.push(create_test_atom("CA", 99, 5.0, 0.0, 0.0));
 
         assert!(!restraint.is_satisfied(&receptor, &ligand));
     }
@@ -239,12 +251,16 @@ mod tests {
     #[test]
     fn test_create_restraints_from_pairs_single_pair() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
-        receptor.0.push(create_test_atom("CB", 1, 0.5, 0.0, 0.0)); // Non-CA atom
+        receptor
+            .atoms
+            .push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+        receptor
+            .atoms
+            .push(create_test_atom("CB", 1, 0.5, 0.0, 0.0)); // Non-CA atom
 
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0));
-        ligand.0.push(create_test_atom("CB", 10, 5.5, 0.0, 0.0)); // Non-CA atom
+        ligand.atoms.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0));
+        ligand.atoms.push(create_test_atom("CB", 10, 5.5, 0.0, 0.0)); // Non-CA atom
 
         let pairs = vec![(1, 10)];
         let restraints = create_restraints_from_pairs(&receptor, &ligand, &pairs);
@@ -257,12 +273,16 @@ mod tests {
     #[test]
     fn test_create_restraints_from_pairs_multiple_pairs() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
-        receptor.0.push(create_test_atom("CA", 2, 1.0, 0.0, 0.0));
+        receptor
+            .atoms
+            .push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+        receptor
+            .atoms
+            .push(create_test_atom("CA", 2, 1.0, 0.0, 0.0));
 
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0));
-        ligand.0.push(create_test_atom("CA", 11, 6.0, 0.0, 0.0));
+        ligand.atoms.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0));
+        ligand.atoms.push(create_test_atom("CA", 11, 6.0, 0.0, 0.0));
 
         let pairs = vec![(1, 10), (2, 11)];
         let restraints = create_restraints_from_pairs(&receptor, &ligand, &pairs);
@@ -277,10 +297,12 @@ mod tests {
     #[test]
     fn test_create_restraints_from_pairs_missing_residue() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+        receptor
+            .atoms
+            .push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
 
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0));
+        ligand.atoms.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0));
 
         // Request a pair where one residue doesn't exist
         let pairs = vec![(1, 10), (999, 10)];
@@ -294,10 +316,12 @@ mod tests {
     #[test]
     fn test_create_restraints_from_pairs_no_ca_atoms() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom("CB", 1, 0.0, 0.0, 0.0)); // Not CA
+        receptor
+            .atoms
+            .push(create_test_atom("CB", 1, 0.0, 0.0, 0.0)); // Not CA
 
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom("CB", 10, 5.0, 0.0, 0.0)); // Not CA
+        ligand.atoms.push(create_test_atom("CB", 10, 5.0, 0.0, 0.0)); // Not CA
 
         let pairs = vec![(1, 10)];
         let restraints = create_restraints_from_pairs(&receptor, &ligand, &pairs);
@@ -309,12 +333,12 @@ mod tests {
     #[test]
     fn test_create_restraints_within_distance() {
         let mut mol1 = structure::Molecule::new();
-        mol1.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
-        mol1.0.push(create_test_atom("CA", 2, 100.0, 0.0, 0.0)); // Far away
+        mol1.atoms.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+        mol1.atoms.push(create_test_atom("CA", 2, 100.0, 0.0, 0.0)); // Far away
 
         let mut mol2 = structure::Molecule::new();
-        mol2.0.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0)); // Within 7.0A of res 1
-        mol2.0.push(create_test_atom("CA", 11, 200.0, 0.0, 0.0)); // Far away
+        mol2.atoms.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0)); // Within 7.0A of res 1
+        mol2.atoms.push(create_test_atom("CA", 11, 200.0, 0.0, 0.0)); // Far away
 
         let restraints = create_restraints(&mol1, &mol2);
 
@@ -327,10 +351,10 @@ mod tests {
     #[test]
     fn test_create_restraints_at_boundary() {
         let mut mol1 = structure::Molecule::new();
-        mol1.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+        mol1.atoms.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
 
         let mut mol2 = structure::Molecule::new();
-        mol2.0.push(create_test_atom("CA", 10, 6.99, 0.0, 0.0)); // Just under 7.0A
+        mol2.atoms.push(create_test_atom("CA", 10, 6.99, 0.0, 0.0)); // Just under 7.0A
 
         let restraints = create_restraints(&mol1, &mol2);
 
@@ -340,10 +364,10 @@ mod tests {
     #[test]
     fn test_create_restraints_beyond_distance() {
         let mut mol1 = structure::Molecule::new();
-        mol1.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+        mol1.atoms.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
 
         let mut mol2 = structure::Molecule::new();
-        mol2.0.push(create_test_atom("CA", 10, 10.0, 0.0, 0.0)); // Beyond 7.0A
+        mol2.atoms.push(create_test_atom("CA", 10, 10.0, 0.0, 0.0)); // Beyond 7.0A
 
         let restraints = create_restraints(&mol1, &mol2);
 
@@ -353,13 +377,13 @@ mod tests {
     #[test]
     fn test_create_restraints_filters_non_ca() {
         let mut mol1 = structure::Molecule::new();
-        mol1.0.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
-        mol1.0.push(create_test_atom("CB", 1, 0.0, 0.0, 0.0)); // Non-CA
-        mol1.0.push(create_test_atom("N", 1, 0.0, 0.0, 0.0)); // Non-CA
+        mol1.atoms.push(create_test_atom("CA", 1, 0.0, 0.0, 0.0));
+        mol1.atoms.push(create_test_atom("CB", 1, 0.0, 0.0, 0.0)); // Non-CA
+        mol1.atoms.push(create_test_atom("N", 1, 0.0, 0.0, 0.0)); // Non-CA
 
         let mut mol2 = structure::Molecule::new();
-        mol2.0.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0));
-        mol2.0.push(create_test_atom("CB", 10, 5.0, 0.0, 0.0)); // Non-CA
+        mol2.atoms.push(create_test_atom("CA", 10, 5.0, 0.0, 0.0));
+        mol2.atoms.push(create_test_atom("CB", 10, 5.0, 0.0, 0.0)); // Non-CA
 
         let restraints = create_restraints(&mol1, &mol2);
 

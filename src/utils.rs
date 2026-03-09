@@ -10,8 +10,8 @@ pub fn generate_restraints(
     let mut restraints_b = Vec::new();
 
     // Calculate the distances between all atoms of molecule a and b
-    for atom1 in &molecule1.0 {
-        for atom2 in &molecule2.0 {
+    for atom1 in &molecule1.atoms {
+        for atom2 in &molecule2.atoms {
             let dist = structure::distance(atom1, atom2);
             // println!("Distance between {} and {} is {}", atom1.resnum, atom2.resnum, dist);
             if dist < 5.0 {
@@ -83,7 +83,7 @@ pub fn position_ligand(
     let (l_x, l_y, l_z) = ligand.center_of_mass();
 
     // Move the ligand to the center of the receptor
-    for atom in ligand.0.iter_mut() {
+    for atom in ligand.atoms.iter_mut() {
         atom.x -= l_x;
         atom.y -= l_y;
         atom.z -= l_z;
@@ -162,13 +162,13 @@ mod tests {
     fn test_position_ligand_centers_overlap() {
         // Create receptor centered at (5, 10, 15)
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom(3.0, 8.0, 13.0));
-        receptor.0.push(create_test_atom(7.0, 12.0, 17.0));
+        receptor.atoms.push(create_test_atom(3.0, 8.0, 13.0));
+        receptor.atoms.push(create_test_atom(7.0, 12.0, 17.0));
 
         // Create ligand centered at (0, 0, 0)
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom(-1.0, -1.0, -1.0));
-        ligand.0.push(create_test_atom(1.0, 1.0, 1.0));
+        ligand.atoms.push(create_test_atom(-1.0, -1.0, -1.0));
+        ligand.atoms.push(create_test_atom(1.0, 1.0, 1.0));
 
         let positioned = position_ligand(&receptor, ligand);
 
@@ -186,12 +186,12 @@ mod tests {
         let mut mol_a = structure::Molecule::new();
         let mut atom1 = create_test_atom(0.0, 0.0, 0.0);
         atom1.resseq = 1;
-        mol_a.0.push(atom1);
+        mol_a.atoms.push(atom1);
 
         let mut mol_b = structure::Molecule::new();
         let mut atom2 = create_test_atom(3.0, 0.0, 0.0); // Distance = 3.0, within 5.0
         atom2.resseq = 10;
-        mol_b.0.push(atom2);
+        mol_b.atoms.push(atom2);
 
         let (rest_a, rest_b) = generate_restraints(&mol_a, &mol_b);
 
@@ -206,12 +206,12 @@ mod tests {
         let mut mol_a = structure::Molecule::new();
         let mut atom1 = create_test_atom(0.0, 0.0, 0.0);
         atom1.resseq = 1;
-        mol_a.0.push(atom1);
+        mol_a.atoms.push(atom1);
 
         let mut mol_b = structure::Molecule::new();
         let mut atom2 = create_test_atom(10.0, 0.0, 0.0); // Distance = 10.0, beyond 5.0
         atom2.resseq = 10;
-        mol_b.0.push(atom2);
+        mol_b.atoms.push(atom2);
 
         let (rest_a, rest_b) = generate_restraints(&mol_a, &mol_b);
 
@@ -226,13 +226,13 @@ mod tests {
         atom1.resseq = 1;
         let mut atom2 = create_test_atom(0.1, 0.0, 0.0);
         atom2.resseq = 1; // Same residue
-        mol_a.0.push(atom1);
-        mol_a.0.push(atom2);
+        mol_a.atoms.push(atom1);
+        mol_a.atoms.push(atom2);
 
         let mut mol_b = structure::Molecule::new();
         let mut atom3 = create_test_atom(1.0, 0.0, 0.0);
         atom3.resseq = 10;
-        mol_b.0.push(atom3);
+        mol_b.atoms.push(atom3);
 
         let (rest_a, rest_b) = generate_restraints(&mol_a, &mol_b);
 

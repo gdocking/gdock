@@ -11,19 +11,19 @@ pub fn find_interface_pairs(
     let mut interface_pairs: Vec<(i16, i16)> = Vec::new();
 
     // Get unique residues from receptor and ligand
-    let rec_residues: HashSet<i16> = receptor.0.iter().map(|a| a.resseq).collect();
-    let lig_residues: HashSet<i16> = ligand.0.iter().map(|a| a.resseq).collect();
+    let rec_residues: HashSet<i16> = receptor.atoms.iter().map(|a| a.resseq).collect();
+    let lig_residues: HashSet<i16> = ligand.atoms.iter().map(|a| a.resseq).collect();
 
     for rec_res in &rec_residues {
         for lig_res in &lig_residues {
             // Get heavy atoms for this residue pair
             let rec_atoms: Vec<_> = receptor
-                .0
+                .atoms
                 .iter()
                 .filter(|a| a.resseq == *rec_res && !a.name.starts_with('H'))
                 .collect();
             let lig_atoms: Vec<_> = ligand
-                .0
+                .atoms
                 .iter()
                 .filter(|a| a.resseq == *lig_res && !a.name.starts_with('H'))
                 .collect();

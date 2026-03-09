@@ -187,14 +187,14 @@ mod tests {
         let (mol_a, mol_b) = read_complex("data/2oob.pdb");
 
         // Both molecules should have atoms
-        assert!(!mol_a.0.is_empty());
-        assert!(!mol_b.0.is_empty());
+        assert!(!mol_a.atoms.is_empty());
+        assert!(!mol_b.atoms.is_empty());
 
         // Chain A should have atoms with chain ID 'A'
-        assert_eq!(mol_a.0[0].chainid, 'A');
+        assert_eq!(mol_a.atoms[0].chainid, 'A');
 
         // Chain B should have atoms with chain ID 'B'
-        assert_eq!(mol_b.0[0].chainid, 'B');
+        assert_eq!(mol_b.atoms[0].chainid, 'B');
     }
 
     #[test]
@@ -203,8 +203,8 @@ mod tests {
         let (mol_a, mol_b) = read_complex("data/2oob.pdb");
 
         // Verify molecules were created
-        assert!(!mol_a.0.is_empty());
-        assert!(!mol_b.0.is_empty());
+        assert!(!mol_a.atoms.is_empty());
+        assert!(!mol_b.atoms.is_empty());
 
         // We can't easily verify cleanup without modifying the function,
         // but we can at least verify the function completed successfully
@@ -215,13 +215,13 @@ mod tests {
         let (mol_a, mol_b) = read_complex("data/2oob.pdb");
 
         // Verify coordinates are valid numbers (not NaN or Inf)
-        for atom in &mol_a.0 {
+        for atom in &mol_a.atoms {
             assert!(atom.x.is_finite());
             assert!(atom.y.is_finite());
             assert!(atom.z.is_finite());
         }
 
-        for atom in &mol_b.0 {
+        for atom in &mol_b.atoms {
             assert!(atom.x.is_finite());
             assert!(atom.y.is_finite());
             assert!(atom.z.is_finite());

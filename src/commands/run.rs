@@ -617,8 +617,8 @@ mod tests {
         let combined = combine_molecules(receptor, ligand);
 
         assert_eq!(
-            combined.0.len(),
-            receptor.0.len() + ligand.0.len(),
+            combined.atoms.len(),
+            receptor.atoms.len() + ligand.atoms.len(),
             "Combined molecule should have all atoms from both"
         );
     }

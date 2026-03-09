@@ -89,14 +89,14 @@ impl Evaluator {
         // then the RMSD here is the L-RMSD
 
         // Calculate the sum of squared distances between corresponding atoms
-        let n = self.reference.0.len();
+        let n = self.reference.atoms.len();
         if n == 0 {
             return 0.0;
         }
         let sum_squared_distances = &ligand
-            .0
+            .atoms
             .iter()
-            .zip(self.reference.0.iter())
+            .zip(self.reference.atoms.iter())
             .map(|(atom1, atom2)| atom1.distance_to(atom2))
             .sum::<f64>();
         (sum_squared_distances / n as f64).sqrt()
@@ -110,14 +110,14 @@ impl Evaluator {
         let target_ligand = structure::filter_by_resseq_vec(ligand, &self.interface.1);
 
         // Calculate the sum of squared distances between corresponding atoms
-        let n = self.reference_interface.0.len();
+        let n = self.reference_interface.atoms.len();
         if n == 0 {
             return 0.0;
         }
         let sum_squared_distances = &target_ligand
-            .0
+            .atoms
             .iter()
-            .zip(self.reference_interface.0.iter())
+            .zip(self.reference_interface.atoms.iter())
             .map(|(atom1, atom2)| atom1.distance_to(atom2))
             .sum::<f64>();
         (sum_squared_distances / n as f64).sqrt()
@@ -149,8 +149,8 @@ fn calculate_contacts(
     ligand: &structure::Molecule,
 ) -> Vec<Contact> {
     let mut native_contacts: Vec<Contact> = Vec::new();
-    for atom in &receptor.0 {
-        for ref_atom in &ligand.0 {
+    for atom in &receptor.atoms {
+        for ref_atom in &ligand.atoms {
             let distance = atom.distance_to(ref_atom);
             if distance <= 5.0 {
                 let c = Contact {
@@ -174,8 +174,8 @@ fn calculate_interface(
 ) -> (HashSet<i16>, HashSet<i16>) {
     let mut receptor_interface: HashSet<i16> = HashSet::new();
     let mut reference_interface: HashSet<i16> = HashSet::new();
-    for atom in &receptor.0 {
-        for ref_atom in &reference.0 {
+    for atom in &receptor.atoms {
+        for ref_atom in &reference.atoms {
             let distance = atom.distance_to(ref_atom);
             if distance <= 5.0 {
                 receptor_interface.insert(atom.resseq);
@@ -207,8 +207,8 @@ pub fn calculate_clashes(
     let mut clashes = 0;
     let mut interface_contacts = 0;
 
-    for rec_atom in &receptor.0 {
-        for lig_atom in &ligand.0 {
+    for rec_atom in &receptor.atoms {
+        for lig_atom in &ligand.atoms {
             let distance = rec_atom.distance_to(lig_atom);
             if distance <= 5.0 {
                 interface_contacts += 1;
@@ -322,10 +322,10 @@ mod tests {
     #[test]
     fn test_calculate_contacts_within_distance() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+        receptor.atoms.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
 
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom(3.0, 0.0, 0.0, 10, 'B')); // Within 5.0Å
+        ligand.atoms.push(create_test_atom(3.0, 0.0, 0.0, 10, 'B')); // Within 5.0Å
 
         let contacts = calculate_contacts(&receptor, &ligand);
 
@@ -337,10 +337,10 @@ mod tests {
     #[test]
     fn test_calculate_contacts_beyond_distance() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+        receptor.atoms.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
 
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom(10.0, 0.0, 0.0, 10, 'B')); // Beyond 5.0Å
+        ligand.atoms.push(create_test_atom(10.0, 0.0, 0.0, 10, 'B')); // Beyond 5.0Å
 
         let contacts = calculate_contacts(&receptor, &ligand);
 
@@ -350,12 +350,16 @@ mod tests {
     #[test]
     fn test_calculate_interface() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
-        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 2, 'A'));
-        receptor.0.push(create_test_atom(20.0, 0.0, 0.0, 3, 'A')); // Far away
+        receptor.atoms.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+        receptor.atoms.push(create_test_atom(0.0, 0.0, 0.0, 2, 'A'));
+        receptor
+            .atoms
+            .push(create_test_atom(20.0, 0.0, 0.0, 3, 'A')); // Far away
 
         let mut reference = structure::Molecule::new();
-        reference.0.push(create_test_atom(3.0, 0.0, 0.0, 10, 'B')); // Close to res 1 and 2
+        reference
+            .atoms
+            .push(create_test_atom(3.0, 0.0, 0.0, 10, 'B')); // Close to res 1 and 2
 
         let (receptor_interface, reference_interface) = calculate_interface(&receptor, &reference);
 
@@ -371,10 +375,12 @@ mod tests {
     #[test]
     fn test_evaluator_creation() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+        receptor.atoms.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
 
         let mut reference = structure::Molecule::new();
-        reference.0.push(create_test_atom(3.0, 0.0, 0.0, 10, 'B'));
+        reference
+            .atoms
+            .push(create_test_atom(3.0, 0.0, 0.0, 10, 'B'));
 
         let evaluator = Evaluator::new(receptor, reference);
 
@@ -385,10 +391,12 @@ mod tests {
     #[test]
     fn test_calc_rmsd_identical() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+        receptor.atoms.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
 
         let mut reference = structure::Molecule::new();
-        reference.0.push(create_test_atom(3.0, 0.0, 0.0, 10, 'B'));
+        reference
+            .atoms
+            .push(create_test_atom(3.0, 0.0, 0.0, 10, 'B'));
 
         let evaluator = Evaluator::new(receptor, reference.clone());
 
@@ -400,15 +408,17 @@ mod tests {
     #[test]
     fn test_calc_rmsd_different() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+        receptor.atoms.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
 
         let mut reference = structure::Molecule::new();
-        reference.0.push(create_test_atom(3.0, 0.0, 0.0, 10, 'B'));
+        reference
+            .atoms
+            .push(create_test_atom(3.0, 0.0, 0.0, 10, 'B'));
 
         let evaluator = Evaluator::new(receptor, reference);
 
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom(6.0, 0.0, 0.0, 10, 'B')); // 3Å away from reference
+        ligand.atoms.push(create_test_atom(6.0, 0.0, 0.0, 10, 'B')); // 3Å away from reference
 
         let rmsd = evaluator.calc_rmsd(&ligand);
         // RMSD calculation: sqrt(sum_of_distances / n)
@@ -422,10 +432,12 @@ mod tests {
     #[test]
     fn test_calc_fnat_perfect() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+        receptor.atoms.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
 
         let mut reference = structure::Molecule::new();
-        reference.0.push(create_test_atom(3.0, 0.0, 0.0, 10, 'B'));
+        reference
+            .atoms
+            .push(create_test_atom(3.0, 0.0, 0.0, 10, 'B'));
 
         let evaluator = Evaluator::new(receptor, reference.clone());
 
@@ -437,15 +449,17 @@ mod tests {
     #[test]
     fn test_calc_fnat_no_contacts() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+        receptor.atoms.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
 
         let mut reference = structure::Molecule::new();
-        reference.0.push(create_test_atom(3.0, 0.0, 0.0, 10, 'B'));
+        reference
+            .atoms
+            .push(create_test_atom(3.0, 0.0, 0.0, 10, 'B'));
 
         let evaluator = Evaluator::new(receptor, reference);
 
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom(20.0, 0.0, 0.0, 10, 'B')); // Far away - no contacts
+        ligand.atoms.push(create_test_atom(20.0, 0.0, 0.0, 10, 'B')); // Far away - no contacts
 
         let fnat = evaluator.calc_fnat(&ligand);
         assert_eq!(fnat, 0.0, "FNAT should be 0.0 for no contacts");
@@ -454,10 +468,12 @@ mod tests {
     #[test]
     fn test_calc_metrics_complete() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+        receptor.atoms.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
 
         let mut reference = structure::Molecule::new();
-        reference.0.push(create_test_atom(3.0, 0.0, 0.0, 10, 'B'));
+        reference
+            .atoms
+            .push(create_test_atom(3.0, 0.0, 0.0, 10, 'B'));
 
         let evaluator = Evaluator::new(receptor, reference.clone());
 
@@ -475,10 +491,12 @@ mod tests {
     #[test]
     fn test_dockq_calculation() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+        receptor.atoms.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
 
         let mut reference = structure::Molecule::new();
-        reference.0.push(create_test_atom(3.0, 0.0, 0.0, 10, 'B'));
+        reference
+            .atoms
+            .push(create_test_atom(3.0, 0.0, 0.0, 10, 'B'));
 
         let evaluator = Evaluator::new(receptor, reference.clone());
 
@@ -495,10 +513,10 @@ mod tests {
     #[test]
     fn test_calculate_clashes_no_clash() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+        receptor.atoms.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
 
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom(3.0, 0.0, 0.0, 10, 'B')); // 3Å apart - in interface but no clash
+        ligand.atoms.push(create_test_atom(3.0, 0.0, 0.0, 10, 'B')); // 3Å apart - in interface but no clash
 
         let result = calculate_clashes(&receptor, &ligand);
 
@@ -510,10 +528,10 @@ mod tests {
     #[test]
     fn test_calculate_clashes_with_clash() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+        receptor.atoms.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
 
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom(1.5, 0.0, 0.0, 10, 'B')); // 1.5Å apart - clash!
+        ligand.atoms.push(create_test_atom(1.5, 0.0, 0.0, 10, 'B')); // 1.5Å apart - clash!
 
         let result = calculate_clashes(&receptor, &ligand);
 
@@ -525,12 +543,12 @@ mod tests {
     #[test]
     fn test_calculate_clashes_mixed() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
-        receptor.0.push(create_test_atom(0.0, 4.0, 0.0, 2, 'A'));
+        receptor.atoms.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+        receptor.atoms.push(create_test_atom(0.0, 4.0, 0.0, 2, 'A'));
 
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom(1.0, 0.0, 0.0, 10, 'B')); // 1Å from atom 1 (clash), ~4.1Å from atom 2 (interface)
-        ligand.0.push(create_test_atom(0.0, 1.0, 0.0, 11, 'B')); // 1Å from atom 1 (clash), 3Å from atom 2 (interface)
+        ligand.atoms.push(create_test_atom(1.0, 0.0, 0.0, 10, 'B')); // 1Å from atom 1 (clash), ~4.1Å from atom 2 (interface)
+        ligand.atoms.push(create_test_atom(0.0, 1.0, 0.0, 11, 'B')); // 1Å from atom 1 (clash), 3Å from atom 2 (interface)
 
         let result = calculate_clashes(&receptor, &ligand);
 
@@ -544,10 +562,10 @@ mod tests {
     #[test]
     fn test_calculate_clashes_no_interface() {
         let mut receptor = structure::Molecule::new();
-        receptor.0.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
+        receptor.atoms.push(create_test_atom(0.0, 0.0, 0.0, 1, 'A'));
 
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom(10.0, 0.0, 0.0, 10, 'B')); // 10Å apart - not in interface
+        ligand.atoms.push(create_test_atom(10.0, 0.0, 0.0, 10, 'B')); // 10Å apart - not in interface
 
         let result = calculate_clashes(&receptor, &ligand);
 
