@@ -1,6 +1,8 @@
 use crate::constants;
 use crate::toppar;
 
+use petgraph::graph::Graph;
+use petgraph::Undirected;
 use std::collections::HashSet;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -26,7 +28,10 @@ impl Model {
 }
 
 #[derive(Debug, Clone)]
-pub struct Molecule(pub Vec<Atom>);
+pub struct Molecule {
+    pub atoms: Vec<Atom>,
+    pub graph: Graph<(), (), Undirected>,
+}
 
 #[derive(Debug, Clone)]
 pub struct Atom {
@@ -59,21 +64,26 @@ impl Default for Molecule {
 }
 
 impl Molecule {
+    /// Create a new Molecule from a vector of atoms.
+    /// Initializes an empty graph (no bonds) - bonds must be added separately.
     pub fn new() -> Molecule {
-        Molecule(Vec::new())
+        Molecule {
+            atoms: Vec::new(),
+            graph: Graph::new_undirected(),
+        }
     }
 
     // Function to compute the center of mass of the molecule
     pub fn center_of_mass(&self) -> (f64, f64, f64) {
-        let num_atoms = self.0.len() as f64;
-        let sum_x = self.0.iter().map(|atom| atom.x).sum::<f64>();
-        let sum_y = self.0.iter().map(|atom| atom.y).sum::<f64>();
-        let sum_z = self.0.iter().map(|atom| atom.z).sum::<f64>();
+        let num_atoms = self.atoms.len() as f64;
+        let sum_x = self.atoms.iter().map(|atom| atom.x).sum::<f64>();
+        let sum_y = self.atoms.iter().map(|atom| atom.y).sum::<f64>();
+        let sum_z = self.atoms.iter().map(|atom| atom.z).sum::<f64>();
         (sum_x / num_atoms, sum_y / num_atoms, sum_z / num_atoms)
     }
 
     pub fn translate(&mut self, dx: f64, dy: f64, dz: f64) {
-        for atom in &mut self.0 {
+        for atom in &mut self.atoms {
             atom.x += dx;
             atom.y += dy;
             atom.z += dz;
@@ -84,14 +94,14 @@ impl Molecule {
     pub fn rotate(mut self, alpha: f64, beta: f64, gamma: f64) -> Self {
         // Translate the molecule to the center of mass
         let (center_x, center_y, center_z) = self.center_of_mass();
-        for atom in &mut self.0 {
+        for atom in &mut self.atoms {
             atom.x -= center_x;
             atom.y -= center_y;
             atom.z -= center_z;
         }
 
         // Apply rotation using Euler angles
-        for atom in &mut self.0 {
+        for atom in &mut self.atoms {
             let x = atom.x;
             let y = atom.y;
             let z = atom.z;
@@ -112,7 +122,7 @@ impl Molecule {
         }
 
         // Move the molecule back to its original position
-        for atom in &mut self.0 {
+        for atom in &mut self.atoms {
             atom.x += center_x;
             atom.y += center_y;
             atom.z += center_z;
@@ -126,7 +136,7 @@ impl Molecule {
         displacement_y: f64,
         displacement_z: f64,
     ) -> Self {
-        for atom in &mut self.0 {
+        for atom in &mut self.atoms {
             atom.x += displacement_x;
             atom.y += displacement_y;
             atom.z += displacement_z;
@@ -137,7 +147,7 @@ impl Molecule {
     /// Render all atoms as a PDB-format string (for wasm output).
     pub fn to_pdb_string(&self) -> String {
         let mut s = String::new();
-        for atom in &self.0 {
+        for atom in &self.atoms {
             s.push_str(&atom.to_pdb_string());
         }
         s.push_str("END\n");
@@ -300,7 +310,7 @@ fn parse_lines<S: AsRef<str>, I: Iterator<Item = S>>(lines: I) -> Model {
             model.0.push(molecule.clone());
             molecule = Molecule::new();
         } else if let Some(atom) = process_atom_line(line) {
-            molecule.0.push(atom);
+            molecule.atoms.push(atom);
         }
     }
 
@@ -325,9 +335,12 @@ pub fn read_pdb(pdb_file: &str) -> Model {
 
 /// Combine receptor and ligand atoms into a single Molecule.
 pub fn combine_molecules(receptor: &Molecule, ligand: &Molecule) -> Molecule {
-    let mut combined = Molecule(Vec::with_capacity(receptor.0.len() + ligand.0.len()));
-    combined.0.extend(receptor.0.iter().cloned());
-    combined.0.extend(ligand.0.iter().cloned());
+    let mut combined = Molecule::new();
+    combined
+        .atoms
+        .reserve(receptor.atoms.len() + ligand.atoms.len());
+    combined.atoms.extend(receptor.atoms.iter().cloned());
+    combined.atoms.extend(ligand.atoms.iter().cloned());
     combined
 }
 
@@ -345,13 +358,18 @@ pub fn distance(atom1: &Atom, atom2: &Atom) -> f64 {
 }
 
 pub fn filter_by_resseq_vec(molecule: &Molecule, resseq_vec: &HashSet<i16>) -> Molecule {
-    let mut filtered_molecule = Molecule::new();
-    for atom in &molecule.0 {
-        if resseq_vec.contains(&atom.resseq) {
-            filtered_molecule.0.push(atom.clone());
-        }
-    }
-    filtered_molecule
+    // TODO: Improve this
+    let mut mol = Molecule::new();
+    let filtered_atoms: Vec<Atom> = molecule
+        .atoms
+        .iter()
+        .filter(|atom| resseq_vec.contains(&atom.resseq))
+        .cloned()
+        .collect();
+
+    mol.atoms = filtered_atoms;
+
+    mol
 }
 
 #[cfg(test)]
@@ -369,7 +387,7 @@ mod tests {
     fn test_read_pdb_from_str_atom_count() {
         let model = read_pdb_from_str(sample_pdb());
         assert_eq!(model.0.len(), 1);
-        assert_eq!(model.0[0].0.len(), 2);
+        assert_eq!(model.0[0].atoms.len(), 2);
     }
 
     #[test]
@@ -380,8 +398,8 @@ mod tests {
 
         let model2 = read_pdb_from_str(&rendered);
         assert_eq!(
-            model2.0[0].0.len(),
-            mol.0.len(),
+            model2.0[0].atoms.len(),
+            mol.atoms.len(),
             "atom count preserved across round-trip"
         );
     }
@@ -391,7 +409,7 @@ mod tests {
         let model = read_pdb_from_str(sample_pdb());
         let mol = model.0[0].clone();
         let combined = combine_molecules(&mol, &mol);
-        assert_eq!(combined.0.len(), mol.0.len() * 2);
+        assert_eq!(combined.atoms.len(), mol.atoms.len() * 2);
     }
 
     fn create_test_atom(x: f64, y: f64, z: f64) -> Atom {
@@ -427,19 +445,19 @@ mod tests {
     #[test]
     fn test_molecule_new() {
         let mol = Molecule::new();
-        assert_eq!(mol.0.len(), 0);
+        assert_eq!(mol.atoms.len(), 0);
     }
 
     #[test]
     fn test_molecule_default() {
         let mol = Molecule::default();
-        assert_eq!(mol.0.len(), 0);
+        assert_eq!(mol.atoms.len(), 0);
     }
 
     #[test]
     fn test_center_of_mass_single_atom() {
         let mut mol = Molecule::new();
-        mol.0.push(create_test_atom(1.0, 2.0, 3.0));
+        mol.atoms.push(create_test_atom(1.0, 2.0, 3.0));
 
         let (cx, cy, cz) = mol.center_of_mass();
         assert_eq!(cx, 1.0);
@@ -450,10 +468,10 @@ mod tests {
     #[test]
     fn test_center_of_mass_multiple_atoms() {
         let mut mol = Molecule::new();
-        mol.0.push(create_test_atom(0.0, 0.0, 0.0));
-        mol.0.push(create_test_atom(2.0, 0.0, 0.0));
-        mol.0.push(create_test_atom(0.0, 2.0, 0.0));
-        mol.0.push(create_test_atom(0.0, 0.0, 2.0));
+        mol.atoms.push(create_test_atom(0.0, 0.0, 0.0));
+        mol.atoms.push(create_test_atom(2.0, 0.0, 0.0));
+        mol.atoms.push(create_test_atom(0.0, 2.0, 0.0));
+        mol.atoms.push(create_test_atom(0.0, 0.0, 2.0));
 
         let (cx, cy, cz) = mol.center_of_mass();
         assert!((cx - 0.5).abs() < 1e-10);
@@ -464,54 +482,54 @@ mod tests {
     #[test]
     fn test_translate() {
         let mut mol = Molecule::new();
-        mol.0.push(create_test_atom(1.0, 2.0, 3.0));
-        mol.0.push(create_test_atom(4.0, 5.0, 6.0));
+        mol.atoms.push(create_test_atom(1.0, 2.0, 3.0));
+        mol.atoms.push(create_test_atom(4.0, 5.0, 6.0));
 
         mol.translate(1.0, -1.0, 2.0);
 
-        assert_eq!(mol.0[0].x, 2.0);
-        assert_eq!(mol.0[0].y, 1.0);
-        assert_eq!(mol.0[0].z, 5.0);
-        assert_eq!(mol.0[1].x, 5.0);
-        assert_eq!(mol.0[1].y, 4.0);
-        assert_eq!(mol.0[1].z, 8.0);
+        assert_eq!(mol.atoms[0].x, 2.0);
+        assert_eq!(mol.atoms[0].y, 1.0);
+        assert_eq!(mol.atoms[0].z, 5.0);
+        assert_eq!(mol.atoms[1].x, 5.0);
+        assert_eq!(mol.atoms[1].y, 4.0);
+        assert_eq!(mol.atoms[1].z, 8.0);
     }
 
     #[test]
     fn test_displace() {
         let mut mol = Molecule::new();
-        mol.0.push(create_test_atom(1.0, 2.0, 3.0));
-        mol.0.push(create_test_atom(4.0, 5.0, 6.0));
+        mol.atoms.push(create_test_atom(1.0, 2.0, 3.0));
+        mol.atoms.push(create_test_atom(4.0, 5.0, 6.0));
 
         let mol = mol.displace(1.0, -1.0, 2.0);
 
-        assert_eq!(mol.0[0].x, 2.0);
-        assert_eq!(mol.0[0].y, 1.0);
-        assert_eq!(mol.0[0].z, 5.0);
-        assert_eq!(mol.0[1].x, 5.0);
-        assert_eq!(mol.0[1].y, 4.0);
-        assert_eq!(mol.0[1].z, 8.0);
+        assert_eq!(mol.atoms[0].x, 2.0);
+        assert_eq!(mol.atoms[0].y, 1.0);
+        assert_eq!(mol.atoms[0].z, 5.0);
+        assert_eq!(mol.atoms[1].x, 5.0);
+        assert_eq!(mol.atoms[1].y, 4.0);
+        assert_eq!(mol.atoms[1].z, 8.0);
     }
 
     #[test]
     fn test_rotate_zero_angles() {
         let mut mol = Molecule::new();
-        mol.0.push(create_test_atom(1.0, 0.0, 0.0));
+        mol.atoms.push(create_test_atom(1.0, 0.0, 0.0));
 
         let rotated = mol.rotate(0.0, 0.0, 0.0);
 
         // With zero rotation, position should be unchanged
-        assert!((rotated.0[0].x - 1.0).abs() < 1e-10);
-        assert!((rotated.0[0].y - 0.0).abs() < 1e-10);
-        assert!((rotated.0[0].z - 0.0).abs() < 1e-10);
+        assert!((rotated.atoms[0].x - 1.0).abs() < 1e-10);
+        assert!((rotated.atoms[0].y - 0.0).abs() < 1e-10);
+        assert!((rotated.atoms[0].z - 0.0).abs() < 1e-10);
     }
 
     #[test]
     fn test_rotate_around_center() {
         let mut mol = Molecule::new();
         // Create a molecule with center at origin
-        mol.0.push(create_test_atom(1.0, 0.0, 0.0));
-        mol.0.push(create_test_atom(-1.0, 0.0, 0.0));
+        mol.atoms.push(create_test_atom(1.0, 0.0, 0.0));
+        mol.atoms.push(create_test_atom(-1.0, 0.0, 0.0));
 
         // Rotate 90 degrees around z-axis
         let rotated = mol.rotate(0.0, 0.0, PI / 2.0);
@@ -554,10 +572,10 @@ mod tests {
         let mut atom4 = create_test_atom(3.0, 0.0, 0.0);
         atom4.resseq = 4;
 
-        mol.0.push(atom1);
-        mol.0.push(atom2);
-        mol.0.push(atom3);
-        mol.0.push(atom4);
+        mol.atoms.push(atom1);
+        mol.atoms.push(atom2);
+        mol.atoms.push(atom3);
+        mol.atoms.push(atom4);
 
         let mut filter_set = HashSet::new();
         filter_set.insert(2);
@@ -565,20 +583,20 @@ mod tests {
 
         let filtered = filter_by_resseq_vec(&mol, &filter_set);
 
-        assert_eq!(filtered.0.len(), 2);
-        assert_eq!(filtered.0[0].resseq, 2);
-        assert_eq!(filtered.0[1].resseq, 4);
+        assert_eq!(filtered.atoms.len(), 2);
+        assert_eq!(filtered.atoms[0].resseq, 2);
+        assert_eq!(filtered.atoms[1].resseq, 4);
     }
 
     #[test]
     fn test_filter_by_resseq_vec_empty() {
         let mut mol = Molecule::new();
-        mol.0.push(create_test_atom(0.0, 0.0, 0.0));
+        mol.atoms.push(create_test_atom(0.0, 0.0, 0.0));
 
         let filter_set = HashSet::new();
         let filtered = filter_by_resseq_vec(&mol, &filter_set);
 
-        assert_eq!(filtered.0.len(), 0);
+        assert_eq!(filtered.atoms.len(), 0);
     }
 
     #[test]
@@ -598,11 +616,11 @@ mod tests {
 
         // The molecule should have many atoms
         assert!(
-            !model.0[0].0.is_empty(),
+            !model.0[0].atoms.is_empty(),
             "Single molecule should have atoms"
         );
 
-        println!("Single-model file has {} atoms", model.0[0].0.len());
+        println!("Single-model file has {} atoms", model.0[0].atoms.len());
     }
 
     #[test]
@@ -626,9 +644,9 @@ mod tests {
 
         // Each model should have atoms
         for (i, molecule) in model.0.iter().enumerate() {
-            println!("Model {} has {} atoms", i + 1, molecule.0.len());
+            println!("Model {} has {} atoms", i + 1, molecule.atoms.len());
             assert!(
-                !molecule.0.is_empty(),
+                !molecule.atoms.is_empty(),
                 "Model {} should have atoms (total models: {})",
                 i + 1,
                 model.0.len()
@@ -636,14 +654,14 @@ mod tests {
         }
 
         // All models should have the same number of atoms (same protein, different poses)
-        let first_model_atoms = model.0[0].0.len();
+        let first_model_atoms = model.0[0].atoms.len();
         for (i, molecule) in model.0.iter().enumerate() {
             assert_eq!(
-                molecule.0.len(),
+                molecule.atoms.len(),
                 first_model_atoms,
                 "Model {} has {} atoms, expected {}",
                 i + 1,
-                molecule.0.len(),
+                molecule.atoms.len(),
                 first_model_atoms
             );
         }
@@ -672,10 +690,13 @@ mod tests {
 
         // Should have atoms
         assert!(
-            !model.0[0].0.is_empty(),
+            !model.0[0].atoms.is_empty(),
             "Reference complex should have atoms"
         );
 
-        println!("Reference complex file has {} atoms", model.0[0].0.len());
+        println!(
+            "Reference complex file has {} atoms",
+            model.0[0].atoms.len()
+        );
     }
 }
