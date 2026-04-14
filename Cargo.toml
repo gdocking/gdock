@@ -23,7 +23,7 @@ parallel = ["dep:rayon"]
 
 [dependencies]
 regex = "1.12"
-rand = "0.8.5"
+rand = "0.9.3"
 rand_distr = "0.4"
 rayon = { version = "1.11", optional = true }
 clap = "4.5"
