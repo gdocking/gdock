@@ -262,7 +262,7 @@ fn cluster_elements(mut elements: HashMap<usize, Element>) -> Vec<ClusterResult>
     }
 
     // Sort clusters by size (descending)
-    clusters.sort_by(|a, b| b.size.cmp(&a.size));
+    clusters.sort_by_key(|c| std::cmp::Reverse(c.size));
 
     clusters
 }
