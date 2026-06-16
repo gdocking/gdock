@@ -251,12 +251,25 @@ mod tests {
     }
 
     #[test]
-    fn test_run_ga_large_capacity_collects_more_than_small() {
-        let mut rng_small = rand::rngs::StdRng::seed_from_u64(42);
-        let mut rng_large = rand::rngs::StdRng::seed_from_u64(42);
-        let result_small = run_ga(minimal_population(10), &mut rng_small, 10, 1, |_, _| {});
-        let result_large =
-            run_ga(minimal_population(10), &mut rng_large, 10, HALL_OF_FAME_MAX_SIZE, |_, _| {});
-        assert!(result_large.hall_of_fame.len() >= result_small.hall_of_fame.len());
+    fn test_run_ga_hof_never_exceeds_capacity() {
+        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        let result = run_ga(minimal_population(10), &mut rng, 10, 1, |_, _| {});
+        assert!(
+            result.hall_of_fame.len() <= 1,
+            "HoF should not exceed capacity=1"
+        );
+
+        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        let result = run_ga(
+            minimal_population(10),
+            &mut rng,
+            10,
+            HALL_OF_FAME_MAX_SIZE,
+            |_, _| {},
+        );
+        assert!(
+            result.hall_of_fame.len() <= HALL_OF_FAME_MAX_SIZE,
+            "HoF should not exceed HALL_OF_FAME_MAX_SIZE"
+        );
     }
 }
