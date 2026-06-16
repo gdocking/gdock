@@ -658,6 +658,8 @@ fn write_sampling_output(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::hall_of_fame::HallOfFame;
+    use std::f64::consts::PI;
 
     #[test]
     fn test_combine_molecules() {
@@ -674,5 +676,99 @@ mod tests {
             receptor.0.len() + ligand.0.len(),
             "Combined molecule should have all atoms from both"
         );
+    }
+
+    #[test]
+    fn test_write_sampling_output_creates_files() {
+        let receptor_model = read_pdb(&"data/2oob_A.pdb".to_string());
+        let ligand_model = read_pdb(&"data/2oob_B.pdb".to_string());
+        let receptor = receptor_model.0[0].clone();
+        let ligand = ligand_model.0[0].clone();
+
+        let mut hof = HallOfFame::new();
+        hof.try_add(&[0.0, 0.0, 0.0, 0.0, 0.0, 0.0], -100.0, 1.0, 2.0, 3.0, 4.0);
+        hof.try_add(&[PI, PI, PI, 10.0, 10.0, 10.0], -50.0, 1.0, 2.0, 3.0, 4.0);
+
+        let tmp = crate::utils::get_unique_tempdir();
+        write_sampling_output(&hof, tmp.as_path(), &receptor, &ligand);
+
+        let sampling_dir = tmp.as_path().join("sampling");
+        assert!(sampling_dir.exists(), "sampling/ directory should be created");
+        assert!(
+            sampling_dir.join("gdock_1.pdb").exists(),
+            "gdock_1.pdb should exist"
+        );
+        assert!(
+            sampling_dir.join("gdock_2.pdb").exists(),
+            "gdock_2.pdb should exist"
+        );
+        assert!(
+            sampling_dir.join("sampling.tsv").exists(),
+            "sampling.tsv should exist"
+        );
+    }
+
+    #[test]
+    fn test_write_sampling_output_sorted_by_fitness() {
+        let receptor_model = read_pdb(&"data/2oob_A.pdb".to_string());
+        let ligand_model = read_pdb(&"data/2oob_B.pdb".to_string());
+        let receptor = receptor_model.0[0].clone();
+        let ligand = ligand_model.0[0].clone();
+
+        // Add entries out of fitness order — worst first
+        let mut hof = HallOfFame::new();
+        hof.try_add(&[0.0, 0.0, 0.0, 0.0, 0.0, 0.0], -50.0, 0.0, 0.0, 0.0, 0.0);
+        hof.try_add(&[PI, PI, PI, 10.0, 10.0, 10.0], -100.0, 0.0, 0.0, 0.0, 0.0);
+
+        let tmp = crate::utils::get_unique_tempdir();
+        write_sampling_output(&hof, tmp.as_path(), &receptor, &ligand);
+
+        let tsv = std::fs::read_to_string(tmp.as_path().join("sampling/sampling.tsv")).unwrap();
+        let mut lines = tsv.lines();
+        assert_eq!(lines.next().unwrap(), "model\tscore\tvdw\telec\tdesolv\tair");
+
+        // gdock_1 should be the best (lowest) score
+        let first_row = lines.next().unwrap();
+        assert!(
+            first_row.starts_with("gdock_1"),
+            "first row should be gdock_1"
+        );
+        let score: f64 = first_row.split('\t').nth(1).unwrap().parse().unwrap();
+        assert!(score < -50.0, "gdock_1 should have the best (lowest) score");
+    }
+
+    #[test]
+    fn test_write_sampling_output_tsv_columns() {
+        let receptor_model = read_pdb(&"data/2oob_A.pdb".to_string());
+        let ligand_model = read_pdb(&"data/2oob_B.pdb".to_string());
+        let receptor = receptor_model.0[0].clone();
+        let ligand = ligand_model.0[0].clone();
+
+        let mut hof = HallOfFame::new();
+        hof.try_add(
+            &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            -99.0,
+            1.1,
+            2.2,
+            3.3,
+            4.4,
+        );
+
+        let tmp = crate::utils::get_unique_tempdir();
+        write_sampling_output(&hof, tmp.as_path(), &receptor, &ligand);
+
+        let tsv = std::fs::read_to_string(tmp.as_path().join("sampling/sampling.tsv")).unwrap();
+        let mut lines = tsv.lines();
+        assert_eq!(lines.next().unwrap(), "model\tscore\tvdw\telec\tdesolv\tair");
+
+        let data_row = lines.next().unwrap();
+        let cols: Vec<&str> = data_row.split('\t').collect();
+        assert_eq!(cols.len(), 6, "data rows should have 6 columns");
+        assert_eq!(cols[0], "gdock_1");
+        assert!((cols[1].parse::<f64>().unwrap() - (-99.0)).abs() < 0.001);
+        assert!((cols[2].parse::<f64>().unwrap() - 1.1).abs() < 0.001);
+        assert!((cols[3].parse::<f64>().unwrap() - 2.2).abs() < 0.001);
+        assert!((cols[4].parse::<f64>().unwrap() - 3.3).abs() < 0.001);
+        assert!((cols[5].parse::<f64>().unwrap() - 4.4).abs() < 0.001);
     }
 }
