@@ -32,12 +32,13 @@ pub fn run_ga<F>(
     mut pop: Population,
     rng: &mut StdRng,
     max_generations: u64,
+    hof_capacity: usize,
     mut on_generation: F,
 ) -> GaResult
 where
     F: FnMut(u64, &Population),
 {
-    let mut hall_of_fame = HallOfFame::new();
+    let mut hall_of_fame = HallOfFame::with_capacity(hof_capacity);
     let mut generation_count = 0u64;
     let mut generations_without_improvement = 0u64;
     let mut last_best_score = f64::MAX;

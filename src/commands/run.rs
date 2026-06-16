@@ -2,14 +2,15 @@ use colored::*;
 use indicatif::{ProgressBar, ProgressStyle};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
+use std::cmp::Ordering;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 
 use crate::chromosome;
 use crate::constants::{
-    self, EnergyWeights, CONVERGENCE_THRESHOLD, CONVERGENCE_WINDOW, MAX_GENERATIONS,
-    POPULATION_SIZE,
+    self, EnergyWeights, CONVERGENCE_THRESHOLD, CONVERGENCE_WINDOW, HALL_OF_FAME_MAX_SIZE,
+    MAX_GENERATIONS, POPULATION_SIZE,
 };
 use crate::evaluator;
 use crate::population;
@@ -29,6 +30,7 @@ pub struct RunConfig {
     pub debug_mode: bool,
     pub output_dir: Option<String>,
     pub no_clustering: bool,
+    pub sampling: Option<usize>,
 }
 
 /// Re-exported for use by tests and other modules that imported from here.
@@ -47,6 +49,7 @@ pub fn run(config: RunConfig) {
         debug_mode,
         output_dir,
         no_clustering,
+        sampling,
     } = config;
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     println!(
@@ -186,7 +189,8 @@ pub fn run(config: RunConfig) {
         MAX_GENERATIONS
     );
 
-    let ga_result = run_ga(pop, &mut rng, MAX_GENERATIONS, |gen, pop| {
+    let hof_capacity = sampling.unwrap_or(HALL_OF_FAME_MAX_SIZE);
+    let ga_result = run_ga(pop, &mut rng, MAX_GENERATIONS, hof_capacity, |gen, pop| {
         // Calculate metrics for all chromosomes (only if reference is available)
         let metric_vec = eval.as_ref().map(|e| pop.eval_metrics(e));
 
@@ -597,6 +601,46 @@ pub fn run(config: RunConfig) {
         }
 
         println!("    {} {}", "✓".bright_black(), metrics_path.display());
+    }
+
+    if sampling.is_some() {
+        let sampling_dir = out_dir.join("sampling");
+        fs::create_dir_all(&sampling_dir).expect("Failed to create sampling directory");
+
+        let mut sorted: Vec<&crate::hall_of_fame::HallOfFameEntry> =
+            hall_of_fame.entries().iter().collect();
+        sorted.sort_by(|a, b| a.fitness.partial_cmp(&b.fitness).unwrap_or(Ordering::Equal));
+
+        let tsv_path = sampling_dir.join("sampling.tsv");
+        let mut tsv = fs::File::create(&tsv_path).expect("Failed to create sampling.tsv");
+        writeln!(tsv, "model\tscore\tvdw\telec\tdesolv\tair").unwrap();
+
+        println!("\n{}", "📦 Sampling output".bold().cyan());
+
+        for (rank, entry) in sorted.iter().enumerate() {
+            let model_name = format!("gdock_{}", rank + 1);
+            let ligand = ligand_clone
+                .clone()
+                .rotate(entry.genes[0], entry.genes[1], entry.genes[2])
+                .displace(entry.genes[3], entry.genes[4], entry.genes[5]);
+            let complex = combine_molecules(&receptor_clone, &ligand);
+            let pdb_path = sampling_dir.join(format!("{}.pdb", model_name));
+            structure::write_pdb(&complex, pdb_path.to_string_lossy().as_ref());
+            writeln!(
+                tsv,
+                "{}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
+                model_name, entry.fitness, entry.vdw, entry.elec, entry.desolv, entry.air
+            )
+            .unwrap();
+        }
+
+        println!(
+            "  {} {} structures written to {}",
+            "✓".green(),
+            sorted.len(),
+            sampling_dir.display()
+        );
+        println!("  {} {}", "✓".green(), tsv_path.display());
     }
 
     println!("\n{}", "✨ Done!".bold().green());
