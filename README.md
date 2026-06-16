@@ -26,6 +26,7 @@ complexes.
 - **Quality metrics**: Optional DockQ calculation when reference structure is
   provided
 - **Clustering**: FCC-based clustering to group similar solutions
+- **Sampling**: Collect a large pool of unique diverse conformations with `--sampling`
 
 ## Web Interface
 
@@ -98,7 +99,27 @@ Additional options:
 - `-o, --output-dir <DIR>`: Output directory (default: current directory)
 - `-n, --nproc <NUM>`: Number of processors (default: total - 2)
 - `--no-clust`: Disable clustering
+- `--sampling <NUM>`: Collect up to NUM unique poses sorted by fitness into `sampling/`
 - `--w_vdw`, `--w_elec`, `--w_desolv`, `--w_air`: Custom energy weights
+
+#### Sampling mode
+
+Use `--sampling N` to collect a large pool of diverse conformations from a single
+GA run. This is useful when you need more than the default 5 output models — for
+example, to feed a downstream selection step:
+
+```bash
+gdock run \
+  --receptor receptor.pdb \
+  --ligand ligand.pdb \
+  --restraints 933:6,936:8,940:42 \
+  --sampling 500
+```
+
+All unique conformations discovered by the GA (up to N) are written to
+`sampling/gdock_1.pdb`, `sampling/gdock_2.pdb`, … sorted by fitness (best first),
+alongside a `sampling/sampling.tsv` with per-model scores and energy components.
+The normal `model_*.pdb` / `ranked_*.pdb` output is still produced.
 
 ### Scoring (`score`)
 
@@ -156,6 +177,7 @@ Options:
   -o, --output-dir <DIR>    Output directory for results (default: current directory)
       --no-clust            Disable clustering, output best_by_score and best_by_dockq only
   -n, --nproc <NUM>         Number of processors to use (default: total - 2)
+      --sampling <NUM>      Collect up to NUM unique poses sorted by fitness into sampling/
       --w_vdw <WEIGHT>      Weight for VDW energy term
       --w_elec <WEIGHT>     Weight for electrostatic energy term
       --w_desolv <WEIGHT>   Weight for desolvation energy term
@@ -218,6 +240,8 @@ or other information sources.
 - `model_X.pdb`: Cluster representatives (unless `--no-clust`)
 - `ranked_X.pdb`: Top 5 models ranked by score
 - `metrics.tsv`: Tab-separated file with scores and metrics
+- `sampling/gdock_N.pdb`: All unique poses sorted by fitness (only with `--sampling`)
+- `sampling/sampling.tsv`: Scores and energy components for sampling output
 
 Output structures can be visualized with molecular viewers such as
 [PyMOL](https://pymol.org/) or [ChimeraX](https://www.cgl.ucsf.edu/chimerax/).
