@@ -13,11 +13,12 @@ use crate::constants::{
     MAX_GENERATIONS, POPULATION_SIZE,
 };
 use crate::evaluator;
+use crate::hall_of_fame::{HallOfFame, HallOfFameEntry};
 use crate::population;
 use crate::restraints;
 use crate::runner::{run_ga, select_models};
 use crate::scoring;
-use crate::structure::{self, read_pdb};
+use crate::structure::{self, read_pdb, Molecule};
 use crate::utils;
 
 /// Configuration for a docking run
@@ -611,16 +612,15 @@ pub fn run(config: RunConfig) {
 }
 
 fn write_sampling_output(
-    hall_of_fame: &crate::hall_of_fame::HallOfFame,
+    hall_of_fame: &HallOfFame,
     out_dir: &std::path::Path,
-    receptor: &crate::structure::Molecule,
-    ligand: &crate::structure::Molecule,
+    receptor: &Molecule,
+    ligand: &Molecule,
 ) {
     let sampling_dir = out_dir.join("sampling");
     fs::create_dir_all(&sampling_dir).expect("Failed to create sampling directory");
 
-    let mut sorted: Vec<&crate::hall_of_fame::HallOfFameEntry> =
-        hall_of_fame.entries().iter().collect();
+    let mut sorted: Vec<&HallOfFameEntry> = hall_of_fame.entries().iter().collect();
     sorted.sort_by(|a, b| a.fitness.partial_cmp(&b.fitness).unwrap_or(Ordering::Equal));
 
     let tsv_path = sampling_dir.join("sampling.tsv");
@@ -693,7 +693,10 @@ mod tests {
         write_sampling_output(&hof, tmp.as_path(), &receptor, &ligand);
 
         let sampling_dir = tmp.as_path().join("sampling");
-        assert!(sampling_dir.exists(), "sampling/ directory should be created");
+        assert!(
+            sampling_dir.exists(),
+            "sampling/ directory should be created"
+        );
         assert!(
             sampling_dir.join("gdock_1.pdb").exists(),
             "gdock_1.pdb should exist"
@@ -725,7 +728,10 @@ mod tests {
 
         let tsv = std::fs::read_to_string(tmp.as_path().join("sampling/sampling.tsv")).unwrap();
         let mut lines = tsv.lines();
-        assert_eq!(lines.next().unwrap(), "model\tscore\tvdw\telec\tdesolv\tair");
+        assert_eq!(
+            lines.next().unwrap(),
+            "model\tscore\tvdw\telec\tdesolv\tair"
+        );
 
         // gdock_1 should be the best (lowest) score
         let first_row = lines.next().unwrap();
@@ -745,21 +751,17 @@ mod tests {
         let ligand = ligand_model.0[0].clone();
 
         let mut hof = HallOfFame::new();
-        hof.try_add(
-            &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            -99.0,
-            1.1,
-            2.2,
-            3.3,
-            4.4,
-        );
+        hof.try_add(&[0.0, 0.0, 0.0, 0.0, 0.0, 0.0], -99.0, 1.1, 2.2, 3.3, 4.4);
 
         let tmp = crate::utils::get_unique_tempdir();
         write_sampling_output(&hof, tmp.as_path(), &receptor, &ligand);
 
         let tsv = std::fs::read_to_string(tmp.as_path().join("sampling/sampling.tsv")).unwrap();
         let mut lines = tsv.lines();
-        assert_eq!(lines.next().unwrap(), "model\tscore\tvdw\telec\tdesolv\tair");
+        assert_eq!(
+            lines.next().unwrap(),
+            "model\tscore\tvdw\telec\tdesolv\tair"
+        );
 
         let data_row = lines.next().unwrap();
         let cols: Vec<&str> = data_row.split('\t').collect();
