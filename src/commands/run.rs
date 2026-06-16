@@ -604,46 +604,55 @@ pub fn run(config: RunConfig) {
     }
 
     if sampling.is_some() {
-        let sampling_dir = out_dir.join("sampling");
-        fs::create_dir_all(&sampling_dir).expect("Failed to create sampling directory");
-
-        let mut sorted: Vec<&crate::hall_of_fame::HallOfFameEntry> =
-            hall_of_fame.entries().iter().collect();
-        sorted.sort_by(|a, b| a.fitness.partial_cmp(&b.fitness).unwrap_or(Ordering::Equal));
-
-        let tsv_path = sampling_dir.join("sampling.tsv");
-        let mut tsv = fs::File::create(&tsv_path).expect("Failed to create sampling.tsv");
-        writeln!(tsv, "model\tscore\tvdw\telec\tdesolv\tair").unwrap();
-
-        println!("\n{}", "📦 Sampling output".bold().cyan());
-
-        for (rank, entry) in sorted.iter().enumerate() {
-            let model_name = format!("gdock_{}", rank + 1);
-            let ligand = ligand_clone
-                .clone()
-                .rotate(entry.genes[0], entry.genes[1], entry.genes[2])
-                .displace(entry.genes[3], entry.genes[4], entry.genes[5]);
-            let complex = combine_molecules(&receptor_clone, &ligand);
-            let pdb_path = sampling_dir.join(format!("{}.pdb", model_name));
-            structure::write_pdb(&complex, pdb_path.to_string_lossy().as_ref());
-            writeln!(
-                tsv,
-                "{}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
-                model_name, entry.fitness, entry.vdw, entry.elec, entry.desolv, entry.air
-            )
-            .unwrap();
-        }
-
-        println!(
-            "  {} {} structures written to {}",
-            "✓".green(),
-            sorted.len(),
-            sampling_dir.display()
-        );
-        println!("  {} {}", "✓".green(), tsv_path.display());
+        write_sampling_output(&hall_of_fame, &out_dir, &receptor_clone, &ligand_clone);
     }
 
     println!("\n{}", "✨ Done!".bold().green());
+}
+
+fn write_sampling_output(
+    hall_of_fame: &crate::hall_of_fame::HallOfFame,
+    out_dir: &std::path::Path,
+    receptor: &crate::structure::Molecule,
+    ligand: &crate::structure::Molecule,
+) {
+    let sampling_dir = out_dir.join("sampling");
+    fs::create_dir_all(&sampling_dir).expect("Failed to create sampling directory");
+
+    let mut sorted: Vec<&crate::hall_of_fame::HallOfFameEntry> =
+        hall_of_fame.entries().iter().collect();
+    sorted.sort_by(|a, b| a.fitness.partial_cmp(&b.fitness).unwrap_or(Ordering::Equal));
+
+    let tsv_path = sampling_dir.join("sampling.tsv");
+    let mut tsv = fs::File::create(&tsv_path).expect("Failed to create sampling.tsv");
+    writeln!(tsv, "model\tscore\tvdw\telec\tdesolv\tair").unwrap();
+
+    println!("\n{}", "📦 Sampling output".bold().cyan());
+
+    for (rank, entry) in sorted.iter().enumerate() {
+        let model_name = format!("gdock_{}", rank + 1);
+        let docked_ligand = ligand
+            .clone()
+            .rotate(entry.genes[0], entry.genes[1], entry.genes[2])
+            .displace(entry.genes[3], entry.genes[4], entry.genes[5]);
+        let complex = combine_molecules(receptor, &docked_ligand);
+        let pdb_path = sampling_dir.join(format!("{}.pdb", model_name));
+        structure::write_pdb(&complex, pdb_path.to_string_lossy().as_ref());
+        writeln!(
+            tsv,
+            "{}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
+            model_name, entry.fitness, entry.vdw, entry.elec, entry.desolv, entry.air
+        )
+        .unwrap();
+    }
+
+    println!(
+        "  {} {} structures written to {}",
+        "✓".green(),
+        sorted.len(),
+        sampling_dir.display()
+    );
+    println!("  {} {}", "✓".green(), tsv_path.display());
 }
 
 #[cfg(test)]
