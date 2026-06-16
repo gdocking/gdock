@@ -32,12 +32,13 @@ pub fn run_ga<F>(
     mut pop: Population,
     rng: &mut StdRng,
     max_generations: u64,
+    hof_capacity: usize,
     mut on_generation: F,
 ) -> GaResult
 where
     F: FnMut(u64, &Population),
 {
-    let mut hall_of_fame = HallOfFame::new();
+    let mut hall_of_fame = HallOfFame::with_capacity(hof_capacity);
     let mut generation_count = 0u64;
     let mut generations_without_improvement = 0u64;
     let mut last_best_score = f64::MAX;
@@ -167,4 +168,108 @@ pub fn select_models(
         .collect();
 
     SelectedModels { clustered, ranked }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::chromosome::Chromosome;
+    use crate::constants::{EnergyWeights, HALL_OF_FAME_MAX_SIZE};
+    use crate::population::Population;
+    use crate::structure::Molecule;
+    use rand::SeedableRng;
+
+    fn minimal_population(n: usize) -> Population {
+        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        let chromosomes: Vec<Chromosome> = (0..n).map(|_| Chromosome::new(&mut rng)).collect();
+        let mut receptor = Molecule::new();
+        receptor.0.push(crate::structure::Atom {
+            serial: 1,
+            name: "CA".to_string(),
+            altloc: ' ',
+            resname: "ALA".to_string(),
+            chainid: 'A',
+            resseq: 1,
+            icode: ' ',
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            occupancy: 1.0,
+            tempfactor: 0.0,
+            element: "C".to_string(),
+            charge: 0.0,
+            vdw_radius: 1.7,
+            epsilon: -0.1,
+            rmin2: 2.0,
+            eps_1_4: -0.1,
+            rmin2_1_4: 1.9,
+        });
+        let mut ligand = Molecule::new();
+        ligand.0.push(crate::structure::Atom {
+            serial: 2,
+            name: "CA".to_string(),
+            altloc: ' ',
+            resname: "ALA".to_string(),
+            chainid: 'B',
+            resseq: 1,
+            icode: ' ',
+            x: 5.0,
+            y: 0.0,
+            z: 0.0,
+            occupancy: 1.0,
+            tempfactor: 0.0,
+            element: "C".to_string(),
+            charge: 0.0,
+            vdw_radius: 1.7,
+            epsilon: -0.1,
+            rmin2: 2.0,
+            eps_1_4: -0.1,
+            rmin2_1_4: 1.9,
+        });
+        let reference = ligand.clone();
+        Population::new(
+            chromosomes,
+            receptor,
+            ligand,
+            reference,
+            vec![],
+            EnergyWeights::default(),
+            None,
+        )
+    }
+
+    #[test]
+    fn test_run_ga_hof_capacity_respected() {
+        let pop = minimal_population(10);
+        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        let capacity = 2;
+        let result = run_ga(pop, &mut rng, 5, capacity, |_, _| {});
+        assert!(
+            result.hall_of_fame.len() <= capacity,
+            "HoF should not exceed hof_capacity"
+        );
+    }
+
+    #[test]
+    fn test_run_ga_hof_never_exceeds_capacity() {
+        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        let result = run_ga(minimal_population(10), &mut rng, 10, 1, |_, _| {});
+        assert!(
+            result.hall_of_fame.len() <= 1,
+            "HoF should not exceed capacity=1"
+        );
+
+        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        let result = run_ga(
+            minimal_population(10),
+            &mut rng,
+            10,
+            HALL_OF_FAME_MAX_SIZE,
+            |_, _| {},
+        );
+        assert!(
+            result.hall_of_fame.len() <= HALL_OF_FAME_MAX_SIZE,
+            "HoF should not exceed HALL_OF_FAME_MAX_SIZE"
+        );
+    }
 }

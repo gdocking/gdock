@@ -142,6 +142,13 @@ fn main() {
                         .help("Number of processors to use (default: total - 2)")
                         .value_parser(clap::value_parser!(usize)),
                 )
+                .arg(
+                    clap::Arg::new("sampling")
+                        .long("sampling")
+                        .value_name("NUM")
+                        .help("Collect up to NUM unique poses sorted by fitness into sampling/")
+                        .value_parser(clap::value_parser!(usize)),
+                )
                 .args(weight_args.clone()),
         )
         .subcommand(
@@ -255,6 +262,7 @@ fn main() {
 
             let output_dir = sub_m.get_one::<String>("output-dir").cloned();
             let no_clustering = sub_m.get_flag("no-clust");
+            let sampling = sub_m.get_one::<usize>("sampling").copied();
 
             commands::run::run(commands::run::RunConfig {
                 receptor_file,
@@ -265,6 +273,7 @@ fn main() {
                 debug_mode,
                 output_dir,
                 no_clustering,
+                sampling,
             });
         }
         Some(("score", sub_m)) => {
