@@ -125,7 +125,7 @@ pub fn run(config: RunConfig) {
 
     // Create restraints from user-specified residue pairs
     let restraints_list =
-        restraints::create_restraints_from_pairs(&receptor, &ligand, &restraint_pairs);
+        restraints::create_ambiguous_restraints_from_pairs(&receptor, &ligand, &restraint_pairs);
     let num_restraints = restraints_list.len();
     println!(
         "{} Created {} distance restraints\n",
@@ -663,8 +663,8 @@ mod tests {
 
     #[test]
     fn test_combine_molecules() {
-        let receptor_model = read_pdb(&"data/2oob_A.pdb".to_string());
-        let ligand_model = read_pdb(&"data/2oob_B.pdb".to_string());
+        let receptor_model = read_pdb("data/2oob_A.pdb");
+        let ligand_model = read_pdb("data/2oob_B.pdb");
 
         let receptor = &receptor_model.0[0];
         let ligand = &ligand_model.0[0];
@@ -680,8 +680,8 @@ mod tests {
 
     #[test]
     fn test_write_sampling_output_creates_files() {
-        let receptor_model = read_pdb(&"data/2oob_A.pdb".to_string());
-        let ligand_model = read_pdb(&"data/2oob_B.pdb".to_string());
+        let receptor_model = read_pdb("data/2oob_A.pdb");
+        let ligand_model = read_pdb("data/2oob_B.pdb");
         let receptor = receptor_model.0[0].clone();
         let ligand = ligand_model.0[0].clone();
 
@@ -745,8 +745,8 @@ mod tests {
 
     #[test]
     fn test_write_sampling_output_tsv_columns() {
-        let receptor_model = read_pdb(&"data/2oob_A.pdb".to_string());
-        let ligand_model = read_pdb(&"data/2oob_B.pdb".to_string());
+        let receptor_model = read_pdb("data/2oob_A.pdb");
+        let ligand_model = read_pdb("data/2oob_B.pdb");
         let receptor = receptor_model.0[0].clone();
         let ligand = ligand_model.0[0].clone();
 
