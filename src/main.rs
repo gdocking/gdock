@@ -172,52 +172,15 @@ fn main() {
         )
         .subcommand(
             Command::new("restraints")
-                .about("Generate or convert restraints")
-                .subcommand_required(true)
-                .subcommand(
-                    Command::new("generate")
-                        .about("Generate restraints from interface contacts in a reference complex")
-                        .arg(receptor_arg)
-                        .arg(ligand_arg)
-                        .arg(
-                            clap::Arg::new("cutoff")
-                                .long("cutoff")
-                                .value_name("ANGSTROMS")
-                                .help("Distance cutoff for interface detection (default: 5.0)")
-                                .value_parser(clap::value_parser!(f64)),
-                        ),
-                )
-                .subcommand(
-                    Command::new("from-tbl")
-                        .about("Convert a HADDOCK AIR .tbl file to gdock restraint pairs")
-                        .long_about(
-                            "Parses a HADDOCK AIR TBL file and emits active-active restraint \
-                             pairs in gdock format (rec:lig,...).  Only residues that appear as \
-                             anchors (left-hand side of assign blocks) are treated as active; \
-                             passive OR-group members are dropped.  Output can be passed directly \
-                             to `gdock run --restraints`.",
-                        )
-                        .arg(
-                            clap::Arg::new("tbl")
-                                .long("tbl")
-                                .value_name("FILE")
-                                .help("HADDOCK AIR TBL restraints file")
-                                .required(true),
-                        )
-                        .arg(
-                            clap::Arg::new("receptor-chain")
-                                .long("receptor-chain")
-                                .value_name("CHAIN")
-                                .help("Segid of the receptor molecule in the TBL file (default: A)")
-                                .default_value("A"),
-                        )
-                        .arg(
-                            clap::Arg::new("ligand-chain")
-                                .long("ligand-chain")
-                                .value_name("CHAIN")
-                                .help("Segid of the ligand molecule in the TBL file (default: B)")
-                                .default_value("B"),
-                        ),
+                .about("Generate restraints from interface contacts in a reference complex")
+                .arg(receptor_arg)
+                .arg(ligand_arg)
+                .arg(
+                    clap::Arg::new("cutoff")
+                        .long("cutoff")
+                        .value_name("ANGSTROMS")
+                        .help("Distance cutoff for interface detection (default: 5.0)")
+                        .value_parser(clap::value_parser!(f64)),
                 ),
         )
         .get_matches();
@@ -268,15 +231,19 @@ fn main() {
             }
 
             let restraints_arg = sub_m.get_one::<String>("restraints").unwrap();
-            let restraint_pairs = if std::path::Path::new(restraints_arg).is_file() {
-                parse_restraints_file(restraints_arg)
+            let restraint_pairs = if restraints_arg.ends_with(".tbl") {
+                commands::restraints::tbl_to_pairs(restraints_arg)
+            } else if std::path::Path::new(restraints_arg).is_file() {
+                parse_restraints_file(restraints_arg).unwrap_or_else(|e| {
+                    eprintln!("Error: {}", e);
+                    std::process::exit(1);
+                })
             } else {
-                parse_restraints(restraints_arg)
-            }
-            .unwrap_or_else(|e| {
-                eprintln!("Error: {}", e);
-                std::process::exit(1);
-            });
+                parse_restraints(restraints_arg).unwrap_or_else(|e| {
+                    eprintln!("Error: {}", e);
+                    std::process::exit(1);
+                })
+            };
 
             let weights = constants::EnergyWeights::new(
                 sub_m
@@ -357,21 +324,12 @@ fn main() {
                 weights,
             );
         }
-        Some(("restraints", sub_m)) => match sub_m.subcommand() {
-            Some(("generate", gen_m)) => {
-                let receptor_file = gen_m.get_one::<String>("receptor").unwrap().clone();
-                let ligand_file = gen_m.get_one::<String>("ligand").unwrap().clone();
-                let cutoff = gen_m.get_one::<f64>("cutoff").copied().unwrap_or(5.0);
-                commands::restraints::generate_restraints(receptor_file, ligand_file, cutoff);
-            }
-            Some(("from-tbl", tbl_m)) => {
-                let tbl_file = tbl_m.get_one::<String>("tbl").unwrap();
-                let receptor_chain = tbl_m.get_one::<String>("receptor-chain").unwrap();
-                let ligand_chain = tbl_m.get_one::<String>("ligand-chain").unwrap();
-                commands::restraints::convert_tbl(tbl_file, receptor_chain, ligand_chain);
-            }
-            _ => unreachable!("subcommand_required prevents this"),
-        },
+        Some(("restraints", sub_m)) => {
+            let receptor_file = sub_m.get_one::<String>("receptor").unwrap().clone();
+            let ligand_file = sub_m.get_one::<String>("ligand").unwrap().clone();
+            let cutoff = sub_m.get_one::<f64>("cutoff").copied().unwrap_or(5.0);
+            commands::restraints::generate_restraints(receptor_file, ligand_file, cutoff);
+        }
         _ => unreachable!("subcommand_required prevents this"),
     }
 }
