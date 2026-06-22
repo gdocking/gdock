@@ -51,7 +51,13 @@ pub fn find_interface_pairs(
     interface_pairs
 }
 
-/// Generate restraints from interface contacts and print to stdout
+/// Generate restraints from interface contacts and print to stdout.
+///
+/// Uses HADDOCK-style cross-product: finds all receptor residues with any contact
+/// to the ligand (active rec) and all ligand residues with any contact to the
+/// receptor (active lig), then emits every active_rec × active_lig pair.
+/// Each anchor gets the full active ligand set as its OR group, matching the
+/// ambiguity semantics of HADDOCK AIR restraints.
 pub fn generate_restraints(receptor_file: String, ligand_file: String, cutoff: f64) {
     let receptor_model = read_pdb(&receptor_file);
     let ligand_model = read_pdb(&ligand_file);
@@ -61,13 +67,22 @@ pub fn generate_restraints(receptor_file: String, ligand_file: String, cutoff: f
 
     let interface_pairs = find_interface_pairs(receptor, ligand, cutoff);
 
-    // Output in gdock restraints format
-    let restraints_str: Vec<String> = interface_pairs
-        .iter()
-        .map(|(r, l)| format!("{}:{}", r, l))
-        .collect();
+    let mut active_rec: Vec<i16> = interface_pairs.iter().map(|(r, _)| *r).collect();
+    active_rec.sort();
+    active_rec.dedup();
 
-    println!("{}", restraints_str.join(","));
+    let mut active_lig: Vec<i16> = interface_pairs.iter().map(|(_, l)| *l).collect();
+    active_lig.sort();
+    active_lig.dedup();
+
+    let mut pairs: Vec<String> = Vec::new();
+    for r in &active_rec {
+        for l in &active_lig {
+            pairs.push(format!("{}:{}", r, l));
+        }
+    }
+
+    println!("{}", pairs.join(","));
 }
 
 /// Extract `(segid, resseq)` tuples from one assign block's text.
@@ -91,22 +106,18 @@ fn parse_selections(block: &str, sel_re: &Regex) -> Vec<(String, i32)> {
         .collect()
 }
 
-/// Convert a HADDOCK AIR `.tbl` file to gdock active-active restraint pairs.
+/// Parse a HADDOCK AIR `.tbl` file into active-active `(receptor_resseq, ligand_resseq)` pairs.
 ///
-/// Only residues that appear as anchors (left-hand side of `assign` blocks) are
-/// considered active.  A pair `receptor_resi:ligand_resi` is emitted only when
-/// both the anchor and its OR-group partner are active.  Passive OR-group members
-/// (never anchors) are silently dropped.
-///
-/// Output is written to stdout as a comma-separated string in `rec:lig` format,
-/// ready to be passed to `gdock run --restraints`.
-pub fn convert_tbl(tbl_file: &str, receptor_chain: &str, ligand_chain: &str) {
+/// Chain identities are detected automatically: the segid that first appears as an
+/// anchor is treated as the receptor; the other segid is the ligand.  Only residues
+/// that appear as anchors are considered active; passive OR-group members (never
+/// anchors) are silently dropped.
+pub fn tbl_to_pairs(tbl_file: &str) -> Vec<(i32, i32)> {
     let content = std::fs::read_to_string(tbl_file).unwrap_or_else(|e| {
         eprintln!("Error: cannot read TBL file '{}': {}", tbl_file, e);
         std::process::exit(1);
     });
 
-    // Strip inline comments — everything after `!` on each line.
     let stripped: String = content
         .lines()
         .map(|line| {
@@ -119,32 +130,53 @@ pub fn convert_tbl(tbl_file: &str, receptor_chain: &str, ligand_chain: &str) {
         .collect::<Vec<_>>()
         .join("\n");
 
-    // Match (resid N and segid X) or (segid X and resid N); `resi` also accepted.
     let sel_re = Regex::new(
         r"(?i)\(\s*(?:resid?\s+(\d+)\s+and\s+segid\s+(\w+)|segid\s+(\w+)\s+and\s+resid?\s+(\d+))\s*\)",
     )
     .expect("invalid regex");
 
-    // Split on the `assign` keyword to get one chunk per restraint.
     let assign_re = Regex::new(r"(?i)\bassign\b").expect("invalid regex");
     let blocks: Vec<&str> = assign_re.split(&stripped).skip(1).collect();
 
-    let rec = receptor_chain.to_uppercase();
-    let lig = ligand_chain.to_uppercase();
-
-    // First pass — every anchor is active.
-    let mut active: HashSet<(String, i32)> = HashSet::new();
     let parsed: Vec<Vec<(String, i32)>> = blocks
         .iter()
         .map(|b| parse_selections(b, &sel_re))
         .collect();
+
+    // Auto-detect chains: first segid seen as an anchor = receptor; the other = ligand.
+    let mut rec = String::new();
+    let mut lig = String::new();
+    'outer: for sels in &parsed {
+        if let Some((anchor_seg, _)) = sels.first() {
+            if rec.is_empty() {
+                rec = anchor_seg.clone();
+            }
+            for (seg, _) in &sels[1..] {
+                if seg != &rec && lig.is_empty() {
+                    lig = seg.clone();
+                    break 'outer;
+                }
+            }
+        }
+    }
+
+    if rec.is_empty() || lig.is_empty() {
+        eprintln!(
+            "Error: could not detect two distinct chain segids in '{}'",
+            tbl_file
+        );
+        std::process::exit(1);
+    }
+
+    // First pass — every anchor is active.
+    let mut active: HashSet<(String, i32)> = HashSet::new();
     for sels in &parsed {
         if let Some(anchor) = sels.first() {
             active.insert(anchor.clone());
         }
     }
 
-    // Second pass — emit pairs where both anchor and partner are active.
+    // Second pass — collect pairs where both anchor and partner are active.
     let mut groups: HashMap<i32, HashSet<i32>> = HashMap::new();
     for sels in &parsed {
         if sels.len() < 2 {
@@ -169,7 +201,6 @@ pub fn convert_tbl(tbl_file: &str, receptor_chain: &str, ligand_chain: &str) {
         }
     }
 
-    // Flatten to sorted pairs and print.
     let mut pairs: Vec<(i32, i32)> = groups
         .into_iter()
         .flat_map(|(rec_resi, lig_set)| lig_set.into_iter().map(move |l| (rec_resi, l)))
@@ -179,14 +210,13 @@ pub fn convert_tbl(tbl_file: &str, receptor_chain: &str, ligand_chain: &str) {
     if pairs.is_empty() {
         eprintln!(
             "Warning: no active-active pairs found for chains '{}'/'{}'",
-            receptor_chain, ligand_chain
+            rec, lig
         );
-        return;
     }
 
-    let output: Vec<String> = pairs.iter().map(|(r, l)| format!("{}:{}", r, l)).collect();
-    println!("{}", output.join(","));
+    pairs
 }
+
 
 #[cfg(test)]
 mod tests {
