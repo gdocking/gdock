@@ -647,58 +647,46 @@ mod tests {
 
     #[test]
     fn test_air_energy_ambiguous_satisfied() {
-        // Single atom at 1.5Å: deff = 1.5 ≤ 2.0 (AIR_UPPER_BOUND) → zero penalty
+        // Both directions close (1.5Å ≤ 2.0 AIR_UPPER_BOUND) → zero total penalty
         let mut receptor = structure::Molecule::new();
         receptor.0.push(create_test_atom_resseq(1, 0.0, 0.0, 0.0));
         let mut ligand = structure::Molecule::new();
         ligand.0.push(create_test_atom_resseq(10, 1.5, 0.0, 0.0));
-        let restraint = restraints::AmbiguousRestraint {
-            anchor_resseq: 1,
-            or_group_resseqs: vec![10],
-        };
-        let energy = air_energy_ambiguous(&[restraint], &receptor, &ligand);
-        assert_eq!(
-            energy, 0.0,
-            "Atoms within AIR_UPPER_BOUND should produce zero penalty"
-        );
+        let restraints_list =
+            restraints::create_ambiguous_restraints_from_pairs(&receptor, &ligand, &[(1, 10)]);
+        let energy = air_energy_ambiguous(&restraints_list, &receptor, &ligand);
+        assert_eq!(energy, 0.0, "Atoms within AIR_UPPER_BOUND should produce zero penalty");
     }
 
     #[test]
     fn test_air_energy_ambiguous_violated() {
-        // Single atom at 3.0Å: deff = 3.0 > 2.0 (AIR_UPPER_BOUND) → penalty
+        // Both directions far (3.0Å > 2.0 AIR_UPPER_BOUND) → positive total penalty
         let mut receptor = structure::Molecule::new();
         receptor.0.push(create_test_atom_resseq(1, 0.0, 0.0, 0.0));
         let mut ligand = structure::Molecule::new();
         ligand.0.push(create_test_atom_resseq(10, 3.0, 0.0, 0.0));
-        let restraint = restraints::AmbiguousRestraint {
-            anchor_resseq: 1,
-            or_group_resseqs: vec![10],
-        };
-        let energy = air_energy_ambiguous(&[restraint], &receptor, &ligand);
-        assert!(
-            energy > 0.0,
-            "Atoms beyond AIR_UPPER_BOUND should produce positive penalty"
-        );
+        let restraints_list =
+            restraints::create_ambiguous_restraints_from_pairs(&receptor, &ligand, &[(1, 10)]);
+        let energy = air_energy_ambiguous(&restraints_list, &receptor, &ligand);
+        assert!(energy > 0.0, "Atoms beyond AIR_UPPER_BOUND should produce positive penalty");
     }
 
     #[test]
     fn test_air_energy_ambiguous_or_semantics() {
-        // OR group [20, 21]: residue 20 is close (1.5Å, within bound), residue 21 is far (50Å).
-        // 1/r^6 OR semantics: the close contact drives deff below AIR_UPPER_BOUND → zero penalty.
+        // OR group [20, 21]: both close, so both directions satisfied → zero total penalty.
+        // Verifies 1/r^6 sum correctly handles multiple OR-group members.
         let mut receptor = structure::Molecule::new();
         receptor.0.push(create_test_atom_resseq(10, 0.0, 0.0, 0.0));
         let mut ligand = structure::Molecule::new();
         ligand.0.push(create_test_atom_resseq(20, 1.5, 0.0, 0.0));
-        ligand.0.push(create_test_atom_resseq(21, 50.0, 0.0, 0.0));
-        let restraint = restraints::AmbiguousRestraint {
-            anchor_resseq: 10,
-            or_group_resseqs: vec![20, 21],
-        };
-        let energy = air_energy_ambiguous(&[restraint], &receptor, &ligand);
-        assert_eq!(
-            energy, 0.0,
-            "Close OR-group member satisfies restraint even when other is far"
+        ligand.0.push(create_test_atom_resseq(21, 1.8, 0.0, 0.0));
+        let restraints_list = restraints::create_ambiguous_restraints_from_pairs(
+            &receptor,
+            &ligand,
+            &[(10, 20), (10, 21)],
         );
+        let energy = air_energy_ambiguous(&restraints_list, &receptor, &ligand);
+        assert_eq!(energy, 0.0, "All OR-group members close → zero total penalty");
     }
 
     #[test]
@@ -715,11 +703,9 @@ mod tests {
         receptor.0.push(create_test_atom_resseq(1, 0.0, 0.0, 0.0));
         let mut ligand = structure::Molecule::new();
         ligand.0.push(create_test_atom_resseq(10, 1.5, 0.0, 0.0));
-        let restraint = restraints::AmbiguousRestraint {
-            anchor_resseq: 1,
-            or_group_resseqs: vec![10],
-        };
-        let ratio = satisfaction_ratio_ambiguous(&[restraint], &receptor, &ligand);
+        let restraints_list =
+            restraints::create_ambiguous_restraints_from_pairs(&receptor, &ligand, &[(1, 10)]);
+        let ratio = satisfaction_ratio_ambiguous(&restraints_list, &receptor, &ligand);
         assert_eq!(ratio, 1.0);
     }
 

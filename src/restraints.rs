@@ -8,11 +8,14 @@ pub struct Restraint(pub structure::Atom, pub structure::Atom);
 /// A HADDOCK-style ambiguous restraint: one anchor residue against an OR group.
 ///
 /// The restraint is satisfied when the effective distance `deff` (1/r^6 sum over
-/// all heavy-atom pairs) falls below `AIR_UPPER_BOUND`.
+/// all heavy-atom pairs) falls below `AIR_UPPER_BOUND`. Restraints are always
+/// created in pairs (receptor-anchored + ligand-anchored) by
+/// `create_ambiguous_restraints_from_pairs` to replicate HADDOCK's bidirectional scoring.
 #[derive(Debug, Clone)]
 pub struct AmbiguousRestraint {
     pub anchor_resseq: i32,
     pub or_group_resseqs: Vec<i32>,
+    anchor_on_receptor: bool,
 }
 
 impl AmbiguousRestraint {
@@ -24,7 +27,12 @@ impl AmbiguousRestraint {
         receptor: &structure::Molecule,
         ligand: &structure::Molecule,
     ) -> Option<f64> {
-        let anchor_atoms: Vec<&structure::Atom> = receptor
+        let (anchor_mol, or_mol) = if self.anchor_on_receptor {
+            (receptor, ligand)
+        } else {
+            (ligand, receptor)
+        };
+        let anchor_atoms: Vec<&structure::Atom> = anchor_mol
             .0
             .iter()
             .filter(|a| a.resseq as i32 == self.anchor_resseq && a.element.trim() != "H")
@@ -34,7 +42,7 @@ impl AmbiguousRestraint {
         }
         let mut sum = 0.0_f64;
         for &or_resseq in &self.or_group_resseqs {
-            for b in ligand
+            for b in or_mol
                 .0
                 .iter()
                 .filter(|b| b.resseq as i32 == or_resseq && b.element.trim() != "H")
@@ -64,13 +72,22 @@ impl AmbiguousRestraint {
 
 /// Create ambiguous restraints from (receptor_resseq, ligand_resseq) pairs.
 ///
-/// Pairs sharing the same anchor are grouped into a single `AmbiguousRestraint`
-/// with OR semantics.
+/// Produces bidirectional restraints (HADDOCK-style): one receptor-anchored restraint
+/// per unique receptor residue and one ligand-anchored restraint per unique ligand
+/// residue. Both directions are scored independently, matching HADDOCK's behaviour
+/// where active residues on both chains incur a penalty if not at the interface.
 pub fn create_ambiguous_restraints_from_pairs(
     _mol1: &structure::Molecule,
     _mol2: &structure::Molecule,
     pairs: &[(i32, i32)],
 ) -> Vec<AmbiguousRestraint> {
+    let mut result = group_into_restraints(pairs, true);
+    let swapped: Vec<(i32, i32)> = pairs.iter().map(|&(r, l)| (l, r)).collect();
+    result.extend(group_into_restraints(&swapped, false));
+    result
+}
+
+fn group_into_restraints(pairs: &[(i32, i32)], anchor_on_receptor: bool) -> Vec<AmbiguousRestraint> {
     let mut groups: HashMap<i32, Vec<i32>> = HashMap::new();
     for &(anchor, partner) in pairs {
         groups.entry(anchor).or_default().push(partner);
@@ -86,6 +103,7 @@ pub fn create_ambiguous_restraints_from_pairs(
             AmbiguousRestraint {
                 anchor_resseq: anchor,
                 or_group_resseqs: or_group,
+                anchor_on_receptor,
             }
         })
         .collect()
@@ -232,29 +250,41 @@ mod tests {
 
     #[test]
     fn test_create_ambiguous_single_anchor_single_partner() {
+        // pairs [(1,10)] → rec-anchored: 1→[10]; lig-anchored: 10→[1] → 2 total
         let mol = structure::Molecule::new();
         let restraints = create_ambiguous_restraints_from_pairs(&mol, &mol, &[(1, 10)]);
-        assert_eq!(restraints.len(), 1);
+        assert_eq!(restraints.len(), 2);
         assert_eq!(restraints[0].anchor_resseq, 1);
         assert_eq!(restraints[0].or_group_resseqs, vec![10]);
+        assert!(restraints[0].anchor_on_receptor);
+        assert_eq!(restraints[1].anchor_resseq, 10);
+        assert_eq!(restraints[1].or_group_resseqs, vec![1]);
+        assert!(!restraints[1].anchor_on_receptor);
     }
 
     #[test]
     fn test_create_ambiguous_groups_multiple_partners_under_same_anchor() {
+        // pairs [(10,20),(10,21)] → rec-anchored: 10→[20,21]; lig-anchored: 20→[10], 21→[10] → 3 total
         let mol = structure::Molecule::new();
         let restraints = create_ambiguous_restraints_from_pairs(&mol, &mol, &[(10, 20), (10, 21)]);
-        assert_eq!(restraints.len(), 1);
+        assert_eq!(restraints.len(), 3);
         assert_eq!(restraints[0].anchor_resseq, 10);
         assert_eq!(restraints[0].or_group_resseqs, vec![20, 21]);
+        assert!(restraints[0].anchor_on_receptor);
     }
 
     #[test]
     fn test_create_ambiguous_multiple_anchors() {
+        // pairs [(10,20),(11,20)] → rec-anchored: 10→[20], 11→[20]; lig-anchored: 20→[10,11] → 3 total
         let mol = structure::Molecule::new();
         let restraints = create_ambiguous_restraints_from_pairs(&mol, &mol, &[(10, 20), (11, 20)]);
-        assert_eq!(restraints.len(), 2);
+        assert_eq!(restraints.len(), 3);
         assert_eq!(restraints[0].anchor_resseq, 10);
         assert_eq!(restraints[1].anchor_resseq, 11);
+        assert!(restraints[0].anchor_on_receptor);
+        assert!(restraints[1].anchor_on_receptor);
+        assert!(!restraints[2].anchor_on_receptor);
+        assert_eq!(restraints[2].anchor_resseq, 20);
     }
 
     #[test]
@@ -267,6 +297,7 @@ mod tests {
         let r = AmbiguousRestraint {
             anchor_resseq: 1,
             or_group_resseqs: vec![10],
+            anchor_on_receptor: true,
         };
         assert!(r.is_satisfied(&receptor, &ligand));
     }
@@ -280,6 +311,7 @@ mod tests {
         let r = AmbiguousRestraint {
             anchor_resseq: 1,
             or_group_resseqs: vec![10],
+            anchor_on_receptor: true,
         };
         assert!(!r.is_satisfied(&receptor, &ligand));
     }

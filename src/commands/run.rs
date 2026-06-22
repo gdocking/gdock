@@ -123,10 +123,10 @@ pub fn run(config: RunConfig) {
     let receptor = receptor_model.0[0].clone();
     let ligand = ligand_model.0[0].clone();
 
-    // Create restraints from user-specified residue pairs
+    // Create bidirectional ambiguous restraints (HADDOCK-style: anchor on each chain)
     let restraints_list =
         restraints::create_ambiguous_restraints_from_pairs(&receptor, &ligand, &restraint_pairs);
-    let num_restraints = restraints_list.len();
+    let num_restraints = restraints_list.len() / 2;
     println!(
         "{} Created {} distance restraints\n",
         "✓".green(),
