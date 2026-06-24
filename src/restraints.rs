@@ -292,7 +292,7 @@ mod tests {
 
     #[test]
     fn test_ambiguous_is_satisfied_close() {
-        // anchor residue 1 at origin, OR-group residue 10 at 1.5Å → deff=1.5 ≤ 2.0 → satisfied
+        // anchor residue 1 at origin, OR-group residue 10 at 1.5Å → deff=1.5 ≤ 7.0 → satisfied
         let mut receptor = structure::Molecule::new();
         receptor.0.push(create_test_atom_heavy(1, 0.0, 0.0, 0.0));
         let mut ligand = structure::Molecule::new();

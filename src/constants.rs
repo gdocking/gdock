@@ -25,7 +25,7 @@ pub const HOF_UNIQUENESS_ROTATION_THRESHOLD: f64 = 0.2; // ~11 degrees
 pub const HOF_UNIQUENESS_TRANSLATION_THRESHOLD: f64 = 2.0; // 2 Å
 
 // AIR restraint parameters
-pub const AIR_UPPER_BOUND: f64 = 2.0;
+pub const AIR_UPPER_BOUND: f64 = 7.0;
 
 // Default weights
 //  These defaults are based on a score calibration,
