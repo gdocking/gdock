@@ -87,7 +87,10 @@ pub fn create_ambiguous_restraints_from_pairs(
     result
 }
 
-fn group_into_restraints(pairs: &[(i32, i32)], anchor_on_receptor: bool) -> Vec<AmbiguousRestraint> {
+fn group_into_restraints(
+    pairs: &[(i32, i32)],
+    anchor_on_receptor: bool,
+) -> Vec<AmbiguousRestraint> {
     let mut groups: HashMap<i32, Vec<i32>> = HashMap::new();
     for &(anchor, partner) in pairs {
         groups.entry(anchor).or_default().push(partner);
