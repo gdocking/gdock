@@ -655,7 +655,10 @@ mod tests {
         let restraints_list =
             restraints::create_ambiguous_restraints_from_pairs(&receptor, &ligand, &[(1, 10)]);
         let energy = air_energy_ambiguous(&restraints_list, &receptor, &ligand);
-        assert_eq!(energy, 0.0, "Atoms within AIR_UPPER_BOUND should produce zero penalty");
+        assert_eq!(
+            energy, 0.0,
+            "Atoms within AIR_UPPER_BOUND should produce zero penalty"
+        );
     }
 
     #[test]
@@ -668,7 +671,10 @@ mod tests {
         let restraints_list =
             restraints::create_ambiguous_restraints_from_pairs(&receptor, &ligand, &[(1, 10)]);
         let energy = air_energy_ambiguous(&restraints_list, &receptor, &ligand);
-        assert!(energy > 0.0, "Atoms beyond AIR_UPPER_BOUND should produce positive penalty");
+        assert!(
+            energy > 0.0,
+            "Atoms beyond AIR_UPPER_BOUND should produce positive penalty"
+        );
     }
 
     #[test]
@@ -686,7 +692,10 @@ mod tests {
             &[(10, 20), (10, 21)],
         );
         let energy = air_energy_ambiguous(&restraints_list, &receptor, &ligand);
-        assert_eq!(energy, 0.0, "All OR-group members close → zero total penalty");
+        assert_eq!(
+            energy, 0.0,
+            "All OR-group members close → zero total penalty"
+        );
     }
 
     #[test]

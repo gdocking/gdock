@@ -217,7 +217,6 @@ pub fn tbl_to_pairs(tbl_file: &str) -> Vec<(i32, i32)> {
     pairs
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
