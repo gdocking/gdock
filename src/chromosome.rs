@@ -86,7 +86,7 @@ impl Chromosome {
         &mut self,
         receptor: &structure::Molecule,
         ligand: &structure::Molecule,
-        restraints: &[restraints::Restraint],
+        restraints: &[restraints::AmbiguousRestraint],
         weights: &constants::EnergyWeights,
         evaluator: Option<&crate::evaluator::Evaluator>,
     ) -> f64 {
@@ -111,10 +111,11 @@ impl Chromosome {
         self.vdw = fitness::vdw_energy(receptor, &target_ligand);
         self.elec = fitness::elec_energy(receptor, &target_ligand);
         self.desolv = fitness::desolv_energy(receptor, &target_ligand);
-        self.air = fitness::air_energy(restraints, receptor, &target_ligand);
+        self.air = fitness::air_energy_ambiguous(restraints, receptor, &target_ligand);
 
         // Calculate restraint satisfaction for monitoring
-        let restraints_ratio = fitness::satisfaction_ratio(restraints, receptor, &target_ligand);
+        let restraints_ratio =
+            fitness::satisfaction_ratio_ambiguous(restraints, receptor, &target_ligand);
         self.restraint_penalty = (1.0 - restraints_ratio) * restraints.len() as f64;
 
         // Information-driven docking score with configurable weights

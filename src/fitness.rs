@@ -1,5 +1,6 @@
 use crate::constants::{
-    AIR_FORCE_CONSTANT, DESOLV_CUTOFF, ELEC_CUTOFF, ELEC_MIN_DISTANCE, SOFTCORE_ALPHA, VDW_CUTOFF,
+    AIR_FORCE_CONSTANT, AIR_UPPER_BOUND, DESOLV_CUTOFF, ELEC_CUTOFF, ELEC_MIN_DISTANCE,
+    SOFTCORE_ALPHA, VDW_CUTOFF,
 };
 use crate::restraints;
 use crate::structure;
@@ -264,6 +265,43 @@ pub fn satisfaction_ratio(
     } else {
         0.0
     }
+}
+
+/// Calculates AIR energy using HADDOCK-style 1/r^6 all-atom OR semantics.
+///
+/// For each `AmbiguousRestraint`, the effective distance is:
+///   `deff = [Σ_j Σ_a Σ_b 1/r_ab^6]^(-1/6)`
+/// where j runs over OR-group residues, a over heavy atoms of the anchor, and
+/// b over heavy atoms of residue j.  A soft-square penalty is applied if
+/// `deff > AIR_UPPER_BOUND`.
+pub fn air_energy_ambiguous(
+    restraints: &[restraints::AmbiguousRestraint],
+    receptor: &structure::Molecule,
+    ligand: &structure::Molecule,
+) -> f64 {
+    restraints
+        .iter()
+        .filter_map(|r| r.compute_deff(receptor, ligand))
+        .map(|deff| {
+            let violation = (deff - AIR_UPPER_BOUND).max(0.0);
+            AIR_FORCE_CONSTANT * violation * violation
+        })
+        .sum()
+}
+
+pub fn satisfaction_ratio_ambiguous(
+    restraints: &[restraints::AmbiguousRestraint],
+    receptor: &structure::Molecule,
+    ligand: &structure::Molecule,
+) -> f64 {
+    if restraints.is_empty() {
+        return 0.0;
+    }
+    let satisfied = restraints
+        .iter()
+        .filter(|r| r.is_satisfied(receptor, ligand))
+        .count();
+    satisfied as f64 / restraints.len() as f64
 }
 
 /// Calculates the electrostatic energy between two molecules.
@@ -573,6 +611,111 @@ mod tests {
 
         let ratio = satisfaction_ratio(&restraints, &receptor, &ligand);
         assert_eq!(ratio, 0.0, "Empty restraints should give ratio 0.0");
+    }
+
+    fn create_test_atom_resseq(resseq: i16, x: f64, y: f64, z: f64) -> structure::Atom {
+        structure::Atom {
+            serial: 1,
+            name: "CA".to_string(),
+            altloc: ' ',
+            resname: "ALA".to_string(),
+            chainid: 'A',
+            resseq,
+            icode: ' ',
+            x,
+            y,
+            z,
+            occupancy: 1.0,
+            tempfactor: 0.0,
+            element: "C".to_string(),
+            charge: 0.0,
+            vdw_radius: 1.7,
+            epsilon: -0.1,
+            rmin2: 2.0,
+            eps_1_4: -0.1,
+            rmin2_1_4: 1.9,
+        }
+    }
+
+    #[test]
+    fn test_air_energy_ambiguous_empty() {
+        let receptor = structure::Molecule::new();
+        let ligand = structure::Molecule::new();
+        let energy = air_energy_ambiguous(&[], &receptor, &ligand);
+        assert_eq!(energy, 0.0);
+    }
+
+    #[test]
+    fn test_air_energy_ambiguous_satisfied() {
+        // Both directions close (1.5Å ≤ 2.0 AIR_UPPER_BOUND) → zero total penalty
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom_resseq(1, 0.0, 0.0, 0.0));
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom_resseq(10, 1.5, 0.0, 0.0));
+        let restraints_list =
+            restraints::create_ambiguous_restraints_from_pairs(&receptor, &ligand, &[(1, 10)]);
+        let energy = air_energy_ambiguous(&restraints_list, &receptor, &ligand);
+        assert_eq!(
+            energy, 0.0,
+            "Atoms within AIR_UPPER_BOUND should produce zero penalty"
+        );
+    }
+
+    #[test]
+    fn test_air_energy_ambiguous_violated() {
+        // Both directions far (3.0Å > 2.0 AIR_UPPER_BOUND) → positive total penalty
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom_resseq(1, 0.0, 0.0, 0.0));
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom_resseq(10, 3.0, 0.0, 0.0));
+        let restraints_list =
+            restraints::create_ambiguous_restraints_from_pairs(&receptor, &ligand, &[(1, 10)]);
+        let energy = air_energy_ambiguous(&restraints_list, &receptor, &ligand);
+        assert!(
+            energy > 0.0,
+            "Atoms beyond AIR_UPPER_BOUND should produce positive penalty"
+        );
+    }
+
+    #[test]
+    fn test_air_energy_ambiguous_or_semantics() {
+        // OR group [20, 21]: both close, so both directions satisfied → zero total penalty.
+        // Verifies 1/r^6 sum correctly handles multiple OR-group members.
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom_resseq(10, 0.0, 0.0, 0.0));
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom_resseq(20, 1.5, 0.0, 0.0));
+        ligand.0.push(create_test_atom_resseq(21, 1.8, 0.0, 0.0));
+        let restraints_list = restraints::create_ambiguous_restraints_from_pairs(
+            &receptor,
+            &ligand,
+            &[(10, 20), (10, 21)],
+        );
+        let energy = air_energy_ambiguous(&restraints_list, &receptor, &ligand);
+        assert_eq!(
+            energy, 0.0,
+            "All OR-group members close → zero total penalty"
+        );
+    }
+
+    #[test]
+    fn test_satisfaction_ratio_ambiguous_empty() {
+        let receptor = structure::Molecule::new();
+        let ligand = structure::Molecule::new();
+        let ratio = satisfaction_ratio_ambiguous(&[], &receptor, &ligand);
+        assert_eq!(ratio, 0.0);
+    }
+
+    #[test]
+    fn test_satisfaction_ratio_ambiguous_all_satisfied() {
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom_resseq(1, 0.0, 0.0, 0.0));
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom_resseq(10, 1.5, 0.0, 0.0));
+        let restraints_list =
+            restraints::create_ambiguous_restraints_from_pairs(&receptor, &ligand, &[(1, 10)]);
+        let ratio = satisfaction_ratio_ambiguous(&restraints_list, &receptor, &ligand);
+        assert_eq!(ratio, 1.0);
     }
 
     #[test]

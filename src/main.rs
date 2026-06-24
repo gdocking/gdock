@@ -172,7 +172,7 @@ fn main() {
         )
         .subcommand(
             Command::new("restraints")
-                .about("Generate restraints from interface contacts")
+                .about("Generate restraints from interface contacts in a reference complex")
                 .arg(receptor_arg)
                 .arg(ligand_arg)
                 .arg(
@@ -231,15 +231,19 @@ fn main() {
             }
 
             let restraints_arg = sub_m.get_one::<String>("restraints").unwrap();
-            let restraint_pairs = if std::path::Path::new(restraints_arg).is_file() {
-                parse_restraints_file(restraints_arg)
+            let restraint_pairs = if restraints_arg.ends_with(".tbl") {
+                commands::restraints::tbl_to_pairs(restraints_arg)
+            } else if std::path::Path::new(restraints_arg).is_file() {
+                parse_restraints_file(restraints_arg).unwrap_or_else(|e| {
+                    eprintln!("Error: {}", e);
+                    std::process::exit(1);
+                })
             } else {
-                parse_restraints(restraints_arg)
-            }
-            .unwrap_or_else(|e| {
-                eprintln!("Error: {}", e);
-                std::process::exit(1);
-            });
+                parse_restraints(restraints_arg).unwrap_or_else(|e| {
+                    eprintln!("Error: {}", e);
+                    std::process::exit(1);
+                })
+            };
 
             let weights = constants::EnergyWeights::new(
                 sub_m
@@ -324,7 +328,6 @@ fn main() {
             let receptor_file = sub_m.get_one::<String>("receptor").unwrap().clone();
             let ligand_file = sub_m.get_one::<String>("ligand").unwrap().clone();
             let cutoff = sub_m.get_one::<f64>("cutoff").copied().unwrap_or(5.0);
-
             commands::restraints::generate_restraints(receptor_file, ligand_file, cutoff);
         }
         _ => unreachable!("subcommand_required prevents this"),

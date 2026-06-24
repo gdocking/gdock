@@ -18,7 +18,7 @@ pub struct Population {
     pub ligand: Molecule,
     pub reference: Molecule,
     pub generation: u64,
-    pub restraints: Vec<restraints::Restraint>,
+    pub restraints: Vec<restraints::AmbiguousRestraint>,
     pub weights: constants::EnergyWeights,
     pub debug_evaluator: Option<evaluator::Evaluator>,
 }
@@ -29,7 +29,7 @@ impl Population {
         receptor: Molecule,
         ligand: Molecule,
         reference: Molecule,
-        restraints: Vec<restraints::Restraint>,
+        restraints: Vec<restraints::AmbiguousRestraint>,
         weights: constants::EnergyWeights,
         debug_evaluator: Option<evaluator::Evaluator>,
     ) -> Population {
