@@ -1,6 +1,6 @@
 [package]
 name = "gdock"
-version = "2.2.0-rc.2"
+version = "2.2.0"
 edition = "2021"
 license = "0BSD"
 authors = ["Rodrigo V. Honorato <rvhonorato@protonmail.com>"]
