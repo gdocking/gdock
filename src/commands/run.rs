@@ -328,6 +328,8 @@ pub fn run(config: RunConfig) {
         progress.finish();
     }
 
+    let generations_run = ga_result.generations_run;
+    let converged_early = ga_result.converged_early;
     let hall_of_fame = ga_result.hall_of_fame;
     let pop = ga_result.final_population;
 
@@ -410,25 +412,33 @@ pub fn run(config: RunConfig) {
             let metrics_path = out_dir.join("metrics.tsv");
             let mut metrics_file =
                 fs::File::create(&metrics_path).expect("Failed to create metrics file");
-            writeln!(metrics_file, "model\tdockq\trmsd\tirmsd\tfnat\tscore").unwrap();
             writeln!(
                 metrics_file,
-                "best_by_score\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
-                best_score_metrics.dockq,
-                best_score_metrics.rmsd,
-                best_score_metrics.irmsd,
-                best_score_metrics.fnat,
-                final_best_score.fitness
+                "model\tdockq\trmsd\tirmsd\tfnat\tscore\tgenerations_run\tconverged_early"
             )
             .unwrap();
             writeln!(
                 metrics_file,
-                "best_by_dockq\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
+                "best_by_score\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{}\t{}",
+                best_score_metrics.dockq,
+                best_score_metrics.rmsd,
+                best_score_metrics.irmsd,
+                best_score_metrics.fnat,
+                final_best_score.fitness,
+                generations_run,
+                converged_early
+            )
+            .unwrap();
+            writeln!(
+                metrics_file,
+                "best_by_dockq\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{}\t{}",
                 best_dockq_metrics.dockq,
                 best_dockq_metrics.rmsd,
                 best_dockq_metrics.irmsd,
                 best_dockq_metrics.fnat,
-                final_best_dockq.fitness
+                final_best_dockq.fitness,
+                generations_run,
+                converged_early
             )
             .unwrap();
 
@@ -468,11 +478,15 @@ pub fn run(config: RunConfig) {
         if eval.is_some() {
             writeln!(
                 metrics_file,
-                "model\tcluster_size\tscore\tdockq\trmsd\tirmsd\tfnat"
+                "model\tcluster_size\tscore\tdockq\trmsd\tirmsd\tfnat\tgenerations_run\tconverged_early"
             )
             .unwrap();
         } else {
-            writeln!(metrics_file, "model\tcluster_size\tscore").unwrap();
+            writeln!(
+                metrics_file,
+                "model\tcluster_size\tscore\tgenerations_run\tconverged_early"
+            )
+            .unwrap();
         }
 
         println!("\n{}", "📊 Output Models (FCC Clustered)".bold().cyan());
@@ -495,14 +509,16 @@ pub fn run(config: RunConfig) {
 
                 writeln!(
                     metrics_file,
-                    "{}\t{}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
+                    "{}\t{}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{}\t{}",
                     model_name,
                     cluster_size,
                     entry.fitness,
                     metrics.dockq,
                     metrics.rmsd,
                     metrics.irmsd,
-                    metrics.fnat
+                    metrics.fnat,
+                    generations_run,
+                    converged_early
                 )
                 .unwrap();
 
@@ -526,8 +542,8 @@ pub fn run(config: RunConfig) {
             } else {
                 writeln!(
                     metrics_file,
-                    "{}\t{}\t{:.4}",
-                    model_name, cluster_size, entry.fitness
+                    "{}\t{}\t{:.4}\t{}\t{}",
+                    model_name, cluster_size, entry.fitness, generations_run, converged_early
                 )
                 .unwrap();
 
@@ -566,13 +582,15 @@ pub fn run(config: RunConfig) {
 
                 writeln!(
                     metrics_file,
-                    "{}\t-\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
+                    "{}\t-\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{}\t{}",
                     model_name,
                     entry.fitness,
                     metrics.dockq,
                     metrics.rmsd,
                     metrics.irmsd,
-                    metrics.fnat
+                    metrics.fnat,
+                    generations_run,
+                    converged_early
                 )
                 .unwrap();
 
@@ -593,7 +611,12 @@ pub fn run(config: RunConfig) {
                     dockq_str
                 );
             } else {
-                writeln!(metrics_file, "{}\t-\t{:.4}", model_name, entry.fitness).unwrap();
+                writeln!(
+                    metrics_file,
+                    "{}\t-\t{:.4}\t{}\t{}",
+                    model_name, entry.fitness, generations_run, converged_early
+                )
+                .unwrap();
 
                 println!("  {}: score={:.1}", model_name.green(), entry.fitness);
             }

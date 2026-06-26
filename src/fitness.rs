@@ -1,6 +1,6 @@
 use crate::constants::{
-    AIR_FORCE_CONSTANT, AIR_UPPER_BOUND, DESOLV_CUTOFF, ELEC_CUTOFF, ELEC_MIN_DISTANCE,
-    SOFTCORE_ALPHA, VDW_CUTOFF,
+    AIR_ASYMPTOTE, AIR_FORCE_CONSTANT, AIR_RSWITCH, AIR_UPPER_BOUND, DESOLV_CUTOFF, ELEC_CUTOFF,
+    ELEC_MIN_DISTANCE, SOFTCORE_ALPHA, VDW_CUTOFF,
 };
 use crate::restraints;
 use crate::structure;
@@ -272,8 +272,12 @@ pub fn satisfaction_ratio(
 /// For each `AmbiguousRestraint`, the effective distance is:
 ///   `deff = [Σ_j Σ_a Σ_b 1/r_ab^6]^(-1/6)`
 /// where j runs over OR-group residues, a over heavy atoms of the anchor, and
-/// b over heavy atoms of residue j.  A soft-square penalty is applied if
-/// `deff > AIR_UPPER_BOUND`.
+/// b over heavy atoms of residue j.
+///
+/// Soft-square potential (matching CNS/HADDOCK `potential=soft`):
+///   - `deff ≤ AIR_UPPER_BOUND`: zero penalty (flat zone)
+///   - `violation ≤ AIR_RSWITCH`: quadratic `k * violation²`
+///   - `violation > AIR_RSWITCH`: linear `k * (AIR_ASYMPTOTE * violation - AIR_RSWITCH²)`
 pub fn air_energy_ambiguous(
     restraints: &[restraints::AmbiguousRestraint],
     receptor: &structure::Molecule,
@@ -284,7 +288,11 @@ pub fn air_energy_ambiguous(
         .filter_map(|r| r.compute_deff(receptor, ligand))
         .map(|deff| {
             let violation = (deff - AIR_UPPER_BOUND).max(0.0);
-            AIR_FORCE_CONSTANT * violation * violation
+            if violation <= AIR_RSWITCH {
+                AIR_FORCE_CONSTANT * violation * violation
+            } else {
+                AIR_FORCE_CONSTANT * (AIR_ASYMPTOTE * violation - AIR_RSWITCH * AIR_RSWITCH)
+            }
         })
         .sum()
 }
@@ -647,7 +655,7 @@ mod tests {
 
     #[test]
     fn test_air_energy_ambiguous_satisfied() {
-        // Both directions close (1.5Å ≤ 2.0 AIR_UPPER_BOUND) → zero total penalty
+        // Both directions close (1.5Å ≤ 4.0 AIR_UPPER_BOUND) → zero total penalty
         let mut receptor = structure::Molecule::new();
         receptor.0.push(create_test_atom_resseq(1, 0.0, 0.0, 0.0));
         let mut ligand = structure::Molecule::new();
@@ -663,11 +671,11 @@ mod tests {
 
     #[test]
     fn test_air_energy_ambiguous_violated() {
-        // Both directions far (3.0Å > 2.0 AIR_UPPER_BOUND) → positive total penalty
+        // Both directions far (10.0Å > 4.0 AIR_UPPER_BOUND) → positive total penalty
         let mut receptor = structure::Molecule::new();
         receptor.0.push(create_test_atom_resseq(1, 0.0, 0.0, 0.0));
         let mut ligand = structure::Molecule::new();
-        ligand.0.push(create_test_atom_resseq(10, 3.0, 0.0, 0.0));
+        ligand.0.push(create_test_atom_resseq(10, 10.0, 0.0, 0.0));
         let restraints_list =
             restraints::create_ambiguous_restraints_from_pairs(&receptor, &ligand, &[(1, 10)]);
         let energy = air_energy_ambiguous(&restraints_list, &receptor, &ligand);
