@@ -1,19 +1,17 @@
 // GA Parameters
 pub const POPULATION_SIZE: u64 = 150;
+pub const MAX_GENERATIONS: u64 = 250;
 pub const MUTATION_RATE: f64 = 0.1;
 pub const CROSSOVER_RATE: f64 = 0.6;
 pub const TOURNAMENT_SIZE: u64 = 3;
 pub const ELITISM_COUNT: usize = 5; // Preserve top 5 individuals
-pub const MAX_GENERATIONS: u64 = 250;
-// NOTE: Changing the MAX_DISPLACEMENT from 15 to 50 greatly increased the score in debug from 0.7
-// to 0.9!!
-pub const MAX_DISPLACEMENT: f64 = 50.0;
+pub const MAX_DISPLACEMENT: f64 = 50.0; // Do not go lower than this
 pub const RANDOM_SEED: u64 = 42;
 
 // Early stopping parameters
 pub const ENABLE_EARLY_STOPPING: bool = true;
 pub const CONVERGENCE_THRESHOLD: f64 = 0.001; // 0.1% improvement threshold
-pub const CONVERGENCE_WINDOW: u64 = 10; // Stop if no improvement for this many generations
+pub const CONVERGENCE_WINDOW: u64 = 50; // Stop if no improvement for this many generations
 
 // Output
 pub const NUM_OUTPUT_MODELS: usize = 5;
@@ -25,7 +23,11 @@ pub const HOF_UNIQUENESS_ROTATION_THRESHOLD: f64 = 0.2; // ~11 degrees
 pub const HOF_UNIQUENESS_TRANSLATION_THRESHOLD: f64 = 2.0; // 2 Å
 
 // AIR restraint parameters
-pub const AIR_UPPER_BOUND: f64 = 7.0;
+// Upper bound matches CNS/HADDOCK: d + du = 2.0 + 2.0 = 4.0 Å for TBL "2.0 2.0 0.0"
+pub const AIR_UPPER_BOUND: f64 = 4.0;
+// Soft-square potential parameters (matching HADDOCK CNS: rswitch=1.0, asymptote=2.0)
+pub const AIR_RSWITCH: f64 = 1.0;
+pub const AIR_ASYMPTOTE: f64 = 2.0;
 
 // Default weights
 //  These defaults are based on a score calibration,
