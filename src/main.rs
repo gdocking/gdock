@@ -336,9 +336,16 @@ fn main() {
             let receptor_file = sub_m.get_one::<String>("receptor").unwrap().clone();
             let ligand_file = sub_m.get_one::<String>("ligand").unwrap().clone();
             let cutoff = sub_m.get_one::<f64>("cutoff").copied().unwrap_or(5.0);
-            let mode = sub_m.get_one::<String>("mode").map(|s| s.as_str()).unwrap_or("ambig");
+            let mode = sub_m
+                .get_one::<String>("mode")
+                .map(|s| s.as_str())
+                .unwrap_or("ambig");
             if mode == "unambig" {
-                commands::restraints::generate_restraints_unambig(receptor_file, ligand_file, cutoff);
+                commands::restraints::generate_restraints_unambig(
+                    receptor_file,
+                    ligand_file,
+                    cutoff,
+                );
             } else {
                 commands::restraints::generate_restraints(receptor_file, ligand_file, cutoff);
             }

@@ -108,7 +108,11 @@ fn min_dist_to_res(rec_atoms: &[&Atom], ligand: &Molecule, lig_res: i16) -> f64 
 /// Use this to generate unambiguous 1:1 restraints where the GA must bring a
 /// specific receptor residue close to a specific ligand residue, rather than
 /// satisfying any member of a large OR group.
-pub fn find_unambiguous_pairs(receptor: &Molecule, ligand: &Molecule, cutoff: f64) -> Vec<(i16, i16)> {
+pub fn find_unambiguous_pairs(
+    receptor: &Molecule,
+    ligand: &Molecule,
+    cutoff: f64,
+) -> Vec<(i16, i16)> {
     let all_pairs = find_interface_pairs(receptor, ligand, cutoff);
 
     let mut by_rec: HashMap<i16, Vec<i16>> = HashMap::new();
