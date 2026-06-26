@@ -181,6 +181,14 @@ fn main() {
                         .value_name("ANGSTROMS")
                         .help("Distance cutoff for interface detection (default: 5.0)")
                         .value_parser(clap::value_parser!(f64)),
+                )
+                .arg(
+                    clap::Arg::new("mode")
+                        .long("mode")
+                        .value_name("MODE")
+                        .help("'ambig': cross-product OR-group per anchor (default); 'unambig': single closest partner per anchor")
+                        .value_parser(["ambig", "unambig"])
+                        .default_value("ambig"),
                 ),
         )
         .get_matches();
@@ -328,7 +336,12 @@ fn main() {
             let receptor_file = sub_m.get_one::<String>("receptor").unwrap().clone();
             let ligand_file = sub_m.get_one::<String>("ligand").unwrap().clone();
             let cutoff = sub_m.get_one::<f64>("cutoff").copied().unwrap_or(5.0);
-            commands::restraints::generate_restraints(receptor_file, ligand_file, cutoff);
+            let mode = sub_m.get_one::<String>("mode").map(|s| s.as_str()).unwrap_or("ambig");
+            if mode == "unambig" {
+                commands::restraints::generate_restraints_unambig(receptor_file, ligand_file, cutoff);
+            } else {
+                commands::restraints::generate_restraints(receptor_file, ligand_file, cutoff);
+            }
         }
         _ => unreachable!("subcommand_required prevents this"),
     }

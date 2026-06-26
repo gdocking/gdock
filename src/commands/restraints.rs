@@ -1,4 +1,4 @@
-use crate::structure::{read_pdb, Molecule};
+use crate::structure::{read_pdb, Atom, Molecule};
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 
@@ -81,6 +81,83 @@ pub fn generate_restraints(receptor_file: String, ligand_file: String, cutoff: f
             pairs.push(format!("{}:{}", r, l));
         }
     }
+
+    println!("{}", pairs.join(","));
+}
+
+/// Minimum heavy-atom distance from a pre-collected receptor atom slice to a ligand residue.
+fn min_dist_to_res(rec_atoms: &[&Atom], ligand: &Molecule, lig_res: i16) -> f64 {
+    ligand
+        .0
+        .iter()
+        .filter(|a| a.resseq == lig_res && !a.name.starts_with('H'))
+        .flat_map(|la| {
+            rec_atoms.iter().map(move |ra| {
+                let dx = ra.x - la.x;
+                let dy = ra.y - la.y;
+                let dz = ra.z - la.z;
+                (dx * dx + dy * dy + dz * dz).sqrt()
+            })
+        })
+        .fold(f64::INFINITY, f64::min)
+}
+
+/// Like `find_interface_pairs` but returns only the single closest ligand partner
+/// per receptor residue (minimum heavy-atom distance).
+///
+/// Use this to generate unambiguous 1:1 restraints where the GA must bring a
+/// specific receptor residue close to a specific ligand residue, rather than
+/// satisfying any member of a large OR group.
+pub fn find_unambiguous_pairs(receptor: &Molecule, ligand: &Molecule, cutoff: f64) -> Vec<(i16, i16)> {
+    let all_pairs = find_interface_pairs(receptor, ligand, cutoff);
+
+    let mut by_rec: HashMap<i16, Vec<i16>> = HashMap::new();
+    for (r, l) in &all_pairs {
+        by_rec.entry(*r).or_default().push(*l);
+    }
+
+    let mut result: Vec<(i16, i16)> = by_rec
+        .iter()
+        .filter_map(|(rec_res, lig_candidates)| {
+            let rec_atoms: Vec<&Atom> = receptor
+                .0
+                .iter()
+                .filter(|a| a.resseq == *rec_res && !a.name.starts_with('H'))
+                .collect();
+            lig_candidates
+                .iter()
+                .min_by(|&&la, &&lb| {
+                    min_dist_to_res(&rec_atoms, ligand, la)
+                        .partial_cmp(&min_dist_to_res(&rec_atoms, ligand, lb))
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .map(|&closest| (*rec_res, closest))
+        })
+        .collect();
+
+    result.sort();
+    result
+}
+
+/// Generate unambiguous restraints: one closest-partner pair per receptor residue.
+///
+/// Unlike `generate_restraints` (which emits a cross-product of all active residues),
+/// this selects only the single ligand residue that is closest (minimum heavy-atom
+/// distance) to each receptor interface residue. The resulting pairs are tight
+/// 1:1 restraints suitable for AmbiguousRestraint with a single-element OR group.
+pub fn generate_restraints_unambig(receptor_file: String, ligand_file: String, cutoff: f64) {
+    let receptor_model = read_pdb(&receptor_file);
+    let ligand_model = read_pdb(&ligand_file);
+
+    let receptor = &receptor_model.0[0];
+    let ligand = &ligand_model.0[0];
+
+    let unambig_pairs = find_unambiguous_pairs(receptor, ligand, cutoff);
+
+    let pairs: Vec<String> = unambig_pairs
+        .iter()
+        .map(|(r, l)| format!("{}:{}", r, l))
+        .collect();
 
     println!("{}", pairs.join(","));
 }
