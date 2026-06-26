@@ -391,38 +391,45 @@ mod tests {
     fn test_find_unambiguous_pairs_selects_closest() {
         use crate::structure::{Atom, Molecule};
 
-        // Receptor residue 1 at origin; two ligand residues: 10 at 3Å, 11 at 8Å
+        fn make_atom(resseq: i16, x: f64, y: f64, z: f64) -> Atom {
+            Atom {
+                serial: 1,
+                name: "CA".to_string(),
+                altloc: ' ',
+                resname: "ALA".to_string(),
+                chainid: 'A',
+                resseq,
+                icode: ' ',
+                x,
+                y,
+                z,
+                occupancy: 1.0,
+                tempfactor: 0.0,
+                element: "C".to_string(),
+                charge: 0.0,
+                vdw_radius: 1.7,
+                epsilon: -0.1,
+                rmin2: 2.0,
+                eps_1_4: -0.1,
+                rmin2_1_4: 1.9,
+            }
+        }
+
+        // Receptor residue 1 at origin; two ligand residues: 10 at 3Å, 11 at 8Å.
         // Both within cutoff=10. Unambig must pick residue 10 (closer).
         let mut receptor = Molecule::new();
-        receptor.0.push(Atom {
-            resseq: 1,
-            name: "CA".to_string(),
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-            ..Default::default()
-        });
+        receptor.0.push(make_atom(1, 0.0, 0.0, 0.0));
 
         let mut ligand = Molecule::new();
-        ligand.0.push(Atom {
-            resseq: 10,
-            name: "CA".to_string(),
-            x: 3.0,
-            y: 0.0,
-            z: 0.0,
-            ..Default::default()
-        });
-        ligand.0.push(Atom {
-            resseq: 11,
-            name: "CA".to_string(),
-            x: 8.0,
-            y: 0.0,
-            z: 0.0,
-            ..Default::default()
-        });
+        ligand.0.push(make_atom(10, 3.0, 0.0, 0.0));
+        ligand.0.push(make_atom(11, 8.0, 0.0, 0.0));
 
         let pairs = find_unambiguous_pairs(&receptor, &ligand, 10.0);
         assert_eq!(pairs.len(), 1);
-        assert_eq!(pairs[0], (1, 10), "Should select residue 10 (3Å) over 11 (8Å)");
+        assert_eq!(
+            pairs[0],
+            (1, 10),
+            "Should select residue 10 (3Å) over 11 (8Å)"
+        );
     }
 }
