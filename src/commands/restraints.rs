@@ -130,12 +130,9 @@ pub fn find_unambiguous_pairs(
                 .collect();
             lig_candidates
                 .iter()
-                .min_by(|&&la, &&lb| {
-                    min_dist_to_res(&rec_atoms, ligand, la)
-                        .partial_cmp(&min_dist_to_res(&rec_atoms, ligand, lb))
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                })
-                .map(|&closest| (*rec_res, closest))
+                .map(|&l| (l, min_dist_to_res(&rec_atoms, ligand, l)))
+                .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|(closest, _)| (*rec_res, closest))
         })
         .collect();
 
@@ -337,5 +334,95 @@ mod tests {
             pairs_10a.len() >= pairs_5a.len(),
             "10Å cutoff should find >= pairs than 5Å"
         );
+    }
+
+    #[test]
+    fn test_find_unambiguous_pairs_one_per_receptor_residue() {
+        let receptor_model = read_pdb("data/2oob_A.pdb");
+        let ligand_model = read_pdb("data/2oob_B.pdb");
+
+        let receptor = &receptor_model.0[0];
+        let ligand = &ligand_model.0[0];
+
+        let unambig = find_unambiguous_pairs(receptor, ligand, 5.0);
+
+        // Each receptor residue must appear exactly once
+        let mut rec_residues: Vec<i16> = unambig.iter().map(|(r, _)| *r).collect();
+        let original_len = rec_residues.len();
+        rec_residues.dedup();
+        assert_eq!(
+            rec_residues.len(),
+            original_len,
+            "Each receptor residue should appear at most once"
+        );
+
+        // Result must be a subset of find_interface_pairs (every pair must be a valid contact)
+        let all_pairs = find_interface_pairs(receptor, ligand, 5.0);
+        for (r, l) in &unambig {
+            assert!(
+                all_pairs.contains(&(*r, *l)),
+                "Unambig pair ({r},{l}) must be a valid interface contact"
+            );
+        }
+    }
+
+    #[test]
+    fn test_find_unambiguous_pairs_fewer_than_ambig() {
+        let receptor_model = read_pdb("data/2oob_A.pdb");
+        let ligand_model = read_pdb("data/2oob_B.pdb");
+
+        let receptor = &receptor_model.0[0];
+        let ligand = &ligand_model.0[0];
+
+        let ambig = find_interface_pairs(receptor, ligand, 5.0);
+        let unambig = find_unambiguous_pairs(receptor, ligand, 5.0);
+
+        // Unambig yields at most one pair per receptor residue, so never more than ambig
+        assert!(
+            unambig.len() <= ambig.len(),
+            "Unambig pairs ({}) should be <= interface pairs ({})",
+            unambig.len(),
+            ambig.len()
+        );
+        assert!(!unambig.is_empty(), "Should find at least one unambig pair");
+    }
+
+    #[test]
+    fn test_find_unambiguous_pairs_selects_closest() {
+        use crate::structure::{Atom, Molecule};
+
+        // Receptor residue 1 at origin; two ligand residues: 10 at 3Å, 11 at 8Å
+        // Both within cutoff=10. Unambig must pick residue 10 (closer).
+        let mut receptor = Molecule::new();
+        receptor.0.push(Atom {
+            resseq: 1,
+            name: "CA".to_string(),
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            ..Default::default()
+        });
+
+        let mut ligand = Molecule::new();
+        ligand.0.push(Atom {
+            resseq: 10,
+            name: "CA".to_string(),
+            x: 3.0,
+            y: 0.0,
+            z: 0.0,
+            ..Default::default()
+        });
+        ligand.0.push(Atom {
+            resseq: 11,
+            name: "CA".to_string(),
+            x: 8.0,
+            y: 0.0,
+            z: 0.0,
+            ..Default::default()
+        });
+
+        let pairs = find_unambiguous_pairs(&receptor, &ligand, 10.0);
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0], (1, 10), "Should select residue 10 (3Å) over 11 (8Å)");
     }
 }
