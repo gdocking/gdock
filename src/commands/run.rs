@@ -412,7 +412,11 @@ pub fn run(config: RunConfig) {
             let metrics_path = out_dir.join("metrics.tsv");
             let mut metrics_file =
                 fs::File::create(&metrics_path).expect("Failed to create metrics file");
-            writeln!(metrics_file, "model\tdockq\trmsd\tirmsd\tfnat\tscore\tgenerations_run\tconverged_early").unwrap();
+            writeln!(
+                metrics_file,
+                "model\tdockq\trmsd\tirmsd\tfnat\tscore\tgenerations_run\tconverged_early"
+            )
+            .unwrap();
             writeln!(
                 metrics_file,
                 "best_by_score\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{}\t{}",
@@ -478,7 +482,11 @@ pub fn run(config: RunConfig) {
             )
             .unwrap();
         } else {
-            writeln!(metrics_file, "model\tcluster_size\tscore\tgenerations_run\tconverged_early").unwrap();
+            writeln!(
+                metrics_file,
+                "model\tcluster_size\tscore\tgenerations_run\tconverged_early"
+            )
+            .unwrap();
         }
 
         println!("\n{}", "📊 Output Models (FCC Clustered)".bold().cyan());
@@ -603,7 +611,12 @@ pub fn run(config: RunConfig) {
                     dockq_str
                 );
             } else {
-                writeln!(metrics_file, "{}\t-\t{:.4}\t{}\t{}", model_name, entry.fitness, generations_run, converged_early).unwrap();
+                writeln!(
+                    metrics_file,
+                    "{}\t-\t{:.4}\t{}\t{}",
+                    model_name, entry.fitness, generations_run, converged_early
+                )
+                .unwrap();
 
                 println!("  {}: score={:.1}", model_name.green(), entry.fitness);
             }
