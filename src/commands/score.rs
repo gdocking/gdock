@@ -20,13 +20,15 @@ pub fn score(
 
     // Print header line for parser-friendly output
     if restraint_pairs.is_some() && reference_file.is_some() {
-        println!("model\tscore\tvdw\telec\tdesolv\tair\tw_vdw\tw_elec\tw_desolv\tw_air\tdockq\tlrmsd\tirmsd\tfnat");
+        println!("model\tscore\tvdw\telec\tdesolv\tclash\tair\tw_vdw\tw_elec\tw_desolv\tw_air\tw_clash\tdockq\tlrmsd\tirmsd\tfnat");
     } else if restraint_pairs.is_some() {
-        println!("model\tscore\tvdw\telec\tdesolv\tair\tw_vdw\tw_elec\tw_desolv\tw_air");
+        println!(
+            "model\tscore\tvdw\telec\tdesolv\tclash\tair\tw_vdw\tw_elec\tw_desolv\tw_air\tw_clash"
+        );
     } else if reference_file.is_some() {
-        println!("model\tscore\tvdw\telec\tdesolv\tw_vdw\tw_elec\tw_desolv\tw_air\tdockq\tlrmsd\tirmsd\tfnat");
+        println!("model\tscore\tvdw\telec\tdesolv\tclash\tw_vdw\tw_elec\tw_desolv\tw_air\tw_clash\tdockq\tlrmsd\tirmsd\tfnat");
     } else {
-        println!("model\tscore\tvdw\telec\tdesolv\tw_vdw\tw_elec\tw_desolv\tw_air");
+        println!("model\tscore\tvdw\telec\tdesolv\tclash\tw_vdw\tw_elec\tw_desolv\tw_air\tw_clash");
     }
 
     for (model_idx, ligand) in ligand_model.0.iter().enumerate() {
@@ -35,6 +37,7 @@ pub fn score(
         let vdw = fitness::vdw_energy(&receptor, ligand);
         let elec = fitness::elec_energy(&receptor, ligand);
         let desolv = fitness::desolv_energy(&receptor, ligand);
+        let clashes = fitness::count_clashes(&receptor, ligand).0;
 
         // Calculate AIR energy only if restraints are provided
         let air = match &restraint_pairs {
@@ -45,13 +48,16 @@ pub fn score(
             None => 0.0,
         };
 
-        let total_score =
-            weights.vdw * vdw + weights.elec * elec + weights.desolv * desolv + weights.air * air;
+        let total_score = weights.vdw * vdw
+            + weights.elec * elec
+            + weights.desolv * desolv
+            + weights.air * air
+            + weights.clash * clashes as f64;
 
         // Build output line with model number, score, energy terms, then weights
         let mut output = format!(
-            "{}\t{:.3}\t{:.3}\t{:.3}\t{:.3}",
-            model_number, total_score, vdw, elec, desolv
+            "{}\t{:.3}\t{:.3}\t{:.3}\t{:.3}\t{}",
+            model_number, total_score, vdw, elec, desolv, clashes
         );
 
         if restraint_pairs.is_some() {
@@ -59,8 +65,8 @@ pub fn score(
         }
 
         output.push_str(&format!(
-            "\t{}\t{}\t{}\t{}",
-            weights.vdw, weights.elec, weights.desolv, weights.air
+            "\t{}\t{}\t{}\t{}\t{}",
+            weights.vdw, weights.elec, weights.desolv, weights.air, weights.clash
         ));
 
         // Calculate DockQ metrics if reference is provided

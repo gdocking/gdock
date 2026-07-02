@@ -51,6 +51,7 @@ mod tests {
             elec: 0.0,
             desolv: 0.0,
             air: 0.0,
+            clash: 0.0,
             restraint_penalty: 0.0,
             rmsd: 0.0,
             fnat: 0.0,

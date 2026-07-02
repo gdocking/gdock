@@ -37,6 +37,7 @@ pub const DEFAULT_W_VDW: f64 = 0.4;
 pub const DEFAULT_W_ELEC: f64 = 0.05;
 pub const DEFAULT_W_DESOLV: f64 = 3.4;
 pub const DEFAULT_W_AIR: f64 = 1.0;
+pub const DEFAULT_W_CLASH: f64 = 1.0;
 
 /// Energy function weights for scoring
 #[derive(Debug, Clone, Copy)]
@@ -45,6 +46,7 @@ pub struct EnergyWeights {
     pub elec: f64,
     pub desolv: f64,
     pub air: f64,
+    pub clash: f64,
 }
 
 impl Default for EnergyWeights {
@@ -54,17 +56,19 @@ impl Default for EnergyWeights {
             elec: DEFAULT_W_ELEC,
             desolv: DEFAULT_W_DESOLV,
             air: DEFAULT_W_AIR,
+            clash: DEFAULT_W_CLASH,
         }
     }
 }
 
 impl EnergyWeights {
-    pub fn new(vdw: f64, elec: f64, desolv: f64, air: f64) -> Self {
+    pub fn new(vdw: f64, elec: f64, desolv: f64, air: f64, clash: f64) -> Self {
         Self {
             vdw,
             elec,
             desolv,
             air,
+            clash,
         }
     }
 }
@@ -91,11 +95,12 @@ mod tests {
 
     #[test]
     fn test_energy_weights_new() {
-        let weights = EnergyWeights::new(1.0, 0.5, 0.1, 100.0);
+        let weights = EnergyWeights::new(1.0, 0.5, 0.1, 100.0, 2.0);
         assert_eq!(weights.vdw, 1.0);
         assert_eq!(weights.elec, 0.5);
         assert_eq!(weights.desolv, 0.1);
         assert_eq!(weights.air, 100.0);
+        assert_eq!(weights.clash, 2.0);
     }
 
     #[test]
@@ -105,20 +110,22 @@ mod tests {
         assert_eq!(weights.elec, DEFAULT_W_ELEC);
         assert_eq!(weights.desolv, DEFAULT_W_DESOLV);
         assert_eq!(weights.air, DEFAULT_W_AIR);
+        assert_eq!(weights.clash, DEFAULT_W_CLASH);
     }
 
     #[test]
     fn test_energy_weights_custom_values() {
-        let weights = EnergyWeights::new(2.0, 1.0, 0.2, 50.0);
+        let weights = EnergyWeights::new(2.0, 1.0, 0.2, 50.0, 3.0);
         assert_eq!(weights.vdw, 2.0);
         assert_eq!(weights.elec, 1.0);
         assert_eq!(weights.desolv, 0.2);
         assert_eq!(weights.air, 50.0);
+        assert_eq!(weights.clash, 3.0);
     }
 
     #[test]
     fn test_energy_weights_copy() {
-        let weights1 = EnergyWeights::new(1.0, 0.5, 0.1, 100.0);
+        let weights1 = EnergyWeights::new(1.0, 0.5, 0.1, 100.0, 2.0);
         let weights2 = weights1; // Copy
         assert_eq!(weights2.vdw, 1.0);
         assert_eq!(weights2.elec, 0.5);
@@ -126,7 +133,7 @@ mod tests {
 
     #[test]
     fn test_energy_weights_clone() {
-        let weights1 = EnergyWeights::new(1.0, 0.5, 0.1, 100.0);
+        let weights1 = EnergyWeights::new(1.0, 0.5, 0.1, 100.0, 2.0);
         let weights2 = weights1; // EnergyWeights implements Copy
         assert_eq!(weights2.vdw, 1.0);
         assert_eq!(weights2.elec, 0.5);

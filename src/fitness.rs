@@ -6,26 +6,21 @@ use crate::restraints;
 use crate::structure;
 use crate::structure::Atom;
 
-/// Calculates the ratio of clashing atom pairs between two molecules.
+/// Counts clashing atom pairs between two molecules (all-vs-all).
 ///
-/// A clash is defined as an atom pair where the distance is less than
-/// the sum of their van der Waals radii.
-///
-/// # Arguments
-///
-/// * `molecule1` - First molecule
-/// * `molecule2` - Second molecule
-///
-/// # Returns
-///
-/// The ratio of clashing pairs to total pairs (0.0 to 1.0).
-pub fn calc_clashes(molecule1: &structure::Molecule, molecule2: &structure::Molecule) -> f64 {
+/// A clash is a pair whose distance is below the sum of their van der Waals radii.
+/// Returns `(clashing_pairs, total_pairs)` so callers can report both an absolute
+/// count and a percentage.
+pub fn count_clashes(
+    molecule1: &structure::Molecule,
+    molecule2: &structure::Molecule,
+) -> (usize, usize) {
     let mut clashes = 0;
-    let mut total_atoms = 0;
+    let mut total = 0;
 
     for atom1 in &molecule1.0 {
         for atom2 in &molecule2.0 {
-            total_atoms += 1;
+            total += 1;
 
             let dist = structure::distance(atom1, atom2);
             let vdw_dist = atom1.vdw_radius + atom2.vdw_radius;
@@ -34,7 +29,7 @@ pub fn calc_clashes(molecule1: &structure::Molecule, molecule2: &structure::Mole
             }
         }
     }
-    clashes as f64 / total_atoms as f64
+    (clashes, total)
 }
 
 /// Soft-core Lennard-Jones potential for docking.
@@ -376,28 +371,21 @@ mod tests {
     }
 
     #[test]
-    fn test_calc_clashes_no_clashes() {
+    fn test_count_clashes_returns_count_and_total() {
         let mut mol1 = structure::Molecule::new();
         mol1.0.push(create_test_atom(0.0, 0.0, 0.0, "C", 0.0));
+        mol1.0.push(create_test_atom(0.5, 0.0, 0.0, "C", 0.0));
 
         let mut mol2 = structure::Molecule::new();
-        mol2.0.push(create_test_atom(10.0, 0.0, 0.0, "C", 0.0)); // Far away
+        mol2.0.push(create_test_atom(0.2, 0.0, 0.0, "C", 0.0)); // clashes with both
+        mol2.0.push(create_test_atom(50.0, 0.0, 0.0, "C", 0.0)); // far from both
 
-        let ratio = calc_clashes(&mol1, &mol2);
-        assert_eq!(ratio, 0.0);
-    }
-
-    #[test]
-    fn test_calc_clashes_with_clashes() {
-        let mut mol1 = structure::Molecule::new();
-        mol1.0.push(create_test_atom(0.0, 0.0, 0.0, "C", 0.0));
-
-        let mut mol2 = structure::Molecule::new();
-        mol2.0.push(create_test_atom(1.0, 0.0, 0.0, "C", 0.0)); // Within VDW distance (< 3.4Å)
-
-        let ratio = calc_clashes(&mol1, &mol2);
-        assert!(ratio > 0.0, "Should detect clash");
-        assert!(ratio <= 1.0, "Clash ratio should be <= 1.0");
+        let (clashes, total) = count_clashes(&mol1, &mol2);
+        assert_eq!(total, 4, "2x2 = 4 pairs");
+        assert_eq!(
+            clashes, 2,
+            "the close mol2 atom clashes with both mol1 atoms"
+        );
     }
 
     #[test]

@@ -648,7 +648,7 @@ fn write_sampling_output(
 
     let tsv_path = sampling_dir.join("sampling.tsv");
     let mut tsv = fs::File::create(&tsv_path).expect("Failed to create sampling.tsv");
-    writeln!(tsv, "model\tscore\tvdw\telec\tdesolv\tair").unwrap();
+    writeln!(tsv, "model\tscore\tvdw\telec\tdesolv\tair\tclash").unwrap();
 
     println!("\n{}", "📦 Sampling output".bold().cyan());
 
@@ -663,8 +663,8 @@ fn write_sampling_output(
         structure::write_pdb(&complex, pdb_path.to_string_lossy().as_ref());
         writeln!(
             tsv,
-            "{}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
-            model_name, entry.fitness, entry.vdw, entry.elec, entry.desolv, entry.air
+            "{}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
+            model_name, entry.fitness, entry.vdw, entry.elec, entry.desolv, entry.air, entry.clash
         )
         .unwrap();
     }
@@ -709,8 +709,24 @@ mod tests {
         let ligand = ligand_model.0[0].clone();
 
         let mut hof = HallOfFame::new();
-        hof.try_add(&[0.0, 0.0, 0.0, 0.0, 0.0, 0.0], -100.0, 1.0, 2.0, 3.0, 4.0);
-        hof.try_add(&[PI, PI, PI, 10.0, 10.0, 10.0], -50.0, 1.0, 2.0, 3.0, 4.0);
+        hof.try_add(
+            &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            -100.0,
+            1.0,
+            2.0,
+            3.0,
+            4.0,
+            0.0,
+        );
+        hof.try_add(
+            &[PI, PI, PI, 10.0, 10.0, 10.0],
+            -50.0,
+            1.0,
+            2.0,
+            3.0,
+            4.0,
+            0.0,
+        );
 
         let tmp = crate::utils::get_unique_tempdir();
         write_sampling_output(&hof, tmp.as_path(), &receptor, &ligand);
@@ -743,8 +759,24 @@ mod tests {
 
         // Add entries out of fitness order — worst first
         let mut hof = HallOfFame::new();
-        hof.try_add(&[0.0, 0.0, 0.0, 0.0, 0.0, 0.0], -50.0, 0.0, 0.0, 0.0, 0.0);
-        hof.try_add(&[PI, PI, PI, 10.0, 10.0, 10.0], -100.0, 0.0, 0.0, 0.0, 0.0);
+        hof.try_add(
+            &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            -50.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+        );
+        hof.try_add(
+            &[PI, PI, PI, 10.0, 10.0, 10.0],
+            -100.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+        );
 
         let tmp = crate::utils::get_unique_tempdir();
         write_sampling_output(&hof, tmp.as_path(), &receptor, &ligand);
@@ -753,7 +785,7 @@ mod tests {
         let mut lines = tsv.lines();
         assert_eq!(
             lines.next().unwrap(),
-            "model\tscore\tvdw\telec\tdesolv\tair"
+            "model\tscore\tvdw\telec\tdesolv\tair\tclash"
         );
 
         // gdock_1 should be the best (lowest) score
@@ -774,7 +806,15 @@ mod tests {
         let ligand = ligand_model.0[0].clone();
 
         let mut hof = HallOfFame::new();
-        hof.try_add(&[0.0, 0.0, 0.0, 0.0, 0.0, 0.0], -99.0, 1.1, 2.2, 3.3, 4.4);
+        hof.try_add(
+            &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            -99.0,
+            1.1,
+            2.2,
+            3.3,
+            4.4,
+            5.5,
+        );
 
         let tmp = crate::utils::get_unique_tempdir();
         write_sampling_output(&hof, tmp.as_path(), &receptor, &ligand);
@@ -783,17 +823,18 @@ mod tests {
         let mut lines = tsv.lines();
         assert_eq!(
             lines.next().unwrap(),
-            "model\tscore\tvdw\telec\tdesolv\tair"
+            "model\tscore\tvdw\telec\tdesolv\tair\tclash"
         );
 
         let data_row = lines.next().unwrap();
         let cols: Vec<&str> = data_row.split('\t').collect();
-        assert_eq!(cols.len(), 6, "data rows should have 6 columns");
+        assert_eq!(cols.len(), 7, "data rows should have 7 columns");
         assert_eq!(cols[0], "gdock_1");
         assert!((cols[1].parse::<f64>().unwrap() - (-99.0)).abs() < 0.001);
         assert!((cols[2].parse::<f64>().unwrap() - 1.1).abs() < 0.001);
         assert!((cols[3].parse::<f64>().unwrap() - 2.2).abs() < 0.001);
         assert!((cols[4].parse::<f64>().unwrap() - 3.3).abs() < 0.001);
         assert!((cols[5].parse::<f64>().unwrap() - 4.4).abs() < 0.001);
+        assert!((cols[6].parse::<f64>().unwrap() - 5.5).abs() < 0.001);
     }
 }
