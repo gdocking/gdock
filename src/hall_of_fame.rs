@@ -55,10 +55,7 @@ impl HallOfFame {
             return false;
         }
         let new_genes: [f64; 6] = [genes[0], genes[1], genes[2], genes[3], genes[4], genes[5]];
-        if !self.is_unique(&new_genes) {
-            return false;
-        }
-        self.entries.push(HallOfFameEntry {
+        let entry = HallOfFameEntry {
             genes: new_genes,
             fitness,
             vdw,
@@ -66,18 +63,27 @@ impl HallOfFame {
             desolv,
             air,
             clash,
-        });
+        };
+
+        // If this pose falls in an existing niche, keep only the better
+        if let Some(idx) = self.find_similar(&new_genes) {
+            if fitness < self.entries[idx].fitness {
+                self.entries[idx] = entry;
+                return true;
+            }
+            return false;
+        }
+        self.entries.push(entry);
         if self.entries.len() > self.max_size {
             self.prune();
         }
         true
     }
 
-    fn is_unique(&self, new_genes: &[f64; 6]) -> bool {
-        !self
-            .entries
+    fn find_similar(&self, new_genes: &[f64; 6]) -> Option<usize> {
+        self.entries
             .iter()
-            .any(|e| Self::genes_are_similar(new_genes, &e.genes))
+            .position(|e| Self::genes_are_similar(new_genes, &e.genes))
     }
 
     fn genes_are_similar(a: &[f64; 6], b: &[f64; 6]) -> bool {
@@ -214,6 +220,24 @@ mod tests {
         hof.try_add(&genes1, -100.0, 0.0, 0.0, 0.0, 0.0, 0.0);
         assert!(!hof.try_add(&genes2, -90.0, 0.0, 0.0, 0.0, 0.0, 0.0));
         assert_eq!(hof.len(), 1);
+    }
+
+    #[test]
+    fn test_hall_of_fame_similar_better_replaces() {
+        // A better pose landing in an existing niche should replace the worse
+        // incumbent rather than being rejected (fitness = -dockq in debug mode).
+        let mut hof = HallOfFame::new();
+        let genes1 = [0.0_f64; 6];
+        let genes2 = [0.1, 0.1, 0.1, 0.5, 0.5, 0.5];
+        hof.try_add(&genes1, -0.858, 0.0, 0.0, 0.0, 0.0, 0.0);
+        assert!(hof.try_add(&genes2, -0.990, 0.0, 0.0, 0.0, 0.0, 0.0));
+        assert_eq!(hof.len(), 1, "niche should still hold a single entry");
+        assert_eq!(
+            hof.entries()[0].fitness,
+            -0.990,
+            "the better pose should have replaced the worse one"
+        );
+        assert_eq!(hof.entries()[0].genes, genes2);
     }
 
     #[test]
