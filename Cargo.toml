@@ -29,6 +29,7 @@ rayon = { version = "1.11", optional = true }
 clap = "4.5"
 colored = "2.1"
 indicatif = "0.17"
+flate2 = "1"
 
 [profile.dev]
 debug = true

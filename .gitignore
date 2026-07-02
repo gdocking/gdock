@@ -153,3 +153,6 @@ data/
 results/
 benchmark/complexes.txt
 paper/jats
+
+# Debug stuff
+.tmp
