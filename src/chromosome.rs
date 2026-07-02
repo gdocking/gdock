@@ -17,6 +17,7 @@ pub struct Chromosome {
     pub elec: f64,
     pub desolv: f64,
     pub air: f64,
+    pub clash: f64,
     pub restraint_penalty: f64,
     // Metrics for analysis
     pub rmsd: f64,
@@ -47,6 +48,7 @@ impl Chromosome {
             elec: 0.0,
             desolv: 0.0,
             air: 0.0,
+            clash: 0.0,
             restraint_penalty: 0.0,
             rmsd: 0.0,
             fnat: 0.0,
@@ -103,6 +105,7 @@ impl Chromosome {
             self.elec = 0.0;
             self.desolv = 0.0;
             self.air = 0.0;
+            self.clash = 0.0;
             self.restraint_penalty = 0.0;
             return self.fitness;
         }
@@ -112,6 +115,8 @@ impl Chromosome {
         self.elec = fitness::elec_energy(receptor, &target_ligand);
         self.desolv = fitness::desolv_energy(receptor, &target_ligand);
         self.air = fitness::air_energy_ambiguous(restraints, receptor, &target_ligand);
+        // Clash count (all-vs-all): a standard, always-computed term like the others.
+        self.clash = fitness::count_clashes(receptor, &target_ligand).0 as f64;
 
         // Calculate restraint satisfaction for monitoring
         let restraints_ratio =
@@ -122,7 +127,8 @@ impl Chromosome {
         let score = weights.vdw * self.vdw
             + weights.elec * self.elec
             + weights.desolv * self.desolv
-            + weights.air * self.air;
+            + weights.air * self.air
+            + weights.clash * self.clash;
 
         self.fitness = score;
         self.fitness
@@ -266,6 +272,7 @@ mod tests {
             elec: 0.0,
             desolv: 0.0,
             air: 0.0,
+            clash: 0.0,
             restraint_penalty: 0.0,
             rmsd: 0.0,
             fnat: 0.0,
@@ -313,6 +320,7 @@ mod tests {
             elec: 0.0,
             desolv: 0.0,
             air: 0.0,
+            clash: 0.0,
             restraint_penalty: 0.0,
             rmsd: 0.0,
             fnat: 0.0,
@@ -346,6 +354,7 @@ mod tests {
             elec: 0.0,
             desolv: 0.0,
             air: 0.0,
+            clash: 0.0,
             restraint_penalty: 0.0,
             rmsd: 0.0,
             fnat: 0.0,
@@ -365,6 +374,49 @@ mod tests {
         assert!(
             chromosome.desolv.is_finite(),
             "Desolvation energy should be calculated"
+        );
+    }
+
+    #[test]
+    fn test_clash_term_penalizes_clashing_pose() {
+        // Two atoms overlapping (0.5 Å apart) is a clash by the vdW-radius-sum definition.
+        let mut receptor = structure::Molecule::new();
+        receptor.0.push(create_test_atom("CA", 0.0, 0.0, 0.0));
+        let mut ligand = structure::Molecule::new();
+        ligand.0.push(create_test_atom("CA", 0.5, 0.0, 0.0));
+
+        let restraints = vec![];
+        let identity = || Chromosome {
+            genes: vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            fitness: 0.0,
+            vdw: 0.0,
+            elec: 0.0,
+            desolv: 0.0,
+            air: 0.0,
+            clash: 0.0,
+            restraint_penalty: 0.0,
+            rmsd: 0.0,
+            fnat: 0.0,
+        };
+
+        // Clash count is always computed and stored, regardless of the weight.
+        let mut with_clash = identity();
+        let w_on = constants::EnergyWeights::new(0.4, 0.05, 3.4, 1.0, 5.0);
+        let f_on = with_clash.fitness(&receptor, &ligand, &restraints, &w_on, None);
+        assert_eq!(with_clash.clash, 1.0, "one clashing pair should be counted");
+
+        // With w_clash = 0 the term is nullified, reproducing the pre-change score.
+        let mut without_clash = identity();
+        let w_off = constants::EnergyWeights::new(0.4, 0.05, 3.4, 1.0, 0.0);
+        let f_off = without_clash.fitness(&receptor, &ligand, &restraints, &w_off, None);
+
+        assert!(
+            f_on > f_off,
+            "clash penalty should raise (worsen) fitness: on={f_on}, off={f_off}"
+        );
+        assert!(
+            (f_on - f_off - 5.0 * 1.0).abs() < 1e-9,
+            "difference should equal w_clash * clash_count"
         );
     }
 }

@@ -1,6 +1,8 @@
 use gdock::commands;
 use gdock::constants;
-use gdock::constants::{DEFAULT_W_AIR, DEFAULT_W_DESOLV, DEFAULT_W_ELEC, DEFAULT_W_VDW};
+use gdock::constants::{
+    DEFAULT_W_AIR, DEFAULT_W_CLASH, DEFAULT_W_DESOLV, DEFAULT_W_ELEC, DEFAULT_W_VDW,
+};
 
 use clap::Command;
 use std::fs::File;
@@ -89,6 +91,11 @@ fn main() {
             .long("w_air")
             .value_name("WEIGHT")
             .help("Weight for AIR restraint energy term")
+            .value_parser(clap::value_parser!(f64)),
+        clap::Arg::new("w_clash")
+            .long("w_clash")
+            .value_name("WEIGHT")
+            .help("Weight for the clash-count penalty term (0 to disable)")
             .value_parser(clap::value_parser!(f64)),
     ];
 
@@ -270,6 +277,10 @@ fn main() {
                     .get_one::<f64>("w_air")
                     .copied()
                     .unwrap_or(DEFAULT_W_AIR),
+                sub_m
+                    .get_one::<f64>("w_clash")
+                    .copied()
+                    .unwrap_or(DEFAULT_W_CLASH),
             );
 
             let output_dir = sub_m.get_one::<String>("output-dir").cloned();
@@ -322,6 +333,10 @@ fn main() {
                     .get_one::<f64>("w_air")
                     .copied()
                     .unwrap_or(DEFAULT_W_AIR),
+                sub_m
+                    .get_one::<f64>("w_clash")
+                    .copied()
+                    .unwrap_or(DEFAULT_W_CLASH),
             );
 
             commands::score::score(
