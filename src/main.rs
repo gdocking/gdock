@@ -156,6 +156,12 @@ fn main() {
                         .help("Collect up to NUM unique poses sorted by fitness into sampling/")
                         .value_parser(clap::value_parser!(usize)),
                 )
+                .arg(
+                    clap::Arg::new("epoch")
+                        .long("epoch")
+                        .help("Write the full per-generation, per-individual trace to epoch.tsv.gz")
+                        .action(clap::ArgAction::SetTrue),
+                )
                 .args(weight_args.clone()),
         )
         .subcommand(
@@ -286,6 +292,7 @@ fn main() {
             let output_dir = sub_m.get_one::<String>("output-dir").cloned();
             let no_clustering = sub_m.get_flag("no-clust");
             let sampling = sub_m.get_one::<usize>("sampling").copied();
+            let epoch = sub_m.get_flag("epoch");
 
             commands::run::run(commands::run::RunConfig {
                 receptor_file,
@@ -297,6 +304,7 @@ fn main() {
                 output_dir,
                 no_clustering,
                 sampling,
+                epoch,
             });
         }
         Some(("score", sub_m)) => {

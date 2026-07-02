@@ -1,27 +1,23 @@
-use colored::*;
-use indicatif::{ProgressBar, ProgressStyle};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use std::cmp::Ordering;
 use std::fs;
-use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::chromosome;
 use crate::constants::{
-    self, EnergyWeights, CONVERGENCE_THRESHOLD, CONVERGENCE_WINDOW, HALL_OF_FAME_MAX_SIZE,
-    MAX_GENERATIONS, POPULATION_SIZE,
+    self, EnergyWeights, HALL_OF_FAME_MAX_SIZE, MAX_GENERATIONS, POPULATION_SIZE,
 };
 use crate::evaluator;
 use crate::hall_of_fame::{HallOfFame, HallOfFameEntry};
 use crate::population;
+use crate::reporting;
 use crate::restraints;
-use crate::runner::{run_ga, select_models};
+use crate::runner::{run_ga, select_models, GaResult};
 use crate::scoring;
 use crate::structure::{self, read_pdb, Molecule};
 use crate::utils;
 
-/// Configuration for a docking run
 pub struct RunConfig {
     pub receptor_file: String,
     pub ligand_file: String,
@@ -32,14 +28,11 @@ pub struct RunConfig {
     pub output_dir: Option<String>,
     pub no_clustering: bool,
     pub sampling: Option<usize>,
+    pub epoch: bool,
 }
 
-/// Re-exported for use by tests and other modules that imported from here.
 pub use crate::structure::combine_molecules;
 
-// ============================================================================
-
-/// Run the genetic algorithm docking
 pub fn run(config: RunConfig) {
     let RunConfig {
         receptor_file,
@@ -51,94 +44,33 @@ pub fn run(config: RunConfig) {
         output_dir,
         no_clustering,
         sampling,
+        epoch,
     } = config;
     const VERSION: &str = env!("CARGO_PKG_VERSION");
-    println!(
-        "\n{} {}",
-        "🧬 GDock".bold().cyan(),
-        format!("v{}", VERSION).bright_black()
-    );
-    println!(
-        "{}",
-        "   Protein-Protein Docking with Genetic Algorithm".bright_black()
-    );
-    if debug_mode {
-        println!(
-            "{}",
-            "   ⚠️  DEBUG MODE: Using DockQ as fitness function"
-                .yellow()
-                .bold()
-        );
-    }
-    println!(
-        "{}",
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bright_black()
-    );
-    println!("{}", "📁 Input Files".bold());
-    println!("  {}  {}", "Receptor: ".green(), receptor_file);
-    println!("  {}    {}", "Ligand: ".green(), ligand_file);
-    if let Some(ref_file) = &reference_file {
-        println!(
-            "  {} {} {}",
-            "Reference:".green(),
-            ref_file,
-            "(DockQ mode)".bright_black()
-        );
-    } else {
-        println!(
-            "  {} {}",
-            "Reference:".green(),
-            "None (score-only mode)".yellow()
-        );
-    }
-    println!(
-        "\n{} {} pairs",
-        "🎯 Restraints:".bold(),
-        restraint_pairs.len().to_string().cyan()
-    );
-    for (rec, lig) in restraint_pairs.iter() {
-        println!("  {} {}:{}", "•".bright_blue(), rec, lig);
-    }
-    println!("\n{}", "⚙️  Energy Weights".bold());
-    println!(
-        "  {}={:.2} │ {}={:.2} │ {}={:.2} │ {}={:.2}",
-        "VDW".green(),
-        weights.vdw,
-        "Elec".green(),
-        weights.elec,
-        "Desolv".green(),
-        weights.desolv,
-        "AIR".green(),
-        weights.air
-    );
-    println!(
-        "{}\n",
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bright_black()
-    );
 
     let receptor_model = read_pdb(&receptor_file);
     let ligand_model = read_pdb(&ligand_file);
-
-    // For docking mode, use the first model
     let receptor = receptor_model.0[0].clone();
     let ligand = ligand_model.0[0].clone();
 
-    // Create bidirectional ambiguous restraints (HADDOCK-style: anchor on each chain)
     let restraints_list =
         restraints::create_ambiguous_restraints_from_pairs(&receptor, &ligand, &restraint_pairs);
     let num_restraints = restraints_list.len() / 2;
-    println!(
-        "{} Created {} distance restraints\n",
-        "✓".green(),
-        num_restraints.to_string().cyan()
+
+    reporting::header(
+        VERSION,
+        debug_mode,
+        &receptor_file,
+        &ligand_file,
+        &reference_file,
+        restraint_pairs.len(),
+        num_restraints,
+        &weights,
     );
 
-    // Clone the original molecule for potential RMSD calculations
     let orig = ligand.clone();
-
     let ligand = utils::position_ligand(&receptor, ligand);
 
-    // Start the evaluator (only if reference is provided)
     let eval = if let Some(ref_file) = &reference_file {
         let (_, reference_ligand) = scoring::read_complex(ref_file);
         Some(evaluator::Evaluator::new(
@@ -149,191 +81,13 @@ pub fn run(config: RunConfig) {
         None
     };
 
-    // In debug mode, we use the evaluator as the fitness function
+    // debug mode fits against DockQ instead of the energy score
     let debug_evaluator = if debug_mode { eval.clone() } else { None };
 
-    // Clone molecules before moving them into population (needed for PDB output later)
+    // kept for PDB output after receptor/ligand are moved into Population::new
     let receptor_clone = receptor.clone();
     let ligand_clone = ligand.clone();
 
-    // Create progress bar
-    let progress = ProgressBar::new(MAX_GENERATIONS);
-    progress.set_style(
-        ProgressStyle::default_bar()
-            .template("{spinner:.green} [{bar:40.cyan/blue}] {pos}/{len} gens | {msg}")
-            .unwrap()
-            .progress_chars("█▓░"),
-    );
-
-    // Create the initial population
-    let mut pop = population::Population::new(
-        Vec::new(),
-        receptor,
-        ligand,
-        orig,
-        restraints_list,
-        weights,
-        debug_evaluator,
-    );
-    let mut rng = StdRng::seed_from_u64(constants::RANDOM_SEED);
-    for _ in 0..POPULATION_SIZE {
-        let c = chromosome::Chromosome::new(&mut rng);
-        pop.chromosomes.push(c);
-    }
-
-    // Evolve the population
-    let mut best_score_history: Vec<f64> = Vec::new();
-
-    println!(
-        "{} Starting evolution for {} generations",
-        "🧬".bold(),
-        MAX_GENERATIONS
-    );
-
-    let hof_capacity = sampling.unwrap_or(HALL_OF_FAME_MAX_SIZE);
-    let ga_result = run_ga(pop, &mut rng, MAX_GENERATIONS, hof_capacity, |gen, pop| {
-        // Calculate metrics for all chromosomes (only if reference is available)
-        let metric_vec = eval.as_ref().map(|e| pop.eval_metrics(e));
-
-        // Find the best fitness chromosome
-        let best_fitness_idx = pop
-            .chromosomes
-            .iter()
-            .enumerate()
-            .min_by(|(_, a), (_, b)| a.fitness.partial_cmp(&b.fitness).unwrap())
-            .map(|(idx, _)| idx)
-            .unwrap();
-
-        let best_fitness = pop.chromosomes[best_fitness_idx].fitness;
-        let best_chr = &pop.chromosomes[best_fitness_idx];
-
-        best_score_history.push(best_fitness);
-
-        let improvement_since_last = if gen > 0 {
-            let prev = best_score_history[gen as usize - 1];
-            if prev.abs() < f64::EPSILON {
-                0.0
-            } else {
-                ((prev - best_fitness) / prev.abs()) * 100.0
-            }
-        } else {
-            0.0
-        };
-
-        // Calculate population averages
-        let mean_fitness = pop.get_mean_fitness();
-        let mean_rest: f64 = 100.0
-            * (pop
-                .chromosomes
-                .iter()
-                .map(|c| 1.0 - c.restraint_penalty / num_restraints as f64)
-                .sum::<f64>()
-                / pop.chromosomes.len() as f64);
-        let best_rest = 100.0 * (1.0 - best_chr.restraint_penalty / num_restraints as f64);
-
-        // Update progress bar and print output
-        progress.set_position(gen);
-
-        if let Some(ref metrics) = metric_vec {
-            let mean_dockq: f64 =
-                metrics.iter().map(|m| m.dockq).sum::<f64>() / metrics.len() as f64;
-            let best_metrics = &metrics[best_fitness_idx];
-
-            let dockq_color = if best_metrics.dockq >= 0.8 {
-                "green"
-            } else if best_metrics.dockq >= 0.5 {
-                "yellow"
-            } else if best_metrics.dockq >= 0.23 {
-                "bright_yellow"
-            } else {
-                "red"
-            };
-
-            let score_label = if debug_mode { "DockQ" } else { "Score" };
-            let score_value = if debug_mode {
-                -best_fitness
-            } else {
-                best_fitness
-            };
-            progress.set_message(format!(
-                "DockQ: {:.3} | {}: {:.3}",
-                best_metrics.dockq, score_label, score_value
-            ));
-
-            let mean_score_display = if debug_mode {
-                -mean_fitness
-            } else {
-                mean_fitness
-            };
-            let best_score_display = if debug_mode {
-                -best_fitness
-            } else {
-                best_fitness
-            };
-            progress.println(format!("  [{}] {} score={:>8.3} dockq={} rest={}% │ {} score={:>8.3} dockq={} rest={}% rmsd={:.2}Å fnat={:.3} irmsd={:.2}Å │ Δ={}%",
-                format!("{:>3}", gen).bright_black(),
-                "📊".bright_blue(),
-                mean_score_display,
-                format!("{:.3}", mean_dockq).cyan(),
-                format!("{:>3.0}", mean_rest).bright_black(),
-                "🎯".bright_green(),
-                best_score_display,
-                match dockq_color {
-                    "green" => format!("{:.3}", best_metrics.dockq).green(),
-                    "yellow" => format!("{:.3}", best_metrics.dockq).yellow(),
-                    "bright_yellow" => format!("{:.3}", best_metrics.dockq).bright_yellow(),
-                    _ => format!("{:.3}", best_metrics.dockq).red()
-                },
-                format!("{:>3.0}", best_rest).bright_black(),
-                best_metrics.rmsd,
-                best_metrics.fnat,
-                best_metrics.irmsd,
-                if improvement_since_last > 0.0 {
-                    format!("{:>+5.2}", improvement_since_last).green()
-                } else {
-                    format!("{:>+5.2}", improvement_since_last).bright_black()
-                }
-            ));
-        } else {
-            progress.set_message(format!("Score: {:.0}", best_fitness));
-            progress.println(format!(
-                "  [{}] {} score={:>8.1} rest={}% │ {} score={:>8.1} rest={}% │ Δ={}%",
-                format!("{:>3}", gen).bright_black(),
-                "📊".bright_blue(),
-                mean_fitness,
-                format!("{:>3.0}", mean_rest).bright_black(),
-                "🎯".bright_green(),
-                best_fitness,
-                format!("{:>3.0}", best_rest).bright_black(),
-                if improvement_since_last > 0.0 {
-                    format!("{:>+5.2}", improvement_since_last).green()
-                } else {
-                    format!("{:>+5.2}", improvement_since_last).bright_black()
-                }
-            ));
-        }
-    });
-
-    // Finish progress bar
-    if ga_result.converged_early {
-        progress.finish_with_message(format!(
-            "{} Converged at generation {} (no improvement larger than {}% for {} gens)",
-            "✓".green(),
-            ga_result.generations_run,
-            CONVERGENCE_THRESHOLD * 100.0,
-            CONVERGENCE_WINDOW
-        ));
-        println!();
-    } else {
-        progress.finish();
-    }
-
-    let generations_run = ga_result.generations_run;
-    let converged_early = ga_result.converged_early;
-    let hall_of_fame = ga_result.hall_of_fame;
-    let pop = ga_result.final_population;
-
-    // Determine output directory
     let out_dir = match &output_dir {
         Some(dir) => {
             let path = PathBuf::from(dir);
@@ -343,295 +97,304 @@ pub fn run(config: RunConfig) {
         None => PathBuf::from("."),
     };
 
-    if no_clustering {
-        // =====================================================================
-        // No clustering: Output best_by_score and best_by_dockq (old behavior)
-        // =====================================================================
+    let epoch_writer = if epoch {
+        Some(reporting::EpochWriter::create(&out_dir, eval.is_some()))
+    } else {
+        None
+    };
 
-        let best_fitness_idx = pop
+    let mut rng = StdRng::seed_from_u64(constants::RANDOM_SEED);
+    let mut pop = population::Population::new(
+        Vec::new(),
+        receptor,
+        ligand,
+        orig,
+        restraints_list,
+        weights,
+        debug_evaluator,
+    );
+    for _ in 0..POPULATION_SIZE {
+        pop.chromosomes.push(chromosome::Chromosome::new(&mut rng));
+    }
+
+    let hof_capacity = sampling.unwrap_or(HALL_OF_FAME_MAX_SIZE);
+    let ga_result = evolve(
+        pop,
+        &mut rng,
+        eval.as_ref(),
+        debug_mode,
+        hof_capacity,
+        epoch_writer,
+    );
+
+    let ctx = OutputContext {
+        receptor: &receptor_clone,
+        ligand: &ligand_clone,
+        eval: eval.as_ref(),
+        out_dir: &out_dir,
+        debug_mode,
+        epoch,
+        generations_run: ga_result.generations_run,
+        converged_early: ga_result.converged_early,
+    };
+
+    if no_clustering {
+        write_best_models_output(&ctx, &ga_result.final_population);
+    } else {
+        write_clustered_output(&ctx, &ga_result.hall_of_fame);
+    }
+
+    if sampling.is_some() {
+        write_sampling_output(
+            &ga_result.hall_of_fame,
+            &out_dir,
+            &receptor_clone,
+            &ligand_clone,
+        );
+    }
+
+    reporting::done();
+}
+
+/// Run the GA loop, reporting live progress and (when enabled) streaming the
+/// per-generation trace to `epoch_writer`.
+fn evolve(
+    pop: population::Population,
+    rng: &mut StdRng,
+    eval: Option<&evaluator::Evaluator>,
+    debug_mode: bool,
+    hof_capacity: usize,
+    mut epoch_writer: Option<reporting::EpochWriter>,
+) -> GaResult {
+    let progress = reporting::new_progress_bar(MAX_GENERATIONS);
+    reporting::evolution_start(MAX_GENERATIONS, POPULATION_SIZE);
+
+    let ga_result = run_ga(pop, rng, MAX_GENERATIONS, hof_capacity, |gen, pop| {
+        let metric_vec = eval.map(|e| pop.eval_metrics(e));
+
+        if let Some(w) = epoch_writer.as_mut() {
+            for (i, chr) in pop.chromosomes.iter().enumerate() {
+                w.write_row(gen, i, chr, metric_vec.as_ref().map(|m| &m[i]));
+            }
+        }
+
+        let best_idx = pop
             .chromosomes
             .iter()
             .enumerate()
             .min_by(|(_, a), (_, b)| a.fitness.partial_cmp(&b.fitness).unwrap())
             .map(|(idx, _)| idx)
             .unwrap();
+        let best_fitness = pop.chromosomes[best_idx].fitness;
 
-        let final_best_score = &pop.chromosomes[best_fitness_idx];
+        progress.set_position(gen);
 
-        println!("\n{}", "💾 Saving Results".bold().cyan());
-
-        // Save best-by-score model
-        let best_score_ligand = final_best_score.apply_genes(&ligand_clone);
-        let best_score_complex = combine_molecules(&receptor_clone, &best_score_ligand);
-        let best_score_path = out_dir.join("best_by_score.pdb");
-        structure::write_pdb(
-            &best_score_complex,
-            best_score_path.to_string_lossy().as_ref(),
-        );
-
-        if let Some(ref e) = eval {
-            let final_metrics = pop.eval_metrics(e);
-            let best_dockq_idx = final_metrics
-                .iter()
-                .enumerate()
-                .max_by(|(_, a), (_, b)| a.dockq.partial_cmp(&b.dockq).unwrap())
-                .map(|(idx, _)| idx)
-                .unwrap();
-
-            let final_best_dockq = &pop.chromosomes[best_dockq_idx];
-            let best_dockq_ligand = final_best_dockq.apply_genes(&ligand_clone);
-            let best_dockq_complex = combine_molecules(&receptor_clone, &best_dockq_ligand);
-            let best_dockq_path = out_dir.join("best_by_dockq.pdb");
-            structure::write_pdb(
-                &best_dockq_complex,
-                best_dockq_path.to_string_lossy().as_ref(),
-            );
-
-            // Write metrics.tsv
-            let best_score_metrics = &final_metrics[best_fitness_idx];
-            let best_dockq_metrics = &final_metrics[best_dockq_idx];
-
-            println!("\n{}", "📊 Final Metrics".bold().cyan());
-            println!(
-                "  {} DockQ={:.3} RMSD={:.2}Å iRMSD={:.2}Å FNAT={:.3}",
-                "Best by score:".green(),
-                best_score_metrics.dockq,
-                best_score_metrics.rmsd,
-                best_score_metrics.irmsd,
-                best_score_metrics.fnat
-            );
-            println!(
-                "  {} DockQ={:.3} RMSD={:.2}Å iRMSD={:.2}Å FNAT={:.3}",
-                "Best by DockQ:".green(),
-                best_dockq_metrics.dockq,
-                best_dockq_metrics.rmsd,
-                best_dockq_metrics.irmsd,
-                best_dockq_metrics.fnat
-            );
-
-            let metrics_path = out_dir.join("metrics.tsv");
-            let mut metrics_file =
-                fs::File::create(&metrics_path).expect("Failed to create metrics file");
-            writeln!(
-                metrics_file,
-                "model\tdockq\trmsd\tirmsd\tfnat\tscore\tgenerations_run\tconverged_early"
-            )
-            .unwrap();
-            writeln!(
-                metrics_file,
-                "best_by_score\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{}\t{}",
-                best_score_metrics.dockq,
-                best_score_metrics.rmsd,
-                best_score_metrics.irmsd,
-                best_score_metrics.fnat,
-                final_best_score.fitness,
-                generations_run,
-                converged_early
-            )
-            .unwrap();
-            writeln!(
-                metrics_file,
-                "best_by_dockq\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{}\t{}",
-                best_dockq_metrics.dockq,
-                best_dockq_metrics.rmsd,
-                best_dockq_metrics.irmsd,
-                best_dockq_metrics.fnat,
-                final_best_dockq.fitness,
-                generations_run,
-                converged_early
-            )
-            .unwrap();
-
-            println!("  {} {}", "✓".green(), best_score_path.display());
-            println!("  {} {}", "✓".green(), best_dockq_path.display());
-            println!("  {} {}", "✓".green(), metrics_path.display());
-        } else {
-            println!("  {} {}", "✓".green(), best_score_path.display());
-        }
-    } else {
-        // =====================================================================
-        // Clustering: Select diverse representative structures
-        // =====================================================================
-
-        // Report Hall of Fame status
-        println!(
-            "\n{} Collected {} diverse structures in Hall of Fame",
-            "📦".bold(),
-            hall_of_fame.len().to_string().cyan()
-        );
-
-        println!(
-            "\n{}",
-            "🔬 Clustering Hall of Fame structures".bold().cyan()
-        );
-
-        let hof_entries = hall_of_fame.entries();
-        let selected = select_models(hof_entries, &receptor_clone, &ligand_clone);
-
-        // Save output models and metrics
-        println!("\n{}", "💾 Saving Results".bold().cyan());
-
-        let metrics_path = out_dir.join("metrics.tsv");
-        let mut metrics_file =
-            fs::File::create(&metrics_path).expect("Failed to create metrics file");
-
-        if eval.is_some() {
-            writeln!(
-                metrics_file,
-                "model\tcluster_size\tscore\tdockq\trmsd\tirmsd\tfnat\tgenerations_run\tconverged_early"
-            )
-            .unwrap();
-        } else {
-            writeln!(
-                metrics_file,
-                "model\tcluster_size\tscore\tgenerations_run\tconverged_early"
-            )
-            .unwrap();
-        }
-
-        println!("\n{}", "📊 Output Models (FCC Clustered)".bold().cyan());
-
-        for (model_num, (hof_idx, cluster_size)) in selected.clustered.iter().enumerate() {
-            let entry = &hof_entries[*hof_idx];
-            let model_name = format!("model_{}", model_num + 1);
-
-            let ligand = ligand_clone
-                .clone()
-                .rotate(entry.genes[0], entry.genes[1], entry.genes[2])
-                .displace(entry.genes[3], entry.genes[4], entry.genes[5]);
-            let complex = combine_molecules(&receptor_clone, &ligand);
-
-            let pdb_path = out_dir.join(format!("{}.pdb", model_name));
-            structure::write_pdb(&complex, pdb_path.to_string_lossy().as_ref());
-
-            if let Some(ref e) = eval {
-                let metrics = e.calc_metrics(&ligand);
-
-                writeln!(
-                    metrics_file,
-                    "{}\t{}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{}\t{}",
-                    model_name,
-                    cluster_size,
-                    entry.fitness,
-                    metrics.dockq,
-                    metrics.rmsd,
-                    metrics.irmsd,
-                    metrics.fnat,
-                    generations_run,
-                    converged_early
-                )
-                .unwrap();
-
-                let dockq_str = if metrics.dockq >= 0.80 {
-                    format!("{:.3}", metrics.dockq).green()
-                } else if metrics.dockq >= 0.49 {
-                    format!("{:.3}", metrics.dockq).yellow()
-                } else if metrics.dockq >= 0.23 {
-                    format!("{:.3}", metrics.dockq).bright_yellow()
-                } else {
-                    format!("{:.3}", metrics.dockq).red()
-                };
-
-                println!(
-                    "  {}: cluster={} score={:.1} DockQ={}",
-                    model_name.green(),
-                    format!("{:>3}", cluster_size).cyan(),
-                    entry.fitness,
-                    dockq_str
-                );
-            } else {
-                writeln!(
-                    metrics_file,
-                    "{}\t{}\t{:.4}\t{}\t{}",
-                    model_name, cluster_size, entry.fitness, generations_run, converged_early
-                )
-                .unwrap();
-
-                println!(
-                    "  {}: cluster={} score={:.1}",
-                    model_name.green(),
-                    format!("{:>3}", cluster_size).cyan(),
-                    entry.fitness
-                );
+        let message = match metric_vec.as_ref() {
+            Some(metrics) => {
+                reporting::progress_message(debug_mode, best_fitness, Some(metrics), best_idx, 0.0)
             }
+            None => reporting::progress_message(
+                debug_mode,
+                best_fitness,
+                None,
+                best_idx,
+                pop.get_mean_fitness(),
+            ),
+        };
+        progress.set_message(message);
+    });
 
-            println!("    {} {}", "✓".bright_black(), pdb_path.display());
-        }
-
-        // =====================================================================
-        // Also output top 5 by score (ranked_*.pdb)
-        // =====================================================================
-
-        println!("\n{}", "📊 Output Models (Ranked by Score)".bold().cyan());
-
-        for (rank, hof_idx) in selected.ranked.iter().enumerate() {
-            let entry = &hof_entries[*hof_idx];
-            let model_name = format!("ranked_{}", rank + 1);
-
-            let ligand = ligand_clone
-                .clone()
-                .rotate(entry.genes[0], entry.genes[1], entry.genes[2])
-                .displace(entry.genes[3], entry.genes[4], entry.genes[5]);
-            let complex = combine_molecules(&receptor_clone, &ligand);
-
-            let pdb_path = out_dir.join(format!("{}.pdb", model_name));
-            structure::write_pdb(&complex, pdb_path.to_string_lossy().as_ref());
-
-            if let Some(ref e) = eval {
-                let metrics = e.calc_metrics(&ligand);
-
-                writeln!(
-                    metrics_file,
-                    "{}\t-\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{}\t{}",
-                    model_name,
-                    entry.fitness,
-                    metrics.dockq,
-                    metrics.rmsd,
-                    metrics.irmsd,
-                    metrics.fnat,
-                    generations_run,
-                    converged_early
-                )
-                .unwrap();
-
-                let dockq_str = if metrics.dockq >= 0.80 {
-                    format!("{:.3}", metrics.dockq).green()
-                } else if metrics.dockq >= 0.49 {
-                    format!("{:.3}", metrics.dockq).yellow()
-                } else if metrics.dockq >= 0.23 {
-                    format!("{:.3}", metrics.dockq).bright_yellow()
-                } else {
-                    format!("{:.3}", metrics.dockq).red()
-                };
-
-                println!(
-                    "  {}: score={:.1} DockQ={}",
-                    model_name.green(),
-                    entry.fitness,
-                    dockq_str
-                );
-            } else {
-                writeln!(
-                    metrics_file,
-                    "{}\t-\t{:.4}\t{}\t{}",
-                    model_name, entry.fitness, generations_run, converged_early
-                )
-                .unwrap();
-
-                println!("  {}: score={:.1}", model_name.green(), entry.fitness);
-            }
-
-            println!("    {} {}", "✓".bright_black(), pdb_path.display());
-        }
-
-        println!("    {} {}", "✓".bright_black(), metrics_path.display());
+    if let Some(w) = epoch_writer {
+        w.finish();
     }
 
-    if sampling.is_some() {
-        write_sampling_output(&hall_of_fame, &out_dir, &receptor_clone, &ligand_clone);
+    reporting::finish_progress(
+        &progress,
+        ga_result.generations_run,
+        ga_result.converged_early,
+    );
+
+    ga_result
+}
+
+/// Shared inputs threaded through the output writers, borrowed from `run()`.
+struct OutputContext<'a> {
+    receptor: &'a Molecule,
+    ligand: &'a Molecule,
+    eval: Option<&'a evaluator::Evaluator>,
+    out_dir: &'a Path,
+    debug_mode: bool,
+    epoch: bool,
+    generations_run: u64,
+    converged_early: bool,
+}
+
+/// `--no-clust`: write `best_by_score.pdb`, and (with a reference)
+/// `best_by_dockq.pdb` plus `metrics.tsv`.
+fn write_best_models_output(ctx: &OutputContext, pop: &population::Population) {
+    let best_fitness_idx = pop
+        .chromosomes
+        .iter()
+        .enumerate()
+        .min_by(|(_, a), (_, b)| a.fitness.partial_cmp(&b.fitness).unwrap())
+        .map(|(idx, _)| idx)
+        .unwrap();
+
+    let final_best_score = &pop.chromosomes[best_fitness_idx];
+
+    reporting::saving_results();
+
+    let best_score_ligand = final_best_score.apply_genes(ctx.ligand);
+    let best_score_complex = combine_molecules(ctx.receptor, &best_score_ligand);
+    let best_score_path = ctx.out_dir.join("best_by_score.pdb");
+    structure::write_pdb(
+        &best_score_complex,
+        best_score_path.to_string_lossy().as_ref(),
+    );
+
+    let Some(e) = ctx.eval else {
+        reporting::saved_file(&best_score_path);
+        if ctx.epoch {
+            reporting::saved_file(&ctx.out_dir.join("epoch.tsv.gz"));
+        }
+        return;
+    };
+
+    let final_metrics = pop.eval_metrics(e);
+    let best_dockq_idx = final_metrics
+        .iter()
+        .enumerate()
+        .max_by(|(_, a), (_, b)| a.dockq.partial_cmp(&b.dockq).unwrap())
+        .map(|(idx, _)| idx)
+        .unwrap();
+
+    let final_best_dockq = &pop.chromosomes[best_dockq_idx];
+    let best_dockq_ligand = final_best_dockq.apply_genes(ctx.ligand);
+    let best_dockq_complex = combine_molecules(ctx.receptor, &best_dockq_ligand);
+    let best_dockq_path = ctx.out_dir.join("best_by_dockq.pdb");
+    structure::write_pdb(
+        &best_dockq_complex,
+        best_dockq_path.to_string_lossy().as_ref(),
+    );
+
+    let best_score_metrics = &final_metrics[best_fitness_idx];
+    let best_dockq_metrics = &final_metrics[best_dockq_idx];
+
+    reporting::final_metrics(best_score_metrics, best_dockq_metrics);
+
+    let metrics_path = ctx.out_dir.join("metrics.tsv");
+    let mut metrics_file = fs::File::create(&metrics_path).expect("Failed to create metrics file");
+    reporting::write_noclust_metrics_header(&mut metrics_file);
+    reporting::write_noclust_metrics_row(
+        &mut metrics_file,
+        "best_by_score",
+        best_score_metrics,
+        final_best_score.fitness,
+        ctx.generations_run,
+        ctx.converged_early,
+    );
+    reporting::write_noclust_metrics_row(
+        &mut metrics_file,
+        "best_by_dockq",
+        best_dockq_metrics,
+        final_best_dockq.fitness,
+        ctx.generations_run,
+        ctx.converged_early,
+    );
+
+    reporting::saved_file(&best_score_path);
+    reporting::saved_file(&best_dockq_path);
+    reporting::saved_file(&metrics_path);
+    if ctx.epoch {
+        reporting::saved_file(&ctx.out_dir.join("epoch.tsv.gz"));
+    }
+}
+
+/// Default path: cluster the Hall of Fame and write the diverse `model_*` set
+/// plus the top-scoring `ranked_*` set, all into one `metrics.tsv`.
+fn write_clustered_output(ctx: &OutputContext, hall_of_fame: &HallOfFame) {
+    reporting::clustering(hall_of_fame.len());
+
+    let hof_entries = hall_of_fame.entries();
+    let selected = select_models(hof_entries, ctx.receptor, ctx.ligand);
+
+    let metrics_path = ctx.out_dir.join("metrics.tsv");
+    let mut metrics_file = fs::File::create(&metrics_path).expect("Failed to create metrics file");
+    reporting::write_clustered_metrics_header(&mut metrics_file, ctx.eval.is_some());
+
+    reporting::model_section_header(
+        "📊 Clustered models",
+        "· diverse poses",
+        !ctx.debug_mode,
+        ctx.eval.is_some(),
+        true,
+    );
+    for (model_num, (hof_idx, cluster_size)) in selected.clustered.iter().enumerate() {
+        let model_name = format!("model_{}", model_num + 1);
+        write_model(
+            ctx,
+            &mut metrics_file,
+            &hof_entries[*hof_idx],
+            &model_name,
+            Some(*cluster_size),
+        );
     }
 
-    println!("\n{}", "✨ Done!".bold().green());
+    reporting::model_section_header(
+        "📊 Ranked models",
+        "· best score",
+        !ctx.debug_mode,
+        ctx.eval.is_some(),
+        false,
+    );
+    for (rank, hof_idx) in selected.ranked.iter().enumerate() {
+        let model_name = format!("ranked_{}", rank + 1);
+        write_model(
+            ctx,
+            &mut metrics_file,
+            &hof_entries[*hof_idx],
+            &model_name,
+            None,
+        );
+    }
+
+    let n_models = selected.clustered.len() + selected.ranked.len();
+    reporting::summary(n_models, ctx.epoch, ctx.out_dir);
+}
+
+/// Write one model's PDB, its `metrics.tsv` row, and its on-screen table row.
+/// `cluster_size` is `Some` for clustered models, `None` for ranked ones.
+fn write_model(
+    ctx: &OutputContext,
+    metrics_file: &mut fs::File,
+    entry: &HallOfFameEntry,
+    model_name: &str,
+    cluster_size: Option<usize>,
+) {
+    let ligand = ctx
+        .ligand
+        .clone()
+        .rotate(entry.genes[0], entry.genes[1], entry.genes[2])
+        .displace(entry.genes[3], entry.genes[4], entry.genes[5]);
+    let complex = combine_molecules(ctx.receptor, &ligand);
+
+    let pdb_path = ctx.out_dir.join(format!("{model_name}.pdb"));
+    structure::write_pdb(&complex, pdb_path.to_string_lossy().as_ref());
+
+    let metrics = ctx.eval.map(|e| e.calc_metrics(&ligand));
+    reporting::write_clustered_metrics_row(
+        metrics_file,
+        model_name,
+        cluster_size,
+        entry.fitness,
+        metrics.as_ref(),
+        ctx.generations_run,
+        ctx.converged_early,
+    );
+
+    let score = (!ctx.debug_mode).then_some(entry.fitness);
+    let dockq = metrics.as_ref().map(|m| m.dockq);
+    reporting::model_row(model_name, score, dockq, cluster_size);
 }
 
 fn write_sampling_output(
@@ -648,9 +411,9 @@ fn write_sampling_output(
 
     let tsv_path = sampling_dir.join("sampling.tsv");
     let mut tsv = fs::File::create(&tsv_path).expect("Failed to create sampling.tsv");
-    writeln!(tsv, "model\tscore\tvdw\telec\tdesolv\tair\tclash").unwrap();
+    reporting::write_sampling_header(&mut tsv);
 
-    println!("\n{}", "📦 Sampling output".bold().cyan());
+    reporting::sampling_header();
 
     for (rank, entry) in sorted.iter().enumerate() {
         let model_name = format!("gdock_{}", rank + 1);
@@ -661,21 +424,10 @@ fn write_sampling_output(
         let complex = combine_molecules(receptor, &docked_ligand);
         let pdb_path = sampling_dir.join(format!("{}.pdb", model_name));
         structure::write_pdb(&complex, pdb_path.to_string_lossy().as_ref());
-        writeln!(
-            tsv,
-            "{}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}\t{:.4}",
-            model_name, entry.fitness, entry.vdw, entry.elec, entry.desolv, entry.air, entry.clash
-        )
-        .unwrap();
+        reporting::write_sampling_row(&mut tsv, &model_name, entry);
     }
 
-    println!(
-        "  {} {} structures written to {}",
-        "✓".green(),
-        sorted.len(),
-        sampling_dir.display()
-    );
-    println!("  {} {}", "✓".green(), tsv_path.display());
+    reporting::sampling_done(sorted.len(), &sampling_dir, &tsv_path);
 }
 
 #[cfg(test)]

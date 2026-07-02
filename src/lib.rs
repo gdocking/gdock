@@ -16,4 +16,6 @@ pub mod utils;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod commands;
 #[cfg(not(target_arch = "wasm32"))]
+pub mod reporting;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod scoring;
