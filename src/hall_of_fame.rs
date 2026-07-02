@@ -15,6 +15,7 @@ pub struct HallOfFameEntry {
     pub elec: f64,
     pub desolv: f64,
     pub air: f64,
+    pub clash: f64,
 }
 
 #[derive(Debug)]
@@ -39,6 +40,7 @@ impl HallOfFame {
     }
 
     /// Try to add an entry if it is unique enough. Returns `true` if added.
+    #[allow(clippy::too_many_arguments)]
     pub fn try_add(
         &mut self,
         genes: &[f64],
@@ -47,6 +49,7 @@ impl HallOfFame {
         elec: f64,
         desolv: f64,
         air: f64,
+        clash: f64,
     ) -> bool {
         if genes.len() != 6 {
             return false;
@@ -62,6 +65,7 @@ impl HallOfFame {
             elec,
             desolv,
             air,
+            clash,
         });
         if self.entries.len() > self.max_size {
             self.prune();
@@ -139,6 +143,7 @@ impl HallOfFame {
                 chr.elec,
                 chr.desolv,
                 chr.air,
+                chr.clash,
             ) {
                 added += 1;
             }
@@ -168,7 +173,7 @@ mod tests {
     fn test_hall_of_fame_add_entry() {
         let mut hof = HallOfFame::new();
         let genes = [0.0_f64; 6];
-        assert!(hof.try_add(&genes, -100.0, 0.0, 0.0, 0.0, 0.0));
+        assert!(hof.try_add(&genes, -100.0, 0.0, 0.0, 0.0, 0.0, 0.0));
         assert_eq!(hof.len(), 1);
     }
 
@@ -176,8 +181,8 @@ mod tests {
     fn test_hall_of_fame_rejects_duplicates() {
         let mut hof = HallOfFame::new();
         let genes = [0.0_f64; 6];
-        hof.try_add(&genes, -100.0, 0.0, 0.0, 0.0, 0.0);
-        assert!(!hof.try_add(&genes, -100.0, 0.0, 0.0, 0.0, 0.0));
+        hof.try_add(&genes, -100.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        assert!(!hof.try_add(&genes, -100.0, 0.0, 0.0, 0.0, 0.0, 0.0));
         assert_eq!(hof.len(), 1);
     }
 
@@ -186,8 +191,8 @@ mod tests {
         let mut hof = HallOfFame::new();
         let genes1 = [0.0_f64; 6];
         let genes2 = [PI, PI, PI, 0.0, 0.0, 0.0];
-        hof.try_add(&genes1, -100.0, 0.0, 0.0, 0.0, 0.0);
-        assert!(hof.try_add(&genes2, -90.0, 0.0, 0.0, 0.0, 0.0));
+        hof.try_add(&genes1, -100.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        assert!(hof.try_add(&genes2, -90.0, 0.0, 0.0, 0.0, 0.0, 0.0));
         assert_eq!(hof.len(), 2);
     }
 
@@ -196,8 +201,8 @@ mod tests {
         let mut hof = HallOfFame::new();
         let genes1 = [0.0_f64; 6];
         let genes2 = [0.0, 0.0, 0.0, 10.0, 10.0, 10.0];
-        hof.try_add(&genes1, -100.0, 0.0, 0.0, 0.0, 0.0);
-        assert!(hof.try_add(&genes2, -90.0, 0.0, 0.0, 0.0, 0.0));
+        hof.try_add(&genes1, -100.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        assert!(hof.try_add(&genes2, -90.0, 0.0, 0.0, 0.0, 0.0, 0.0));
         assert_eq!(hof.len(), 2);
     }
 
@@ -206,8 +211,8 @@ mod tests {
         let mut hof = HallOfFame::new();
         let genes1 = [0.0_f64; 6];
         let genes2 = [0.1, 0.1, 0.1, 0.5, 0.5, 0.5];
-        hof.try_add(&genes1, -100.0, 0.0, 0.0, 0.0, 0.0);
-        assert!(!hof.try_add(&genes2, -90.0, 0.0, 0.0, 0.0, 0.0));
+        hof.try_add(&genes1, -100.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        assert!(!hof.try_add(&genes2, -90.0, 0.0, 0.0, 0.0, 0.0, 0.0));
         assert_eq!(hof.len(), 1);
     }
 
@@ -216,7 +221,7 @@ mod tests {
         let mut hof = HallOfFame::with_capacity(3);
         for i in 0..5 {
             let genes = [i as f64, 0.0, 0.0, (i as f64) * 10.0, 0.0, 0.0];
-            hof.try_add(&genes, -(100.0 - i as f64 * 10.0), 0.0, 0.0, 0.0, 0.0);
+            hof.try_add(&genes, -(100.0 - i as f64 * 10.0), 0.0, 0.0, 0.0, 0.0, 0.0);
         }
         assert_eq!(hof.len(), 3);
         let entries = hof.entries();
