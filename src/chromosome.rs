@@ -115,7 +115,6 @@ impl Chromosome {
         self.elec = fitness::elec_energy(receptor, &target_ligand);
         self.desolv = fitness::desolv_energy(receptor, &target_ligand);
         self.air = fitness::air_energy_ambiguous(restraints, receptor, &target_ligand);
-        // Clash count (all-vs-all): a standard, always-computed term like the others.
         self.clash = fitness::count_clashes(receptor, &target_ligand).0 as f64;
 
         // Calculate restraint satisfaction for monitoring
