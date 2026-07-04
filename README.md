@@ -9,6 +9,10 @@
 
 <img src="imgs/gdock_logo.png" alt="gdock_logo" width="350">
 
+> **The main source repository has moved to
+> [Codeberg](https://codeberg.org/rvhonorato/gdock).** GitHub remains available
+> as a mirror; please open issues and pull requests on Codeberg.
+
 gdock is a fast protein-protein docking tool written in Rust that uses
 restraints and energy components to guide the docking process. It combines a
 genetic algorithm with physics-based scoring to find optimal protein-protein
@@ -62,7 +66,7 @@ cargo install gdock
 Or build from source:
 
 ```bash
-git clone https://github.com/rvhonorato/gdock
+git clone https://codeberg.org/rvhonorato/gdock
 cd gdock
 cargo build --release
 ```
@@ -279,7 +283,7 @@ used in [gdock.org](https://gdock.org)
 ## Contributing
 
 Contributions are welcome! Please feel free to submit issues and pull requests
-on [GitHub](https://github.com/rvhonorato/gdock).
+on [Codeberg](https://codeberg.org/rvhonorato/gdock).
 
 Before submitting a pull request, please ensure:
 
