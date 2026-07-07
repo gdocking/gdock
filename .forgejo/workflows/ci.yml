@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ci:
+    runs-on: codeberg-medium
+    container:
+      image: docker.io/library/rust:1
+
+    steps:
+      - name: Checkout code
+        # the remote is the source of truth
+        run: |
+          git init -b main .
+          git remote add origin https://codeberg.org/rvhonorato/gdock.git
+          git fetch --depth 1 origin "$GITHUB_SHA"
+          git -c advice.detachedHead=false checkout FETCH_HEAD
+
+      - name: Setup components
+        run: rustup component add clippy rustfmt
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Run tests
+        run: cargo test --verbose
